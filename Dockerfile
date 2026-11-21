@@ -9,11 +9,12 @@ RUN apt-get update \
 
 # pnpm（corepack）とそのキャッシュは、どのユーザーで動かしても読める場所に置く
 # （entrypoint がホストのファイルの持ち主の uid に切り替えて動かすため）。
-# pnpm のストアは名前付きボリュームの /pnpm-store に固定する（コンテナの中の pnpm add もここを使う）
+# pnpm のストアは node_modules と同じボリュームに固定する（コンテナの中の pnpm add もここを使う。
+# 同じファイルシステムに置くと、ストアから node_modules へコピーせずハードリンクで済む）
 ENV COREPACK_HOME=/usr/local/corepack \
   XDG_CACHE_HOME=/usr/local/cache \
   COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
-  pnpm_config_store_dir=/pnpm-store
+  pnpm_config_store_dir=/app/node_modules/.pnpm-store
 RUN corepack enable pnpm
 
 WORKDIR /app
@@ -24,7 +25,7 @@ RUN corepack install && pnpm --version \
   && chmod -R a+rwX /usr/local/corepack /usr/local/cache
 
 # node_modules・.next・pnpm のストアは名前付きボリュームで上書きされる。持ち主は entrypoint で直す
-RUN mkdir -p /app/node_modules /app/.next /pnpm-store
+RUN mkdir -p /app/node_modules /app/.next
 
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 ENTRYPOINT ["entrypoint.sh"]

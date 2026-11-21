@@ -11,7 +11,7 @@ if [ -z "${ENTRYPOINT_PREPARED:-}" ]; then
   APP_GID=$(stat -c '%g' /app)
 
   # named volume と HOME は、その uid が書けるようにする
-  chown "$APP_UID:$APP_GID" /app/node_modules /app/.next /pnpm-store
+  chown "$APP_UID:$APP_GID" /app/node_modules /app/.next
   export HOME=/home/node
   chown "$APP_UID:$APP_GID" "$HOME"
 
@@ -19,14 +19,14 @@ if [ -z "${ENTRYPOINT_PREPARED:-}" ]; then
   # ブラウザとサーバーで同じ URL（.env.local の NEXT_PUBLIC_SUPABASE_URL・DATABASE_URL）を
   # 使えるように、コンテナの 127.0.0.1 のそのポートを、Supabase のコンテナへ転送する。
   # 転送先はコンテナ名で指すので、Docker Desktop・OrbStack・WSL の Docker Engine で同じ経路になる。
-  if [ -z "${NEXT_PUBLIC_SUPABASE_URL:-}" ] || [ -z "${DATABASE_URL:-}" ]; then
-    echo "警告: .env.local に NEXT_PUBLIC_SUPABASE_URL と DATABASE_URL がありません。make env を実行してください" >&2
+  api_port=$(echo "${NEXT_PUBLIC_SUPABASE_URL:-}" | sed -nE 's#^http://(127\.0\.0\.1|localhost):([0-9]+)/?$#\2#p')
+  db_port=$(echo "${DATABASE_URL:-}" | sed -nE 's#^postgres(ql)?://[^@]+@(127\.0\.0\.1|localhost):([0-9]+)/.*$#\3#p')
+  if [ -z "$api_port" ] || [ -z "$db_port" ]; then
+    echo "警告: .env.local の NEXT_PUBLIC_SUPABASE_URL と DATABASE_URL が、ローカルの Supabase（http://127.0.0.1:<ポート>）を指していません。make env で書き直してください" >&2
   else
-    api_port=$(echo "$NEXT_PUBLIC_SUPABASE_URL" | sed -E 's#^.*:([0-9]+).*$#\1#')
-    db_port=$(echo "$DATABASE_URL" | sed -E 's#^.*@[^:/]+:([0-9]+)/.*$#\1#')
-    project=${SUPABASE_PROJECT_ID:-otoshiru}
-    socat "TCP-LISTEN:$api_port,fork,reuseaddr,bind=127.0.0.1" "TCP:supabase_kong_$project:8000" &
-    socat "TCP-LISTEN:$db_port,fork,reuseaddr,bind=127.0.0.1" "TCP:supabase_db_$project:5432" &
+    # 転送先の名前の otoshiru は supabase/config.toml の project_id
+    socat "TCP-LISTEN:$api_port,fork,reuseaddr,bind=127.0.0.1" "TCP:supabase_kong_otoshiru:8000" &
+    socat "TCP-LISTEN:$db_port,fork,reuseaddr,bind=127.0.0.1" "TCP:supabase_db_otoshiru:5432" &
 
     # 転送が待ち受けを始めてからコマンドを動かす（make db-migrate などがつなげずに失敗しないように）
     for port in "$api_port" "$db_port"; do

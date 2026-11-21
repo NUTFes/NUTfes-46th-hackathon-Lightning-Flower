@@ -1,8 +1,4 @@
-# イメージには package.json と docker/entrypoint.sh しか入れない（ソースは bind mount する）
-node_modules
-.next
-.git
-.env*
-!.env.example
-supabase/.temp
-supabase/.branches
+# イメージには package.json と docker/entrypoint.sh だけを入れる（ソースは bind mount する）
+*
+!package.json
+!docker/entrypoint.sh

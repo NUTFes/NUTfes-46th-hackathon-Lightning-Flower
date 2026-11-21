@@ -7,6 +7,9 @@ SUPABASE := npx --yes supabase@3.2.0
 # APP_PORT などを .env.local から読む
 COMPOSE := docker compose --env-file .env.local
 APP := $(COMPOSE) run --rm app
+# 依存を足し引きしたあとは、entrypoint の「lockfile が変わったときだけ入れ直す」記録を消す
+# （消さないと、lockfile を元に戻したときに入れ直されず、node_modules と食い違う）
+FORGET_INSTALL := rm -f node_modules/.lock-hash
 
 .DEFAULT_GOAL := help
 .PHONY: help setup up down restart logs sh add add-dev remove supabase-start supabase-stop \
@@ -48,15 +51,15 @@ sh: .env.local ## アプリのコンテナに入る（make up で起動してい
 	$(COMPOSE) exec app bash -c 'exec setpriv --reuid=$$(stat -c %u /app) --regid=$$(stat -c %g /app) --clear-groups env HOME=/home/node bash'
 
 add: supabase-running ## 依存を足す（例：make add PKG="dayjs"）
-	$(APP) pnpm add $(PKG)
+	$(APP) bash -c 'pnpm add $(PKG) && $(FORGET_INSTALL)'
 	@echo "エディタの補完のために、ホストでも pnpm install を実行してください"
 
 add-dev: supabase-running ## 開発用の依存を足す（例：make add-dev PKG="@types/foo"）
-	$(APP) pnpm add -D $(PKG)
+	$(APP) bash -c 'pnpm add -D $(PKG) && $(FORGET_INSTALL)'
 	@echo "エディタの補完のために、ホストでも pnpm install を実行してください"
 
 remove: supabase-running ## 依存を消す（例：make remove PKG="dayjs"）
-	$(APP) pnpm remove $(PKG)
+	$(APP) bash -c 'pnpm remove $(PKG) && $(FORGET_INSTALL)'
 
 supabase-start: ## Supabase だけ起動する
 	$(SUPABASE) start
