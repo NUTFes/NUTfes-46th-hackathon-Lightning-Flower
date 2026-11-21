@@ -19,12 +19,19 @@ value() {
 
 set_env() {
   local key=$1 val=$2
-  if grep -q "^$key=" .env.local; then
-    # 値に / が入るので区切りは |
-    sed -i.bak "s|^$key=.*|$key=$val|" .env.local && rm .env.local.bak
-  else
-    echo "$key=$val" >>.env.local
+  # CLI の版が変わってキーの名前が変わると空になる。空のまま書かずに止める
+  if [ -z "$val" ]; then
+    echo "supabase status から $key の値を取れませんでした（CLI の出力の形が変わったかもしれません）" >&2
+    exit 1
   fi
+  # 値に & や | が入っても壊れないように、sed ではなく awk に環境変数で渡す
+  VAL="$val" awk -v key="$key" '
+    BEGIN { val = ENVIRON["VAL"] }
+    index($0, key "=") == 1 { print key "=" val; done = 1; next }
+    { print }
+    END { if (!done) print key "=" val }
+  ' .env.local >.env.local.tmp
+  mv .env.local.tmp .env.local
 }
 
 set_env NEXT_PUBLIC_SUPABASE_URL "$(value API_URL)"

@@ -27,7 +27,4 @@ jobs:
       # make check と同じ（型チェック・Lint・整形・テスト）
       - run: pnpm check
 
-      # ビルドは DB につながないが、DATABASE_URL がないと止まるのでダミーを渡す
       - run: pnpm build
-        env:
-          DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci

@@ -2,7 +2,7 @@
 # Supabase はホストの Docker で動かし（Supabase CLI が自分でコンテナを立てるため）、
 # アプリ（Next.js）は compose.yaml の app コンテナで動かす。
 
-# Supabase CLI の版は package.json の devDependencies と揃える
+# Supabase CLI の版はここだけで決める
 SUPABASE := npx --yes supabase@3.2.0
 APP := docker compose run --rm app
 

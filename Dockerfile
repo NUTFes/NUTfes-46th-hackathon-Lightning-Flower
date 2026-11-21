@@ -18,4 +18,5 @@ RUN corepack install && pnpm --version
 
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 ENTRYPOINT ["entrypoint.sh"]
-CMD ["pnpm", "dev"]
+# コンテナの中では全インターフェースで待ち受ける（ホスト側は compose.yaml で 127.0.0.1 に限る）
+CMD ["pnpm", "exec", "next", "dev", "-H", "0.0.0.0"]

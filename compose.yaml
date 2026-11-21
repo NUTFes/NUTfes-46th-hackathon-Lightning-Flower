@@ -2,7 +2,9 @@ services:
   app:
     build: .
     ports:
-      - "${APP_PORT:-3000}:3000"
+      # 自分の PC からだけ開けるようにする。ローカルでは DEV_STAFF_EMAIL で誰でも
+      # member / admin になれるので、同じネットワークの人から開けてはいけない
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
     volumes:
       - .:/app
       # ホストの node_modules・.next を使わず、コンテナの中のものを使う
@@ -12,9 +14,6 @@ services:
     env_file:
       - path: .env.local
         required: false
-    environment:
-      # コンテナの外（ブラウザ）からつなげるように
-      HOSTNAME: 0.0.0.0
     extra_hosts:
       # Linux でも host.docker.internal でホストに届くように
       - "host.docker.internal:host-gateway"
