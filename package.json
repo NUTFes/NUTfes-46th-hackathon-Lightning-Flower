@@ -14,7 +14,8 @@
     "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "openapi": "tsx scripts/generate-openapi.ts"
+    "openapi": "tsx scripts/generate-openapi.ts",
+    "postinstall": "next typegen"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^9.1.0",

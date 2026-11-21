@@ -28,3 +28,12 @@ jobs:
       - run: pnpm check
 
       - run: pnpm build
+
+      # registry を変えたのに make openapi を忘れていないか
+      - name: openapi.yaml が最新か
+        run: |
+          pnpm openapi
+          git diff --exit-code openapi.yaml || {
+            echo "::error::openapi.yaml が古いです。make openapi を実行してコミットしてください"
+            exit 1
+          }

@@ -19,10 +19,17 @@ function toStaff(email: string): Staff {
 }
 
 // ローカルには Cloudflare Access がないので、`next dev` のときだけ
-// DEV_STAFF_EMAIL のメールでログインしたことにする。Vercel では使わない。
+// DEV_STAFF_EMAIL のメールでログインしたことにする。Vercel のデプロイでは使わない。
+// （`vercel env pull` は VERCEL=1・VERCEL_ENV=development を書くので、VERCEL では判定しない）
 function devStaff(): Staff | null {
   const email = process.env.DEV_STAFF_EMAIL;
-  if (process.env.NODE_ENV !== "development" || process.env.VERCEL || !email) {
+  const vercelEnv = process.env.VERCEL_ENV;
+  if (
+    process.env.NODE_ENV !== "development" ||
+    vercelEnv === "production" ||
+    vercelEnv === "preview" ||
+    !email
+  ) {
     return null;
   }
   return toStaff(email);

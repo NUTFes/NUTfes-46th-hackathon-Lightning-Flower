@@ -1,0 +1,4 @@
+# ホストに入れる Node.js の版（.node-version と揃える。Supabase CLI を npx で動かすのと、エディタの補完に使う）。
+# `mise install` で入る。pnpm は package.json の packageManager の版を corepack で使う
+[tools]
+node = "24"

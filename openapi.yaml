@@ -25,6 +25,34 @@ components:
             - message
       required:
         - error
+    HealthOk:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+        db:
+          type: string
+          enum:
+            - ok
+      required:
+        - status
+        - db
+    HealthError:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - error
+        db:
+          type: string
+          enum:
+            - unreachable
+      required:
+        - status
+        - db
   parameters: {}
 paths:
   /api/health:
@@ -36,17 +64,11 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    enum:
-                      - ok
-                  db:
-                    type: string
-                    enum:
-                      - ok
-                required:
-                  - status
-                  - db
+                $ref: "#/components/schemas/HealthOk"
+        "503":
+          description: DB につながらない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthError"
 webhooks: {}

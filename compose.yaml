@@ -1,3 +1,4 @@
+# Makefile から `docker compose --env-file .env.local` で使う（APP_PORT などを .env.local から読む）
 services:
   app:
     build: .
@@ -14,9 +15,16 @@ services:
     env_file:
       - path: .env.local
         required: false
-    extra_hosts:
-      # Linux でも host.docker.internal でホストに届くように
-      - "host.docker.internal:host-gateway"
+    networks:
+      - default
+      - supabase
+
+networks:
+  # Supabase CLI が作るネットワーク（`supabase start` で作られる）。
+  # ここにつなぐと、コンテナ名で Supabase に届く（どの Docker でも同じ経路）
+  supabase:
+    name: supabase_network_${SUPABASE_PROJECT_ID:-otoshiru}
+    external: true
 
 volumes:
   node_modules:

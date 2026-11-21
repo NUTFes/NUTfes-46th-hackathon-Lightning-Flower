@@ -152,12 +152,29 @@ describe("getStaff：ローカル用の DEV_STAFF_EMAIL", () => {
     expect(await getStaff(new Headers())).toBeNull();
   });
 
-  it("Vercel では next dev でも DEV_STAFF_EMAIL を使わない", async () => {
+  it.each(["production", "preview"])(
+    "Vercel の %s では NODE_ENV が development でも DEV_STAFF_EMAIL を使わない",
+    async (vercelEnv) => {
+      const getStaff = await loadGetStaff({
+        NODE_ENV: "development",
+        VERCEL: "1",
+        VERCEL_ENV: vercelEnv,
+        DEV_STAFF_EMAIL: "member.local@example.com",
+      });
+      expect(await getStaff(new Headers())).toBeNull();
+    },
+  );
+
+  it("vercel env pull した .env.local でも、ローカルでは DEV_STAFF_EMAIL を使う", async () => {
     const getStaff = await loadGetStaff({
       NODE_ENV: "development",
       VERCEL: "1",
+      VERCEL_ENV: "development",
       DEV_STAFF_EMAIL: "member.local@example.com",
     });
-    expect(await getStaff(new Headers())).toBeNull();
+    expect(await getStaff(new Headers())).toEqual({
+      email: "member.local@example.com",
+      role: "member",
+    });
   });
 });
