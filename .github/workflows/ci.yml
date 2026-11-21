@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      # package.json の packageManager に書いた版の pnpm を使う
+      - run: corepack enable pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # make check と同じ（型チェック・Lint・整形・テスト）
+      - run: pnpm check
+
+      # ビルドは DB につながないが、DATABASE_URL がないと止まるのでダミーを渡す
+      - run: pnpm build
+        env:
+          DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci

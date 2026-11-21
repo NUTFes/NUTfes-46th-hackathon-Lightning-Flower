@@ -1,0 +1,52 @@
+openapi: 3.1.0
+info:
+  title: オトシル API
+  version: 0.1.0
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              enum:
+                - VALIDATION_ERROR
+                - UNAUTHORIZED
+                - FORBIDDEN
+                - NOT_FOUND
+                - CONFLICT
+            message:
+              type: string
+          required:
+            - code
+            - message
+      required:
+        - error
+  parameters: {}
+paths:
+  /api/health:
+    get:
+      summary: アプリと DB の疎通確認
+      responses:
+        "200":
+          description: アプリと DB がつながっている
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum:
+                      - ok
+                  db:
+                    type: string
+                    enum:
+                      - ok
+                required:
+                  - status
+                  - db
+webhooks: {}
