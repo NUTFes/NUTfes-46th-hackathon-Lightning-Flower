@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # package.json の packageManager に書いた版の pnpm を使う
+      # （setup-node の pnpm のキャッシュより先に、pnpm を使えるようにしておく）
+      - run: corepack enable pnpm
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # make check と同じ（型チェック・Lint・整形・テスト）
+      - run: pnpm check
+
+      - run: pnpm build
+
+      # registry を変えたのに make openapi を忘れていないか
+      - name: openapi.yaml が最新か
+        run: |
+          pnpm openapi
+          git diff --exit-code openapi.yaml || {
+            echo "::error::openapi.yaml が古いです。make openapi を実行してコミットしてください"
+            exit 1
+          }

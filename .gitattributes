@@ -1,0 +1,6 @@
+# Windows の git で clone しても改行を LF にする（CRLF だとシェルスクリプトが動かず、Prettier のチェックも落ちる）
+* text=auto eol=lf
+*.ico binary
+*.png binary
+*.jpg binary
+*.webp binary

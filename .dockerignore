@@ -1,0 +1,4 @@
+# イメージには package.json と docker/entrypoint.sh だけを入れる（ソースは bind mount する）
+*
+!package.json
+!docker/entrypoint.sh

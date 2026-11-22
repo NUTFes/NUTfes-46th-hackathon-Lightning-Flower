@@ -1,0 +1,30 @@
+# Makefile から `docker compose --env-file .env.local` で使う（APP_PORT などを .env.local から読む）
+services:
+  app:
+    build: .
+    ports:
+      # 自分の PC からだけ開けるようにする。ローカルでは DEV_STAFF_EMAIL で誰でも
+      # member / admin になれるので、同じネットワークの人から開けてはいけない
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
+    volumes:
+      - .:/app
+      # ホストの node_modules・.next を使わず、コンテナの中のものを使う
+      - node_modules:/app/node_modules
+      - next:/app/.next
+    env_file:
+      - path: .env.local
+        required: false
+    networks:
+      - default
+      - supabase
+
+networks:
+  # Supabase CLI が作るネットワーク（`supabase start` で作られる。名前の otoshiru は
+  # supabase/config.toml の project_id）。ここにつなぐと、コンテナ名で Supabase に届く
+  supabase:
+    name: supabase_network_otoshiru
+    external: true
+
+volumes:
+  node_modules:
+  next:
