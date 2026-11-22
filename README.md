@@ -59,20 +59,21 @@ pnpm install           # Next.js の型（next typegen）もあわせて作ら�
 
 `make help` で一覧が出る。
 
-| コマンド                | 内容                                                                                     |
-| ----------------------- | ---------------------------------------------------------------------------------------- |
-| `make up` / `make down` | Supabase とアプリを起動・停止する（`make up` は依存が変わっていれば入れ直す）            |
-| `make restart`          | アプリを作り直して起動する（`.env.local` を変えたあと）                                  |
-| `make logs`             | アプリのログを見る                                                                       |
-| `make sh`               | アプリのコンテナに入る                                                                   |
-| `make add PKG="dayjs"`  | 依存を足す（開発用は `make add-dev`、消すときは `make remove`）                          |
-| `make db-generate`      | `src/db/schema.ts` からマイグレーションを作る                                            |
-| `make db-migrate`       | マイグレーションをローカルの DB に当てる                                                 |
-| `make db-reset`         | ローカルの DB を空にして、マイグレーションを当て直す                                     |
-| `make db-studio`        | Supabase Studio（`http://127.0.0.1:54323`。テーブルの中身を見る画面）を開く              |
-| `make check`            | 型チェック・Lint・整形・テスト（CI はこれに加えて build と `openapi.yaml` の確認もする） |
-| `make format`           | Prettier で整形する                                                                      |
-| `make openapi`          | zod スキーマから `openapi.yaml` を出す（API のスキーマを変えたら実行してコミットする）   |
+| コマンド                          | 内容                                                                                     |
+| --------------------------------- | ---------------------------------------------------------------------------------------- |
+| `make up` / `make down`           | Supabase とアプリを起動・停止する（`make up` は依存が変わっていれば入れ直す）            |
+| `make restart`                    | アプリを作り直して起動する（`.env.local` を変えたあと）                                  |
+| `make logs`                       | アプリのログを見る                                                                       |
+| `make sh`                         | アプリのコンテナに入る                                                                   |
+| `make add PKG="dayjs"`            | 依存を足す（開発用は `make add-dev`、消すときは `make remove`）                          |
+| `make db-generate NAME=add_areas` | `src/db/schema.ts` からマイグレーションを作る（`NAME` は変更の内容を表す名前）           |
+| `make db-custom NAME=seed_areas`  | 中身を手で書く空のマイグレーションを作る（データの投入など）                             |
+| `make db-migrate`                 | マイグレーションをローカルの DB に当てる                                                 |
+| `make db-reset`                   | ローカルの DB を空にして、マイグレーションを当て直す                                     |
+| `make db-studio`                  | Supabase Studio（`http://127.0.0.1:54323`。テーブルの中身を見る画面）を開く              |
+| `make check`                      | 型チェック・Lint・整形・テスト（CI はこれに加えて build と `openapi.yaml` の確認もする） |
+| `make format`                     | Prettier で整形する                                                                      |
+| `make openapi`                    | zod スキーマから `openapi.yaml` を出す（API のスキーマを変えたら実行してコミットする）   |
 
 - `pnpm add` や `pnpm db:migrate` をホストで直接実行しない（コンテナの中と食い違う。`.env.local` も読まれない）。`make` を使う。
 - `git pull` やブランチの切り替えのあとは `make up` をやり直す（依存が変わっていれば入れ直す）。
@@ -97,6 +98,7 @@ pnpm install           # Next.js の型（next typegen）もあわせて作ら�
 - スキーマ（`src/db/schema.ts`）の変更とマイグレーションの生成は、DB 担当が行う。ほかの人が変えたいときは DB 担当に頼む。
 - 自分のブランチで作ったマイグレーションが main とぶつかったら、自分のマイグレーションのファイルを消し、main を取り込んでから `make db-generate` で作り直す。
 - ブランチを切り替えたら `make db-reset` で DB を作り直す（前のブランチのテーブルが残るため）。
+- カテゴリなど、本番にも入れるデータは `make db-custom` でマイグレーションにする（例：`src/db/migrations/0001_seed_categories.sql`）。
 
 ## ローカルでの member / admin
 
@@ -114,5 +116,6 @@ admin で試すときは `DEV_STAFF_EMAIL` を `ADMIN_EMAIL` と同じにして�
 ## 気をつけること
 
 - **ローカルの Supabase は、同じネットワークのほかの PC から開ける。** Supabase CLI が DB（54322）や Studio（54323）をすべてのネットワークで公開するため。会場の Wi-Fi などでは、PC のファイアウォールを有効にする（macOS：システム設定 → ネットワーク → ファイアウォール。Windows：ネットワークを「パブリック」にする）。ローカルでは本物の個人情報や写真を使わない。
+- **新しいページや API のフォルダを作ったとき**、開発サーバーが気づくまで数秒かかる。コンテナの中はファイルの変更をポーリングで見ている（macOS の Docker では、起動後に作ったフォルダを検知できないため）。WSL で `~/` に clone しているなら、`.env.local` に `NEXT_WATCH_POLL_MS=0` と `WATCHPACK_POLLING=false` を書いて切ってもよい。
 - **ポート 3000 が埋まっているとき**は、`.env.local` の `APP_PORT` を変えて `make restart` する。
 - **ほかのプロジェクトの Supabase が動いていて `make up` が失敗するとき**（ポート 54321〜54324 がぶつかる）は、`npx supabase stop --project-id <そのプロジェクトの名前>` で止める（名前は `docker ps` の `supabase_db_<名前>` で分かる）。

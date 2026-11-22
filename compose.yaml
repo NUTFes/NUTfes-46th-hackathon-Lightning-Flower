@@ -14,6 +14,11 @@ services:
     env_file:
       - path: .env.local
         required: false
+    environment:
+      # 新しいフォルダを検知するため、ファイルの変更をポーリングで見る（next.config.ts）。
+      # 0 にすると切る（WSL で clone を ~/ に置いていれば、切っても検知できる）
+      NEXT_WATCH_POLL_MS: ${NEXT_WATCH_POLL_MS:-1000}
+      WATCHPACK_POLLING: ${WATCHPACK_POLLING:-true}
     networks:
       - default
       - supabase

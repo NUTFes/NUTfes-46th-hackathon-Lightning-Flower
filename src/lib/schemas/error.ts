@@ -8,8 +8,10 @@ export const ErrorCode = z.enum([
   "FORBIDDEN",
   "NOT_FOUND",
   "CONFLICT",
+  "INTERNAL_ERROR",
 ]);
 
+// OpenAPI には src/lib/openapi/registry.ts で "Error" として登録する
 export const ErrorResponse = z.object({
   error: z.object({
     code: ErrorCode,
@@ -17,4 +19,5 @@ export const ErrorResponse = z.object({
   }),
 });
 
+export type ErrorCode = z.infer<typeof ErrorCode>;
 export type ErrorResponse = z.infer<typeof ErrorResponse>;

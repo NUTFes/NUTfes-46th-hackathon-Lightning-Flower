@@ -21,7 +21,7 @@ function toStaff(email: string): Staff {
 // ローカルには Cloudflare Access がないので、`next dev` のときだけ
 // DEV_STAFF_EMAIL のメールでログインしたことにする。Vercel のデプロイでは使わない。
 // （`vercel env pull` は VERCEL=1・VERCEL_ENV=development を書くので、VERCEL では判定しない）
-function devStaff(): Staff | null {
+export function getDevStaff(): Staff | null {
   const email = process.env.DEV_STAFF_EMAIL;
   const vercelEnv = process.env.VERCEL_ENV;
   if (
@@ -35,11 +35,14 @@ function devStaff(): Staff | null {
   return toStaff(email);
 }
 
+// member / admin を判定する。ローカルでは DEV_STAFF_EMAIL を先に見る。
 // 検証できなければ null を返す（呼び出し側で 401 にする）。
 export async function getStaff(headers: Headers): Promise<Staff | null> {
-  const dev = devStaff();
-  if (dev) return dev;
+  return getDevStaff() ?? (await getAccessStaff(headers));
+}
 
+// Cloudflare Access の JWT だけを見る（DEV_STAFF_EMAIL は見ない）
+export async function getAccessStaff(headers: Headers): Promise<Staff | null> {
   const token = headers.get("cf-access-jwt-assertion");
   if (!token || !jwks || !audience) return null;
 
@@ -49,7 +52,9 @@ export async function getStaff(headers: Headers): Promise<Staff | null> {
       audience,
     });
     return typeof payload.email === "string" ? toStaff(payload.email) : null;
-  } catch {
+  } catch (error) {
+    // 署名・期限・aud・iss の不一致や、公開鍵の取得の失敗。設定の誤りに気づけるようにログに出す
+    console.warn("Cloudflare Access の JWT を検証できませんでした:", error);
     return null;
   }
 }
