@@ -3,7 +3,7 @@
 //
 // アプリの DB アクセスはすべて Next.js のサーバー側から行い、ブラウザから Supabase のテーブルを
 // 直接読ませない。そのため全テーブルで RLS を有効にし、ポリシーは作らない（anon からは読めない）。
-import { sql } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   index,
@@ -17,41 +17,21 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { authUsers } from "drizzle-orm/supabase";
+import {
+  CANCEL_REASONS,
+  FOUND_STATUSES,
+  LOST_STATUSES,
+  PICKUP_METHODS,
+  SENDER_ROLES,
+} from "./enums";
 
-// --- enum --------------------------------------------------------------------
+// --- enum（値は ./enums.ts。画面の表示名もそこのコメント） ---------------------
 
-export const foundStatus = pgEnum("found_status", [
-  "received", // 受理
-  "matching", // 照合中
-  "awaiting_handover", // 受け渡し待ち
-  "resolved", // 解決済み
-  "transferred_to_police", // 警察へ移管
-  "disposed", // 処分
-]);
-
-export const lostStatus = pgEnum("lost_status", [
-  "searching", // 探し中
-  "maybe_found", // 見つかったかも
-  "awaiting_handover", // 受け渡し待ち
-  "resolved", // 解決済み
-  "transferred_to_police", // 警察へ移管
-  "disposed", // 処分
-  "cancelled", // 取り消し済み
-]);
-
-export const pickupMethod = pgEnum("pickup_method", [
-  "today", // 今日取りに行く
-  "later", // 後日取りに行く
-  "other", // 自由記述
-]);
-
-export const cancelReason = pgEnum("cancel_reason", [
-  "found_myself", // 自分で見つけた
-  "no_longer_needed", // もう探さなくていい
-  "other", // その他
-]);
-
-export const senderRole = pgEnum("sender_role", ["admin", "guest"]);
+export const foundStatus = pgEnum("found_status", FOUND_STATUSES);
+export const lostStatus = pgEnum("lost_status", LOST_STATUSES);
+export const pickupMethod = pgEnum("pickup_method", PICKUP_METHODS);
+export const cancelReason = pgEnum("cancel_reason", CANCEL_REASONS);
+export const senderRole = pgEnum("sender_role", SENDER_ROLES);
 
 // --- 共通の列 ----------------------------------------------------------------
 
@@ -236,3 +216,79 @@ export const handovers = pgTable(
   },
   (t) => [index("handovers_found_item_idx").on(t.foundItemId)],
 ).enableRLS();
+
+// --- リレーション ------------------------------------------------------------
+// db.query.foundItems.findMany({ with: { category: true, photos: true } }) のように、
+// 関連する行を 1 回で取るためのもの（DB の制約やマイグレーションには影響しない）
+
+export const categoriesRelations = relations(categories, ({ many }) => ({
+  foundItems: many(foundItems),
+  lostReports: many(lostReports),
+}));
+
+export const foundItemsRelations = relations(foundItems, ({ one, many }) => ({
+  category: one(categories, {
+    fields: [foundItems.categoryId],
+    references: [categories.id],
+  }),
+  photos: many(foundItemPhotos),
+  matches: many(matches),
+  handovers: many(handovers),
+}));
+
+export const foundItemPhotosRelations = relations(
+  foundItemPhotos,
+  ({ one }) => ({
+    foundItem: one(foundItems, {
+      fields: [foundItemPhotos.foundItemId],
+      references: [foundItems.id],
+    }),
+  }),
+);
+
+export const guestsRelations = relations(guests, ({ many }) => ({
+  lostReports: many(lostReports),
+}));
+
+export const lostReportsRelations = relations(lostReports, ({ one, many }) => ({
+  guest: one(guests, {
+    fields: [lostReports.guestId],
+    references: [guests.id],
+  }),
+  category: one(categories, {
+    fields: [lostReports.categoryId],
+    references: [categories.id],
+  }),
+  matches: many(matches),
+  messages: many(messages),
+  handovers: many(handovers),
+}));
+
+export const matchesRelations = relations(matches, ({ one }) => ({
+  lostReport: one(lostReports, {
+    fields: [matches.lostReportId],
+    references: [lostReports.id],
+  }),
+  foundItem: one(foundItems, {
+    fields: [matches.foundItemId],
+    references: [foundItems.id],
+  }),
+}));
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  lostReport: one(lostReports, {
+    fields: [messages.lostReportId],
+    references: [lostReports.id],
+  }),
+}));
+
+export const handoversRelations = relations(handovers, ({ one }) => ({
+  foundItem: one(foundItems, {
+    fields: [handovers.foundItemId],
+    references: [foundItems.id],
+  }),
+  lostReport: one(lostReports, {
+    fields: [handovers.lostReportId],
+    references: [lostReports.id],
+  }),
+}));

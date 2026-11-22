@@ -70,6 +70,7 @@ pnpm install           # Next.js の型（next typegen）もあわせて作ら�
 | `make db-custom NAME=seed_areas`  | 中身を手で書く空のマイグレーションを作る（データの投入など）                             |
 | `make db-migrate`                 | マイグレーションをローカルの DB に当てる                                                 |
 | `make db-reset`                   | ローカルの DB を空にして、マイグレーションを当て直す                                     |
+| `make db-seed-dev`                | ローカルの DB に開発用のサンプルデータ（拾得物など）を入れる                             |
 | `make db-studio`                  | Supabase Studio（`http://127.0.0.1:54323`。テーブルの中身を見る画面）を開く              |
 | `make check`                      | 型チェック・Lint・整形・テスト（CI はこれに加えて build と `openapi.yaml` の確認もする） |
 | `make format`                     | Prettier で整形する                                                                      |
@@ -90,6 +91,8 @@ pnpm install           # Next.js の型（next typegen）もあわせて作ら�
 | `src/db/`                     | Drizzle のスキーマとマイグレーション                         | DB   |
 | `src/components/ui/`          | Chakra UI の Provider など                                   | 画面 |
 | `supabase/config.toml`        | ローカルの Supabase の設定（写真のバケット `photos` もここ） | —    |
+
+API を書くときは、[API の書き方](docs/api-guide.md)を読む（見本・共通の部品・OpenAPI・テスト）。
 
 ## 画面の URL
 

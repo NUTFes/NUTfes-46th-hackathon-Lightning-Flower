@@ -13,7 +13,7 @@ FORGET_INSTALL := rm -f node_modules/.lock-hash
 
 .DEFAULT_GOAL := help
 .PHONY: help setup up down restart logs sh add add-dev remove supabase-start supabase-stop \
-	supabase-status supabase-running env db-generate db-custom db-migrate db-reset db-studio check format openapi
+	supabase-status supabase-running env db-generate db-custom db-migrate db-reset db-seed-dev db-studio check format openapi
 
 help: ## コマンドの一覧
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  make %-16s %s\n", $$1, $$2}'
@@ -86,6 +86,9 @@ db-migrate: supabase-running ## マイグレーションをローカルの DB �
 db-reset: supabase-running ## ローカルの DB を空にしてマイグレーションを当て直す（ブランチを切り替えたあとにも）
 	$(SUPABASE) db reset
 	$(APP) pnpm db:migrate
+
+db-seed-dev: supabase-running ## ローカルの DB に開発用のサンプルデータ（拾得物など）を入れる
+	$(APP) pnpm db:seed-dev
 
 db-studio: ## Supabase Studio（テーブルの中身を見る画面）を開く
 	@url=http://127.0.0.1:54323; echo "$$url"; \

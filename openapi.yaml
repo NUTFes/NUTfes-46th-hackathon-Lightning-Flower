@@ -26,6 +26,290 @@ components:
             - message
       required:
         - error
+    FoundItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayNumber:
+          type: string
+          example: 拾-00042
+        status:
+          $ref: "#/components/schemas/FoundStatus"
+        category:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+          required:
+            - id
+            - name
+        features:
+          type: string
+        brand:
+          type:
+            - string
+            - "null"
+        foundPlace:
+          type: string
+        foundAt:
+          type: string
+          format: date-time
+        isValuable:
+          type: boolean
+        memo:
+          type:
+            - string
+            - "null"
+        photos:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              url:
+                type: string
+              thumbUrl:
+                type: string
+            required:
+              - id
+              - url
+              - thumbUrl
+        registeredByEmail:
+          type: string
+        canEdit:
+          type: boolean
+        activeMatch:
+          type:
+            - object
+            - "null"
+          properties:
+            lostReportId:
+              type: string
+              format: uuid
+            displayNumber:
+              type: string
+          required:
+            - lostReportId
+            - displayNumber
+        handover:
+          type:
+            - object
+            - "null"
+          properties:
+            handedAt:
+              type: string
+              format: date-time
+            receiverName:
+              type:
+                - string
+                - "null"
+          required:
+            - handedAt
+            - receiverName
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - displayNumber
+        - status
+        - category
+        - features
+        - brand
+        - foundPlace
+        - foundAt
+        - isValuable
+        - memo
+        - photos
+        - registeredByEmail
+        - canEdit
+        - activeMatch
+        - handover
+        - createdAt
+    FoundStatus:
+      type: string
+      enum:
+        - received
+        - matching
+        - awaiting_handover
+        - resolved
+        - transferred_to_police
+        - disposed
+    LostReport:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayNumber:
+          type: string
+          example: 申-00118
+        status:
+          $ref: "#/components/schemas/LostStatus"
+        category:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+          required:
+            - id
+            - name
+        features:
+          type: string
+        brand:
+          type:
+            - string
+            - "null"
+        lostPlace:
+          type: string
+        lostAt:
+          type: string
+          format: date-time
+        note:
+          type:
+            - string
+            - "null"
+        verified:
+          type: boolean
+        pickup:
+          type:
+            - object
+            - "null"
+          properties:
+            method:
+              $ref: "#/components/schemas/PickupMethod"
+            note:
+              type:
+                - string
+                - "null"
+          required:
+            - method
+            - note
+        cancel:
+          type:
+            - object
+            - "null"
+          properties:
+            reason:
+              $ref: "#/components/schemas/CancelReason"
+            note:
+              type:
+                - string
+                - "null"
+            cancelledAt:
+              type: string
+              format: date-time
+          required:
+            - reason
+            - note
+            - cancelledAt
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - displayNumber
+        - status
+        - category
+        - features
+        - brand
+        - lostPlace
+        - lostAt
+        - note
+        - verified
+        - pickup
+        - cancel
+        - createdAt
+    LostStatus:
+      type: string
+      enum:
+        - searching
+        - maybe_found
+        - awaiting_handover
+        - resolved
+        - transferred_to_police
+        - disposed
+        - cancelled
+    PickupMethod:
+      type: string
+      enum:
+        - today
+        - later
+        - other
+    CancelReason:
+      type: string
+      enum:
+        - found_myself
+        - no_longer_needed
+        - other
+    LostReportForAdmin:
+      allOf:
+        - $ref: "#/components/schemas/LostReport"
+        - type: object
+          properties:
+            guest:
+              type: object
+              properties:
+                email:
+                  type: string
+                displayName:
+                  type:
+                    - string
+                    - "null"
+              required:
+                - email
+                - displayName
+            activeMatch:
+              type:
+                - object
+                - "null"
+              properties:
+                foundItemId:
+                  type: string
+                  format: uuid
+                displayNumber:
+                  type: string
+              required:
+                - foundItemId
+                - displayNumber
+            awaitingReply:
+              type: boolean
+          required:
+            - guest
+            - activeMatch
+            - awaitingReply
+    LostReportList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/LostReport"
+        total:
+          type: integer
+      required:
+        - items
+        - total
+    LostReportForAdminList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/LostReportForAdmin"
+        total:
+          type: integer
+      required:
+        - items
+        - total
     HealthOk:
       type: object
       properties:
@@ -104,6 +388,18 @@ components:
             - role
             - email
             - consented
+    FoundItemList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/FoundItem"
+        total:
+          type: integer
+      required:
+        - items
+        - total
   parameters: {}
 paths:
   /api/health:
@@ -150,6 +446,114 @@ paths:
                 $ref: "#/components/schemas/Me"
         "401":
           description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/found-items:
+    get:
+      summary: 拾得物の一覧・検索（member / admin）
+      description: foundAt の新しい順。削除したものは出さない。一覧では photos は 1 枚目だけ
+      parameters:
+        - schema:
+            type: integer
+            minimum: 1
+            default: 1
+          required: false
+          name: page
+          in: query
+        - schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          required: false
+          name: limit
+          in: query
+        - schema:
+            type: string
+            minLength: 1
+            description: 特徴・ブランド・メモ・場所の部分一致
+          required: false
+          description: 特徴・ブランド・メモ・場所の部分一致
+          name: q
+          in: query
+        - schema:
+            type: string
+            description: カンマ区切りで複数（received / matching / awaiting_handover / resolved /
+              transferred_to_police / disposed）
+            example: received,matching
+          required: false
+          description: カンマ区切りで複数（received / matching / awaiting_handover / resolved /
+            transferred_to_police / disposed）
+          name: status
+          in: query
+        - schema:
+            type: integer
+          required: false
+          name: categoryId
+          in: query
+        - schema:
+            type: string
+            minLength: 1
+            description: 拾った場所の部分一致
+          required: false
+          description: 拾った場所の部分一致
+          name: place
+          in: query
+        - schema:
+            type: string
+            format: date-time
+            description: この日時以降に拾ったもの
+          required: false
+          description: この日時以降に拾ったもの
+          name: foundFrom
+          in: query
+        - schema:
+            type: string
+            format: date-time
+            description: この日時以前に拾ったもの
+          required: false
+          description: この日時以前に拾ったもの
+          name: foundTo
+          in: query
+        - schema:
+            type: string
+            enum:
+              - "true"
+              - "false"
+            description: true なら自分の登録だけ
+          required: false
+          description: true なら自分の登録だけ
+          name: mine
+          in: query
+      responses:
+        "200":
+          description: 拾得物の一覧と、条件に合う全件の数
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FoundItemList"
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
           content:
             application/json:
               schema:
