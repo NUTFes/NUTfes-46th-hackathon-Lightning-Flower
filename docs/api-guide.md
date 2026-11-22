@@ -23,6 +23,7 @@ API は Next.js の Route Handlers（`src/app/api/`）で書く。パスと入�
 | `src/lib/api/auth.ts`            | `requireActor`・`requireStaff`・`requireAdmin`・`requireGuest`                                                                                                                             |
 | `src/lib/api/parse.ts`           | `parseBody`・`parseQuery`・`parseParams`（入力の検証。失敗は 400。クエリの空の値は指定なし）                                                                                               |
 | `src/lib/api/errors.ts`          | `badRequest`・`unauthorized`・`forbidden`・`notFound`・`conflict`                                                                                                                          |
+| `src/lib/api/transition.ts`      | `notFoundOrConflict`（状態を変える UPDATE が 0 行だったとき、行がなければ 404、あれば 409 にする）                                                                                         |
 | `src/lib/schemas/common.ts`      | enum（`FoundStatus` など）、`DateTime`、`CategoryRef`、一覧の `PageQuery`・`paginated()`・`toOffset()`、クエリの `csvEnum`・`BooleanQuery`・`SearchQuery`・`SmallIdQuery`・`DateTimeQuery` |
 | `src/lib/schemas/found-item.ts`  | `FoundItem`・`FoundItemList`・`FoundItemListQuery`                                                                                                                                         |
 | `src/lib/schemas/lost-report.ts` | `LostReport`（guest にも返す）・`LostReportForAdmin`（admin 用の項目を足したもの）と、それぞれの一覧                                                                                       |
@@ -49,8 +50,19 @@ API は Next.js の Route Handlers（`src/app/api/`）で書く。パスと入�
 - 検索の文字列は `SearchQuery` で受ける（前後の空白を除き、空なら指定なし）
 - refine を付けたスキーマには `.pick()` / `.omit()` が使えない。拾得物の一覧のクエリを減らして使うときは、`withFoundRangeCheck(FoundItemListQueryBase.omit({ ... }))` のように、refine の前の形から作る
 - メッセージは 1 つのトランザクションで 1 通だけ入れる（`created_at` は `now()` でトランザクションの開始の時刻になるので、2 通入れると「最新」が決まらない）
-- 状態を変える処理は、1 つのトランザクションで、`UPDATE` の `WHERE` に今の状態を入れる。更新できなければ `conflict()`（409）
+- 状態を変える処理は、1 つのトランザクションで、`UPDATE` の `WHERE` に今の状態を入れる。更新できなければ `conflict()`（409）。書き方は下の「状態を変える API」
 - スキーマ（`src/lib/schemas/`）の `z` は `./zod` から import する（`.openapi()` が使えるようにするため）
+
+## 状態を変える API
+
+`POST /api/lost-reports/{id}/matches`（`src/app/api/lost-reports/[id]/matches/route.ts`）をまねる。
+
+1. `getDb().transaction(async (tx) => { ... })` の中で、`tx.update(...).set(...).where(and(eq(id), eq(status, 今の状態))).returning({ id })` で更新する
+2. 返った行がなければ、`throw await notFoundOrConflict(find〇〇Id(tx, id), "…ではないので、…できません", "…が見つかりません")`。行がなければ 404、あれば 409 になり、トランザクションは取り消される（先に更新した行も戻る）
+3. 申請と拾得物の両方を更新するときは、**申請 → 拾得物の順**に更新する（行のロックの順をどの API でも同じにして、デッドロックを避ける）
+4. 更新したあとの行を同じトランザクションの中で取り、共通の形にして返す。申請を変える admin の API は、`findLostReportForAdmin(tx, id)` で取って `toLostReportForAdmin` で返す（画面が返り値でそのまま表示を更新できる）
+
+同時に 2 人が同じ行を変えようとしたときは、後の `UPDATE` が前のトランザクションの終わりを待ち、変わったあとの状態で `WHERE` を見直すので、0 行になって 409 になる。
 
 ## OpenAPI
 
