@@ -1,11 +1,14 @@
-import type { lostReports } from "@/db/schema";
+import type { RowOf } from "@/db";
 import { formatFoundNumber, formatLostNumber } from "@/lib/display-number";
+import type {
+  lostReportForAdminWith,
+  lostReportWith,
+} from "@/lib/queries/lost-reports";
 import type { LostReport, LostReportForAdmin } from "@/lib/schemas/lost-report";
 
-// DB の行を、API の LostReport（guest にも返す形）にする
-export type LostReportRow = typeof lostReports.$inferSelect & {
-  category: { id: number; name: string };
-};
+// DB の行（src/lib/queries/lost-reports.ts の lostReportWith で取ったもの）を、
+// API の LostReport（guest にも返す形）にする
+export type LostReportRow = RowOf<"lostReports", typeof lostReportWith>;
 
 export function toLostReport(row: LostReportRow): LostReport {
   return {
@@ -35,13 +38,11 @@ export function toLostReport(row: LostReportRow): LostReport {
 }
 
 // admin に返す形。guest の情報・紐づいた拾得物・返信待ちかを足す
-export type LostReportForAdminRow = LostReportRow & {
-  guest: { email: string; displayName: string | null };
-  // 有効な紐づけ（released_at が NULL のもの）だけ
-  matches: { foundItem: { id: string; number: number } }[];
-  // 新しい順。最新の 1 件があればよい
-  messages: { senderRole: "admin" | "guest" }[];
-};
+// （lostReportForAdminWith で取った行。matches は有効な紐づけだけ、messages は最新の 1 件）
+export type LostReportForAdminRow = RowOf<
+  "lostReports",
+  typeof lostReportForAdminWith
+>;
 
 export function toLostReportForAdmin(
   row: LostReportForAdminRow,

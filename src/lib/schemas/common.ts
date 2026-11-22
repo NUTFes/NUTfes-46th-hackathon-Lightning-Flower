@@ -4,6 +4,7 @@ import {
   LOST_STATUSES,
   PICKUP_METHODS,
 } from "@/db/enums";
+import { Category } from "./category";
 import { z } from "./zod";
 
 // 複数の API で使う部品。
@@ -18,7 +19,7 @@ export const CancelReason = z.enum(CANCEL_REASONS).openapi("CancelReason");
 export const DateTime = z.iso.datetime({ offset: true });
 
 // 一覧などに埋め込むカテゴリ
-export const CategoryRef = z.object({ id: z.number().int(), name: z.string() });
+export const CategoryRef = Category.pick({ id: true, name: true });
 
 // --- クエリ文字列 ------------------------------------------------------------
 
@@ -27,6 +28,23 @@ export const PageQuery = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
+
+// ?categoryId=3 のような ID（DB の smallint に入る 1〜32767。範囲外を DB まで送ると 500 になるため）
+export const SmallIdQuery = z.coerce
+  .number()
+  .int()
+  .min(1)
+  .max(32767)
+  .openapi({ type: "integer" });
+
+// ?foundFrom=2026-09-19T10:00:00%2B09:00 のような日時。`+` をエンコードせずに送ると、
+// クエリ文字列の決まりで空白になって届くので、空白を `+` に戻してから確かめる
+// （日時に空白は入らないので、戻しても意味は変わらない）
+export const DateTimeQuery = z
+  .string()
+  .transform((value) => value.replaceAll(" ", "+"))
+  .pipe(DateTime)
+  .openapi({ type: "string", format: "date-time" });
 
 // ?status=received,matching のようなカンマ区切りの値を、enum の配列にする
 export function csvEnum<const T extends readonly [string, ...string[]]>(

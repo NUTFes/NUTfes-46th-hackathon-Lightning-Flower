@@ -17,7 +17,7 @@ import type { Staff } from "@/lib/auth/staff";
 import type { FoundItemListQuery } from "@/lib/schemas/found-item";
 
 // 拾得物を FoundItem にするために、一緒に取る関連の行（db.query.foundItems の with に渡す）。
-// src/lib/serializers/found-item.ts の toFoundItem に、そのまま渡せる形になる（形が合わなければ型エラーになる）
+// 取った行の型が src/lib/serializers/found-item.ts の FoundItemRow になる（with を変えると、型が一緒に変わる）
 export const foundItemWith = {
   category: { columns: { id: true, name: true } },
   photos: {

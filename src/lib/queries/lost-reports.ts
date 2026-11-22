@@ -3,8 +3,8 @@ import type { WithOf } from "@/db";
 import { matches, messages } from "@/db/schema";
 
 // 遺失物申請を LostReport / LostReportForAdmin にするために、一緒に取る関連の行
-// （db.query.lostReports の with に渡す）。src/lib/serializers/lost-report.ts にそのまま渡せる
-// （形が合わなければ型エラーになる）
+// （db.query.lostReports の with に渡す）。取った行の型が src/lib/serializers/lost-report.ts の
+// LostReportRow / LostReportForAdminRow になる（with を変えると、型が一緒に変わる）
 
 // guest にも返す形
 export const lostReportWith = {

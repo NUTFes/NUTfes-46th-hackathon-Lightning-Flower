@@ -16,6 +16,29 @@ describe("apiHandler", () => {
     expect(await res.json()).toEqual({ ok: true });
   });
 
+  it("レスポンスをキャッシュさせない（エラーのときも）", async () => {
+    const ok = await call(apiHandler(async () => Response.json({ ok: true })));
+    expect(ok.headers.get("Cache-Control")).toBe("private, no-store");
+    const error = await call(
+      apiHandler(async () => {
+        throw notFound();
+      }),
+    );
+    expect(error.headers.get("Cache-Control")).toBe("private, no-store");
+  });
+
+  it("ハンドラーが Cache-Control を付けたら、そちらを使う", async () => {
+    const res = await call(
+      apiHandler(async () =>
+        Response.json(
+          { ok: true },
+          { headers: { "Cache-Control": "public, max-age=60" } },
+        ),
+      ),
+    );
+    expect(res.headers.get("Cache-Control")).toBe("public, max-age=60");
+  });
+
   it.each([
     [unauthorized(), 401, "UNAUTHORIZED"],
     [forbidden(), 403, "FORBIDDEN"],
@@ -109,5 +132,17 @@ describe("parseQuery", () => {
         z.object({ status: z.string() }),
       ),
     ).toThrow(/status/);
+  });
+
+  it("値が空のキーは指定なしとして扱う（検索欄を空のまま送ったとき）", () => {
+    const query = parseQuery(
+      new Request("http://localhost/api/test?q=&status=&page=2"),
+      z.object({
+        q: z.string().min(1).optional(),
+        status: z.string().min(1).optional(),
+        page: z.coerce.number().int(),
+      }),
+    );
+    expect(query).toEqual({ page: 2 });
   });
 });

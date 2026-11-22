@@ -1,5 +1,4 @@
-import { describe, expect, expectTypeOf, it } from "vitest";
-import type { RowOf } from "@/db";
+import { describe, expect, it } from "vitest";
 import type { Staff } from "@/lib/auth/staff";
 import { foundItemListWith, foundItemWith } from "@/lib/queries/found-items";
 import { FoundItem } from "@/lib/schemas/found-item";
@@ -145,20 +144,30 @@ describe("photoPathsOf", () => {
       "found/b_thumb.jpg",
     ]);
   });
+
+  it('"thumb" ならサムネイルだけ（一覧用）', () => {
+    expect(
+      photoPathsOf(
+        [
+          row({
+            photos: [
+              {
+                id: "33333333-3333-4333-8333-333333333333",
+                storagePath: "found/a.jpg",
+                thumbPath: "found/a_thumb.jpg",
+              },
+            ],
+          }),
+        ],
+        "thumb",
+      ),
+    ).toEqual(["found/a_thumb.jpg"]);
+  });
 });
 
 describe("foundItemWith", () => {
   it("一覧では写真を 1 枚目だけ取る", () => {
     expect(foundItemListWith.photos.limit).toBe(1);
     expect("limit" in foundItemWith.photos).toBe(false);
-  });
-
-  it("取った行を、そのまま toFoundItem に渡せる（型の確認）", () => {
-    expectTypeOf<
-      RowOf<"foundItems", typeof foundItemWith>
-    >().toExtend<FoundItemRow>();
-    expectTypeOf<
-      RowOf<"foundItems", typeof foundItemListWith>
-    >().toExtend<FoundItemRow>();
   });
 });

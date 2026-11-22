@@ -1,9 +1,4 @@
-import { describe, expect, expectTypeOf, it } from "vitest";
-import type { RowOf } from "@/db";
-import {
-  lostReportForAdminWith,
-  lostReportWith,
-} from "@/lib/queries/lost-reports";
+import { describe, expect, it } from "vitest";
 import { LostReport, LostReportForAdmin } from "@/lib/schemas/lost-report";
 import {
   type LostReportForAdminRow,
@@ -120,14 +115,5 @@ describe("toLostReportForAdmin", () => {
     ).toBe(false);
     expect(toLostReportForAdmin(adminRow()).awaitingReply).toBe(false);
     expect(toLostReportForAdmin(adminRow()).activeMatch).toBeNull();
-  });
-
-  it("取った行を、そのまま変換の関数に渡せる（型の確認）", () => {
-    expectTypeOf<
-      RowOf<"lostReports", typeof lostReportWith>
-    >().toExtend<LostReportRow>();
-    expectTypeOf<
-      RowOf<"lostReports", typeof lostReportForAdminWith>
-    >().toExtend<LostReportForAdminRow>();
   });
 });

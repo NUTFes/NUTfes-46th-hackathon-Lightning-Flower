@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { FOUND_STATUSES } from "@/db/enums";
-import { BooleanQuery, csvEnum, PageQuery, toOffset } from "./common";
+import {
+  BooleanQuery,
+  csvEnum,
+  DateTimeQuery,
+  PageQuery,
+  SmallIdQuery,
+  toOffset,
+} from "./common";
 import { FoundItemListQuery } from "./found-item";
 
 describe("PageQuery", () => {
@@ -55,6 +62,32 @@ describe("BooleanQuery", () => {
   it("それ以外はエラー", () => {
     expect(BooleanQuery.safeParse("1").success).toBe(false);
     expect(BooleanQuery.safeParse("").success).toBe(false);
+  });
+});
+
+describe("SmallIdQuery", () => {
+  it("1〜32767 の整数だけを受ける（DB の smallint）", () => {
+    expect(SmallIdQuery.parse("3")).toBe(3);
+    expect(SmallIdQuery.safeParse("0").success).toBe(false);
+    expect(SmallIdQuery.safeParse("32768").success).toBe(false);
+    expect(SmallIdQuery.safeParse("abc").success).toBe(false);
+  });
+});
+
+describe("DateTimeQuery", () => {
+  it("+ をエンコードせずに送って空白になったオフセットを戻す", () => {
+    // ?foundFrom=2026-09-19T10:00:00+09:00 は、URLSearchParams で + が空白になって届く
+    const value = new URLSearchParams(
+      "foundFrom=2026-09-19T10:00:00+09:00",
+    ).get("foundFrom");
+    expect(DateTimeQuery.parse(value)).toBe("2026-09-19T10:00:00+09:00");
+    expect(DateTimeQuery.parse("2026-09-19T01:00:00Z")).toBe(
+      "2026-09-19T01:00:00Z",
+    );
+  });
+
+  it("日時でなければエラー", () => {
+    expect(DateTimeQuery.safeParse("2026-09-19").success).toBe(false);
   });
 });
 

@@ -36,8 +36,8 @@ export const GET = apiHandler(async (request) => {
     db.select({ total: count() }).from(foundItems).where(where),
   ]);
 
-  // 4. 共通の形にして返す（写真の署名付き URL はまとめて作る）
-  const photoUrlOf = await signPhotoUrls(photoPathsOf(rows));
+  // 4. 共通の形にして返す（写真の署名付き URL はまとめて作る。一覧ではサムネイルだけ）
+  const photoUrlOf = await signPhotoUrls(photoPathsOf(rows, "thumb"));
   return Response.json({
     items: rows.map((row) => toFoundItem(row, staff, photoUrlOf)),
     total,

@@ -1,18 +1,14 @@
-import type { foundItems } from "@/db/schema";
+import type { RowOf } from "@/db";
 import type { Staff } from "@/lib/auth/staff";
 import { formatFoundNumber, formatLostNumber } from "@/lib/display-number";
+import type { foundItemWith } from "@/lib/queries/found-items";
 import type { FoundItem } from "@/lib/schemas/found-item";
 import type { PhotoUrlOf } from "@/lib/storage/photos";
 
-// DB の行（src/lib/queries/found-items.ts の foundItemWith で取ったもの）を、API の FoundItem にする
-export type FoundItemRow = typeof foundItems.$inferSelect & {
-  category: { id: number; name: string };
-  photos: { id: string; storagePath: string; thumbPath: string }[];
-  // 有効な紐づけ（released_at が NULL のもの）だけ
-  matches: { lostReport: { id: string; number: number } }[];
-  // 新しい順。解決済みなら 1 件ある
-  handovers: { handedAt: Date; receiverName: string | null }[];
-};
+// DB の行（src/lib/queries/found-items.ts の foundItemWith で取ったもの）を、API の FoundItem にする。
+// matches は有効な紐づけだけ、handovers は新しい順（解決済みなら 1 件ある）。
+// 一覧用の foundItemListWith で取った行も、写真が 1 枚になるだけで同じ型
+export type FoundItemRow = RowOf<"foundItems", typeof foundItemWith>;
 
 export function toFoundItem(
   row: FoundItemRow,
@@ -56,9 +52,17 @@ export function toFoundItem(
   };
 }
 
-// 写真の署名付き URL をまとめて作るために、行に含まれる写真のパスを全部集める
-export function photoPathsOf(rows: Pick<FoundItemRow, "photos">[]) {
+// 写真の署名付き URL をまとめて作るために、行に含まれる写真のパスを集める。
+// 一覧では thumbUrl だけを使うので、"thumb" を渡すとサムネイルだけにする（元の画像の url は "" になる）
+export function photoPathsOf(
+  rows: Pick<FoundItemRow, "photos">[],
+  kind: "all" | "thumb" = "all",
+) {
   return rows.flatMap((row) =>
-    row.photos.flatMap((photo) => [photo.storagePath, photo.thumbPath]),
+    row.photos.flatMap((photo) =>
+      kind === "thumb"
+        ? [photo.thumbPath]
+        : [photo.storagePath, photo.thumbPath],
+    ),
   );
 }

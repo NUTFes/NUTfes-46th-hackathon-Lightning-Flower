@@ -3,9 +3,11 @@ import {
   CategoryRef,
   csvEnum,
   DateTime,
+  DateTimeQuery,
   FoundStatus,
   PageQuery,
   paginated,
+  SmallIdQuery,
 } from "./common";
 import { FOUND_STATUSES } from "@/db/enums";
 import { z } from "./zod";
@@ -14,7 +16,7 @@ import { z } from "./zod";
 
 export const FoundItemPhoto = z.object({
   id: z.uuid(),
-  url: z.string(), // 署名付き URL（期限つき）
+  url: z.string(), // 署名付き URL（期限つき）。一覧では ""
   thumbUrl: z.string(), // 一覧用のサムネイルの署名付き URL
 });
 
@@ -64,17 +66,17 @@ export const FoundItemListQuery = PageQuery.extend({
       description: `カンマ区切りで複数（${FOUND_STATUSES.join(" / ")}）`,
       example: "received,matching",
     }),
-  categoryId: z.coerce.number().int().optional().openapi({ type: "integer" }),
+  categoryId: SmallIdQuery.optional(),
   place: z
     .string()
     .trim()
     .min(1)
     .optional()
     .openapi({ description: "拾った場所の部分一致" }),
-  foundFrom: DateTime.optional().openapi({
+  foundFrom: DateTimeQuery.optional().openapi({
     description: "この日時以降に拾ったもの",
   }),
-  foundTo: DateTime.optional().openapi({
+  foundTo: DateTimeQuery.optional().openapi({
     description: "この日時以前に拾ったもの",
   }),
   mine: BooleanQuery.optional().openapi({

@@ -20,8 +20,14 @@ const GUEST_EMAIL = "guest@example.com";
 const OTHER_EMAIL = "other-member@example.com";
 
 function main() {
-  if (process.env.VERCEL_ENV || process.env.NODE_ENV === "production") {
-    throw new Error("本番・プレビューでは実行しない");
+  // auth.users に偽のユーザーを入れるので、ローカルの Supabase の DB にだけ入れる
+  // （.env.local の DATABASE_URL をリモートの Supabase に向けていても入れない）
+  const databaseUrl = process.env.DATABASE_URL;
+  const host = databaseUrl ? new URL(databaseUrl).hostname : "";
+  if (!["127.0.0.1", "localhost"].includes(host)) {
+    throw new Error(
+      `ローカルの Supabase の DB にだけ入れます（DATABASE_URL のホストが ${host || "空"}）`,
+    );
   }
   const myEmail = process.env.DEV_STAFF_EMAIL;
   if (!myEmail) throw new Error("DEV_STAFF_EMAIL が設定されていません");

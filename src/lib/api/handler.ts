@@ -6,6 +6,8 @@ import { ApiError, errorResponse } from "./errors";
 //   - redirect() や notFound() などの Next.js の仕組みのエラー → そのまま投げ直す
 //   - それ以外    → 500 INTERNAL_ERROR（中身はログにだけ出し、レスポンスには出さない。
 //                  サーバーの中での zod の検証の失敗も、サーバーの不具合なのでここに入る）
+// レスポンスには、個人情報や署名付き URL が入るので、Cache-Control: private, no-store を付ける
+// （ハンドラーが自分で Cache-Control を付けたときは、そちらを使う）。
 //
 // 使い方：
 //   export const GET = apiHandler(async (request, ctx: RouteContext<"/api/foo/[id]">) => {
@@ -17,15 +19,24 @@ export function apiHandler<Ctx>(
   handler: (request: Request, ctx: Ctx) => Promise<Response>,
 ) {
   return async (request: Request, ctx: Ctx): Promise<Response> => {
+    let response: Response;
     try {
-      return await handler(request, ctx);
+      response = await handler(request, ctx);
     } catch (error) {
       unstable_rethrow(error);
       if (error instanceof ApiError) {
-        return errorResponse(error.code, error.message);
+        response = errorResponse(error.code, error.message);
+      } else {
+        console.error(error);
+        response = errorResponse(
+          "INTERNAL_ERROR",
+          "サーバーでエラーが起きました",
+        );
       }
-      console.error(error);
-      return errorResponse("INTERNAL_ERROR", "サーバーでエラーが起きました");
     }
+    if (!response.headers.has("Cache-Control")) {
+      response.headers.set("Cache-Control", "private, no-store");
+    }
+    return response;
   };
 }
