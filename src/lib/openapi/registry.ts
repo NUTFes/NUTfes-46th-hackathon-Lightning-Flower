@@ -14,7 +14,7 @@ import {
   LostReportList,
 } from "@/lib/schemas/lost-report";
 import { Me } from "@/lib/schemas/me";
-
+import { AdminDashboard } from "@/lib/schemas/admin";
 // API を足したら、ここにスキーマとパスを登録する。`make openapi` で openapi.yaml を出力する。
 export const registry = new OpenAPIRegistry();
 
@@ -43,7 +43,7 @@ registry.register("LostReport", LostReport);
 registry.register("LostReportForAdmin", LostReportForAdmin);
 registry.register("LostReportList", LostReportList);
 registry.register("LostReportForAdminList", LostReportForAdminList);
-
+registry.register("AdminDashboard", AdminDashboard);
 registry.registerPath({
   method: "get",
   path: "/api/health",
@@ -100,6 +100,20 @@ registry.registerPath({
       content: { "application/json": { schema: FoundItemList } },
     },
     ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...serverErrorResponse,
+  },
+});
+registry.registerPath({
+  method: "get",
+  path: "/api/admin/dashboard",
+  summary: "ダッシュボードの件数（admin）",
+  responses: {
+    200: {
+      description: "ダッシュボードの集計件数",
+      content: { "application/json": { schema: AdminDashboard } },
+    },
     ...unauthorizedResponse,
     ...forbiddenResponse,
     ...serverErrorResponse,

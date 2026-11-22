@@ -310,6 +310,34 @@ components:
       required:
         - items
         - total
+    AdminDashboard:
+      type: object
+      properties:
+        foundItemCount:
+          type: integer
+          minimum: 0
+        lostReportCount:
+          type: integer
+          minimum: 0
+        awaitingReplyCount:
+          type: integer
+          minimum: 0
+        resolvedCount:
+          type: integer
+          minimum: 0
+        foundItemsLastHour:
+          type: integer
+          minimum: 0
+        lostReportsLastHour:
+          type: integer
+          minimum: 0
+      required:
+        - foundItemCount
+        - lostReportCount
+        - awaitingReplyCount
+        - resolvedCount
+        - foundItemsLastHour
+        - lostReportsLastHour
     HealthOk:
       type: object
       properties:
@@ -546,6 +574,34 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/admin/dashboard:
+    get:
+      summary: ダッシュボードの件数（admin）
+      responses:
+        "200":
+          description: ダッシュボードの集計件数
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDashboard"
         "401":
           description: ログインしていない
           content:
