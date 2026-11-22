@@ -1,6 +1,7 @@
 import {
   CancelReason,
   CategoryRef,
+  Color,
   DateTime,
   LostStatus,
   paginated,
@@ -18,7 +19,7 @@ export const LostReport = z
     displayNumber: z.string().openapi({ example: "申-00118" }),
     status: LostStatus,
     category: CategoryRef,
-    features: z.string(),
+    color: Color,
     brand: z.string().nullable(),
     lostPlace: z.string(),
     lostAt: DateTime,

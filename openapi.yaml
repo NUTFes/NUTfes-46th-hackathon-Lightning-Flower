@@ -47,8 +47,8 @@ components:
           required:
             - id
             - name
-        features:
-          type: string
+        color:
+          $ref: "#/components/schemas/Color"
         brand:
           type:
             - string
@@ -120,7 +120,7 @@ components:
         - displayNumber
         - status
         - category
-        - features
+        - color
         - brand
         - foundPlace
         - foundAt
@@ -141,6 +141,26 @@ components:
         - resolved
         - transferred_to_police
         - disposed
+    Color:
+      type: string
+      enum:
+        - black
+        - white
+        - gray
+        - brown
+        - beige
+        - red
+        - pink
+        - orange
+        - yellow
+        - green
+        - blue
+        - navy
+        - purple
+        - gold
+        - silver
+        - clear
+        - other
     LostReport:
       type: object
       properties:
@@ -162,8 +182,8 @@ components:
           required:
             - id
             - name
-        features:
-          type: string
+        color:
+          $ref: "#/components/schemas/Color"
         brand:
           type:
             - string
@@ -219,7 +239,7 @@ components:
         - displayNumber
         - status
         - category
-        - features
+        - color
         - brand
         - lostPlace
         - lostAt
@@ -478,9 +498,9 @@ paths:
           in: query
         - schema:
             type: string
-            description: 特徴・ブランド・メモ・場所の部分一致
+            description: ブランド・メモ・場所の部分一致
           required: false
-          description: 特徴・ブランド・メモ・場所の部分一致
+          description: ブランド・メモ・場所の部分一致
           name: q
           in: query
         - schema:
@@ -499,6 +519,11 @@ paths:
             maximum: 32767
           required: false
           name: categoryId
+          in: query
+        - schema:
+            $ref: "#/components/schemas/Color"
+          required: false
+          name: color
           in: query
         - schema:
             type: string

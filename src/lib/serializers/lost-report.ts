@@ -16,7 +16,7 @@ export function toLostReport(row: LostReportRow): LostReport {
     displayNumber: formatLostNumber(row.number),
     status: row.status,
     category: row.category,
-    features: row.features,
+    color: row.color,
     brand: row.brand,
     lostPlace: row.lostPlace,
     lostAt: row.lostAt.toISOString(),

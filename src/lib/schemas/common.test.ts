@@ -111,6 +111,7 @@ describe("FoundItemListQuery", () => {
         q: " 財布 ",
         status: "received,matching",
         categoryId: "3",
+        color: "navy",
         foundFrom: "2026-11-21T00:00:00+09:00",
         mine: "true",
       }),
@@ -120,6 +121,7 @@ describe("FoundItemListQuery", () => {
       q: "財布",
       status: ["received", "matching"],
       categoryId: 3,
+      color: "navy",
       foundFrom: "2026-11-21T00:00:00+09:00",
       mine: true,
     });
@@ -156,6 +158,10 @@ describe("FoundItemListQuery", () => {
         foundTo: "2026-09-19T00:00:00Z",
       }).success,
     ).toBe(false);
+  });
+
+  it("決まった色でない color はエラー", () => {
+    expect(FoundItemListQuery.safeParse({ color: "黒" }).success).toBe(false);
   });
 
   it("日時でない foundFrom はエラー", () => {

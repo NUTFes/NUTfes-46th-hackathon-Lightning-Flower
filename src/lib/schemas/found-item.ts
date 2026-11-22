@@ -1,6 +1,7 @@
 import {
   BooleanQuery,
   CategoryRef,
+  Color,
   csvEnum,
   DateTime,
   DateTimeQuery,
@@ -27,7 +28,7 @@ export const FoundItem = z
     displayNumber: z.string().openapi({ example: "拾-00042" }),
     status: FoundStatus,
     category: CategoryRef,
-    features: z.string(),
+    color: Color,
     brand: z.string().nullable(),
     foundPlace: z.string(),
     foundAt: DateTime,
@@ -57,7 +58,7 @@ export const FoundItemList = paginated(FoundItem).openapi("FoundItemList");
 // こちらから作り、withFoundRangeCheck を付け直す（例：withFoundRangeCheck(FoundItemListQueryBase.omit({ mine: true }))）
 export const FoundItemListQueryBase = PageQuery.extend({
   q: SearchQuery.optional().openapi({
-    description: "特徴・ブランド・メモ・場所の部分一致",
+    description: "ブランド・メモ・場所の部分一致",
   }),
   status: csvEnum(FOUND_STATUSES)
     .optional()
@@ -67,6 +68,7 @@ export const FoundItemListQueryBase = PageQuery.extend({
       example: "received,matching",
     }),
   categoryId: SmallIdQuery.optional(),
+  color: Color.optional(),
   place: SearchQuery.optional().openapi({
     description: "拾った場所の部分一致",
   }),

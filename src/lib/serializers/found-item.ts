@@ -23,7 +23,7 @@ export function toFoundItem(
     displayNumber: formatFoundNumber(row.number),
     status: row.status,
     category: row.category,
-    features: row.features,
+    color: row.color,
     brand: row.brand,
     foundPlace: row.foundPlace,
     foundAt: row.foundAt.toISOString(),

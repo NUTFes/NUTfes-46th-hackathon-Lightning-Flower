@@ -15,6 +15,13 @@
       "when": 1795312165312,
       "tag": "0001_seed_categories",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795342131634,
+      "tag": "0002_replace_features_with_color",
+      "breakpoints": true
     }
   ]
 }

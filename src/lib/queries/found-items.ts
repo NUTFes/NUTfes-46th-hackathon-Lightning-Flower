@@ -49,7 +49,6 @@ export function foundItemFilters(query: FoundItemListQuery, viewer: Staff) {
     isNull(foundItems.deletedAt),
     query.q
       ? or(
-          ilike(foundItems.features, containsPattern(query.q)),
           ilike(foundItems.brand, containsPattern(query.q)),
           ilike(foundItems.memo, containsPattern(query.q)),
           ilike(foundItems.foundPlace, containsPattern(query.q)),
@@ -59,6 +58,7 @@ export function foundItemFilters(query: FoundItemListQuery, viewer: Staff) {
     query.categoryId != null
       ? eq(foundItems.categoryId, query.categoryId)
       : undefined,
+    query.color ? eq(foundItems.color, query.color) : undefined,
     query.place
       ? ilike(foundItems.foundPlace, containsPattern(query.place))
       : undefined,

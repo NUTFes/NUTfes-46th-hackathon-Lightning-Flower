@@ -13,7 +13,7 @@ function row(overrides: Partial<LostReportRow> = {}): LostReportRow {
     number: 118,
     guestId: "44444444-4444-4444-8444-444444444444",
     categoryId: 6,
-    features: "紺色のイヤホン",
+    color: "navy",
     brand: null,
     lostPlace: "屋外ステージ周辺",
     lostAt: new Date("2026-09-19T04:00:00.000Z"),
