@@ -15,5 +15,8 @@ export const GET = apiHandler(async () => {
     .from(categories)
     .orderBy(asc(categories.sortOrder));
 
-  return Response.json({ items: rows } satisfies CategoryList);
+  // カテゴリはマイグレーションでしか変わらないので、ブラウザと CDN に 5 分キャッシュさせる
+  return Response.json({ items: rows } satisfies CategoryList, {
+    headers: { "Cache-Control": "public, max-age=300" },
+  });
 });

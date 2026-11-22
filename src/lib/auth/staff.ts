@@ -52,7 +52,9 @@ export async function getAccessStaff(headers: Headers): Promise<Staff | null> {
       audience,
     });
     return typeof payload.email === "string" ? toStaff(payload.email) : null;
-  } catch {
+  } catch (error) {
+    // 署名・期限・aud・iss の不一致や、公開鍵の取得の失敗。設定の誤りに気づけるようにログに出す
+    console.warn("Cloudflare Access の JWT を検証できませんでした:", error);
     return null;
   }
 }

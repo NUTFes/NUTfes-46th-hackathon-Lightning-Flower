@@ -7,10 +7,9 @@ import { Me } from "@/lib/schemas/me";
 // API を足したら、ここにスキーマとパスを登録する。`make openapi` で openapi.yaml を出力する。
 export const registry = new OpenAPIRegistry();
 
-registry.register("Error", ErrorResponse);
-
-// 共通のエラーの応答（パスの responses に入れる）
-const errorContent = { "application/json": { schema: ErrorResponse } };
+// 共通のエラーの応答（パスの responses に入れる）。登録した schema を使うと $ref で参照される
+const ErrorSchema = registry.register("Error", ErrorResponse);
+const errorContent = { "application/json": { schema: ErrorSchema } };
 const unauthorizedResponse = {
   401: { description: "ログインしていない", content: errorContent },
 };

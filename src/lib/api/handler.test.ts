@@ -101,4 +101,13 @@ describe("parseQuery", () => {
     );
     expect(query).toEqual({ page: 2, q: "紺" });
   });
+
+  it("同じキーを繰り返したら 400 にする", () => {
+    expect(() =>
+      parseQuery(
+        new Request("http://localhost/api/test?status=a&status=b"),
+        z.object({ status: z.string() }),
+      ),
+    ).toThrow(/status/);
+  });
 });

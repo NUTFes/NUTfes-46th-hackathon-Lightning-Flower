@@ -137,27 +137,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: object
-                    properties:
-                      code:
-                        type: string
-                        enum:
-                          - VALIDATION_ERROR
-                          - UNAUTHORIZED
-                          - FORBIDDEN
-                          - NOT_FOUND
-                          - CONFLICT
-                          - INTERNAL_ERROR
-                      message:
-                        type: string
-                    required:
-                      - code
-                      - message
-                required:
-                  - error
+                $ref: "#/components/schemas/Error"
   /api/me:
     get:
       summary: ログイン中の人のロール・メール・同意済みか
@@ -173,51 +153,11 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: object
-                    properties:
-                      code:
-                        type: string
-                        enum:
-                          - VALIDATION_ERROR
-                          - UNAUTHORIZED
-                          - FORBIDDEN
-                          - NOT_FOUND
-                          - CONFLICT
-                          - INTERNAL_ERROR
-                      message:
-                        type: string
-                    required:
-                      - code
-                      - message
-                required:
-                  - error
+                $ref: "#/components/schemas/Error"
         "500":
           description: サーバーのエラー
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: object
-                    properties:
-                      code:
-                        type: string
-                        enum:
-                          - VALIDATION_ERROR
-                          - UNAUTHORIZED
-                          - FORBIDDEN
-                          - NOT_FOUND
-                          - CONFLICT
-                          - INTERNAL_ERROR
-                      message:
-                        type: string
-                    required:
-                      - code
-                      - message
-                required:
-                  - error
+                $ref: "#/components/schemas/Error"
 webhooks: {}

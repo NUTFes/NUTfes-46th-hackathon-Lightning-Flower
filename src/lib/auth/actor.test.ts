@@ -27,31 +27,31 @@ describe("getActor", () => {
   it("Cloudflare Access の staff と guest の両方があれば、staff として扱う", async () => {
     mocks.getAccessStaff.mockResolvedValue(admin);
     mocks.getGuest.mockResolvedValue(guest);
-    expect(await getActor(new Headers())).toEqual({ kind: "staff", ...admin });
+    expect(await getActor(new Headers())).toEqual(admin);
     expect(mocks.getGuest).not.toHaveBeenCalled();
   });
 
   it("staff でなければ guest を見る", async () => {
     mocks.getGuest.mockResolvedValue(guest);
-    expect(await getActor(new Headers())).toEqual({
-      kind: "guest",
-      role: "guest",
-      ...guest,
-    });
+    expect(await getActor(new Headers())).toEqual({ role: "guest", ...guest });
   });
 
   it("ローカルの DEV_STAFF_EMAIL より guest のログインを優先する（ローカルで guest を試せるように）", async () => {
     mocks.getDevStaff.mockReturnValue(devMember);
     mocks.getGuest.mockResolvedValue(guest);
-    expect((await getActor(new Headers()))?.kind).toBe("guest");
+    expect((await getActor(new Headers()))?.role).toBe("guest");
   });
 
   it("guest のログインがなければ、ローカルの DEV_STAFF_EMAIL を使う", async () => {
     mocks.getDevStaff.mockReturnValue(devMember);
-    expect(await getActor(new Headers())).toEqual({
-      kind: "staff",
-      ...devMember,
-    });
+    expect(await getActor(new Headers())).toEqual(devMember);
+  });
+
+  it("Access の JWT が付いているのに検証できなければ、guest の Cookie があっても guest にしない", async () => {
+    mocks.getGuest.mockResolvedValue(guest);
+    const headers = new Headers({ "cf-access-jwt-assertion": "broken" });
+    expect(await getActor(headers)).toBeNull();
+    expect(mocks.getGuest).not.toHaveBeenCalled();
   });
 
   it("どれでもなければ null", async () => {

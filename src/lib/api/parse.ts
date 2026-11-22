@@ -19,12 +19,21 @@ export async function parseBody<T extends z.ZodType>(
   return validate(schema, json);
 }
 
-// クエリ文字列（?page=1&status=a,b）。値はすべて文字列なので、数値は z.coerce.number() などで受ける
+// クエリ文字列（?page=1&status=a,b）。値はすべて文字列なので、数値は z.coerce.number() などで受ける。
+// 複数の値はカンマ区切りで受ける。同じキーを繰り返したとき（?status=a&status=b）は、黙って片方を
+// 捨てないように 400 にする
 export function parseQuery<T extends z.ZodType>(
   request: Request,
   schema: T,
 ): z.infer<T> {
   const params = new URL(request.url).searchParams;
+  const keys = [...params.keys()];
+  const repeated = keys.find((key, i) => keys.indexOf(key) !== i);
+  if (repeated) {
+    throw badRequest(
+      `${repeated}: 同じキーは 1 回だけにしてください（複数の値はカンマ区切り）`,
+    );
+  }
   return validate(schema, Object.fromEntries(params));
 }
 

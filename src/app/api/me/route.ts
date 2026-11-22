@@ -9,7 +9,7 @@ import type { Me } from "@/lib/schemas/me";
 export const GET = apiHandler(async (request) => {
   const actor = await requireActor(request);
 
-  if (actor.kind === "staff") {
+  if (actor.role !== "guest") {
     return Response.json({ role: actor.role, email: actor.email } satisfies Me);
   }
 
