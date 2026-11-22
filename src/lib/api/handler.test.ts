@@ -64,6 +64,19 @@ describe("apiHandler", () => {
     expect((await res.json()).error.code).toBe("VALIDATION_ERROR");
   });
 
+  it("サーバーの中での zod の検証の失敗は、入力の誤りではないので 500 にする", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = await call(
+      apiHandler(async () => {
+        z.object({ isValuableDefault: z.boolean() }).parse({});
+        return Response.json({});
+      }),
+    );
+    expect(res.status).toBe(500);
+    expect(JSON.stringify(await res.json())).not.toContain("isValuableDefault");
+    log.mockRestore();
+  });
+
   it("想定外のエラーは 500 にし、中身をレスポンスに出さない", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     const res = await call(

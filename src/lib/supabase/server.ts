@@ -20,8 +20,9 @@ export async function createSupabaseServerClient() {
               cookieStore.set(name, value, options);
             }
           } catch {
-            // Server Component からは Cookie を書けない。セッションの更新は
-            // Route Handler や proxy で行われるので、ここでは無視してよい
+            // Server Component からは Cookie を書けない（Route Handler では書ける）。
+            // TODO: guest のログインを作るときに、src/proxy.ts でセッションを更新する処理を足す。
+            // それまでは、Server Component で getGuest を使うと、期限の切れたセッションが更新されない
           }
         },
       },

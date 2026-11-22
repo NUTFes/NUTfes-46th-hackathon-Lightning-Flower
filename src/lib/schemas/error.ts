@@ -11,14 +11,13 @@ export const ErrorCode = z.enum([
   "INTERNAL_ERROR",
 ]);
 
-export const ErrorResponse = z
-  .object({
-    error: z.object({
-      code: ErrorCode,
-      message: z.string(),
-    }),
-  })
-  .openapi("Error");
+// OpenAPI には src/lib/openapi/registry.ts で "Error" として登録する
+export const ErrorResponse = z.object({
+  error: z.object({
+    code: ErrorCode,
+    message: z.string(),
+  }),
+});
 
 export type ErrorCode = z.infer<typeof ErrorCode>;
 export type ErrorResponse = z.infer<typeof ErrorResponse>;

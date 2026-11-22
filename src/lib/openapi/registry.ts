@@ -14,6 +14,10 @@ const errorContent = { "application/json": { schema: ErrorResponse } };
 const unauthorizedResponse = {
   401: { description: "ログインしていない", content: errorContent },
 };
+// apiHandler で包んだ API は、想定外のエラーのとき 500 INTERNAL_ERROR を返す
+const serverErrorResponse = {
+  500: { description: "サーバーのエラー", content: errorContent },
+};
 
 registry.registerPath({
   method: "get",
@@ -40,6 +44,7 @@ registry.registerPath({
       description: "カテゴリの一覧（並び順どおり）",
       content: { "application/json": { schema: CategoryList } },
     },
+    ...serverErrorResponse,
   },
 });
 
@@ -53,5 +58,6 @@ registry.registerPath({
       content: { "application/json": { schema: Me } },
     },
     ...unauthorizedResponse,
+    ...serverErrorResponse,
   },
 });

@@ -77,6 +77,7 @@ db-generate: supabase-running ## src/db/schema.ts からマイグレーション
 	$(APP) pnpm db:generate $(if $(NAME),--name $(NAME))
 
 db-custom: supabase-running ## 中身を手で書く空のマイグレーションを作る（データの投入など。例：make db-custom NAME=seed_areas）
+	@[ -n "$(NAME)" ] || { echo "NAME を指定してください（例：make db-custom NAME=seed_areas）" >&2; exit 1; }
 	$(APP) pnpm db:generate --custom --name $(NAME)
 
 db-migrate: supabase-running ## マイグレーションをローカルの DB に当てる

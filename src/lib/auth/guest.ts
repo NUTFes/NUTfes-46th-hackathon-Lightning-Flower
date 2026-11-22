@@ -4,10 +4,12 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 export type Guest = { id: string; email: string };
 
 // ログインしていなければ null を返す（呼び出し側で 401 にする）。
-// getUser() は Supabase Auth に問い合わせてトークンを検証する（Cookie の中身をそのまま信用しない）。
+// getClaims() は Cookie のアクセストークンの署名を検証してから中身を返す（中身をそのまま信用しない）。
+// 非対称鍵で署名されていれば手元で検証し、チャットのポーリングのたびに Auth に問い合わせない。
 export async function getGuest(): Promise<Guest | null> {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user?.email) return null;
-  return { id: data.user.id, email: data.user.email };
+  const { data, error } = await supabase.auth.getClaims();
+  const claims = data?.claims;
+  if (error || !claims?.sub || typeof claims.email !== "string") return null;
+  return { id: claims.sub, email: claims.email };
 }
