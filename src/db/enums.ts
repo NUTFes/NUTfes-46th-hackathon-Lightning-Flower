@@ -23,7 +23,7 @@ export const LOST_STATUSES = [
 ] as const;
 
 // 色（拾得物・遺失物申請で 1 つ選ぶ）
-export const COLORS = [
+export const ITEM_COLORS = [
   "black", // 黒
   "white", // 白
   "gray", // 灰

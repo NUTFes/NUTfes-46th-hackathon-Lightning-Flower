@@ -1,5 +1,5 @@
 {
-  "id": "4960aeb5-4fa7-4f88-a7a7-728ac0ff05f0",
+  "id": "b3a33ae4-2fe5-4293-aa6e-7be70959bde3",
   "prevId": "77bb34f8-c93e-4e23-a0bd-a258225529c7",
   "version": "7",
   "dialect": "postgresql",
@@ -167,7 +167,7 @@
         },
         "color": {
           "name": "color",
-          "type": "color",
+          "type": "item_color",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
@@ -533,7 +533,7 @@
         },
         "color": {
           "name": "color",
-          "type": "color",
+          "type": "item_color",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
@@ -907,8 +907,20 @@
         "other"
       ]
     },
-    "public.color": {
-      "name": "color",
+    "public.found_status": {
+      "name": "found_status",
+      "schema": "public",
+      "values": [
+        "received",
+        "matching",
+        "awaiting_handover",
+        "resolved",
+        "transferred_to_police",
+        "disposed"
+      ]
+    },
+    "public.item_color": {
+      "name": "item_color",
       "schema": "public",
       "values": [
         "black",
@@ -928,18 +940,6 @@
         "silver",
         "clear",
         "other"
-      ]
-    },
-    "public.found_status": {
-      "name": "found_status",
-      "schema": "public",
-      "values": [
-        "received",
-        "matching",
-        "awaiting_handover",
-        "resolved",
-        "transferred_to_police",
-        "disposed"
       ]
     },
     "public.lost_status": {

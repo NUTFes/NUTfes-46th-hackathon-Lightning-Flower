@@ -58,7 +58,7 @@ export function foundItemFilters(query: FoundItemListQuery, viewer: Staff) {
     query.categoryId != null
       ? eq(foundItems.categoryId, query.categoryId)
       : undefined,
-    query.color ? eq(foundItems.color, query.color) : undefined,
+    query.color ? inArray(foundItems.color, query.color) : undefined,
     query.place
       ? ilike(foundItems.foundPlace, containsPattern(query.place))
       : undefined,

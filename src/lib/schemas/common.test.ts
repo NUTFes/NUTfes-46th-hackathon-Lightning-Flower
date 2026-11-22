@@ -111,7 +111,7 @@ describe("FoundItemListQuery", () => {
         q: " 財布 ",
         status: "received,matching",
         categoryId: "3",
-        color: "navy",
+        color: "navy,blue",
         foundFrom: "2026-11-21T00:00:00+09:00",
         mine: "true",
       }),
@@ -121,7 +121,7 @@ describe("FoundItemListQuery", () => {
       q: "財布",
       status: ["received", "matching"],
       categoryId: 3,
-      color: "navy",
+      color: ["navy", "blue"],
       foundFrom: "2026-11-21T00:00:00+09:00",
       mine: true,
     });

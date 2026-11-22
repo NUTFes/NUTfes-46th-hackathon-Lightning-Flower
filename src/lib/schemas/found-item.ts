@@ -1,17 +1,17 @@
 import {
   BooleanQuery,
   CategoryRef,
-  Color,
   csvEnum,
   DateTime,
   DateTimeQuery,
   FoundStatus,
+  ItemColor,
   PageQuery,
   paginated,
   SearchQuery,
   SmallIdQuery,
 } from "./common";
-import { FOUND_STATUSES } from "@/db/enums";
+import { FOUND_STATUSES, ITEM_COLORS } from "@/db/enums";
 import { z } from "./zod";
 
 // 拾得物（Notion 設計仕様「API設計」の FoundItem）
@@ -28,7 +28,7 @@ export const FoundItem = z
     displayNumber: z.string().openapi({ example: "拾-00042" }),
     status: FoundStatus,
     category: CategoryRef,
-    color: Color,
+    color: ItemColor,
     brand: z.string().nullable(),
     foundPlace: z.string(),
     foundAt: DateTime,
@@ -68,7 +68,13 @@ export const FoundItemListQueryBase = PageQuery.extend({
       example: "received,matching",
     }),
   categoryId: SmallIdQuery.optional(),
-  color: Color.optional(),
+  color: csvEnum(ITEM_COLORS)
+    .optional()
+    .openapi({
+      type: "string",
+      description: `カンマ区切りで複数（${ITEM_COLORS.join(" / ")}）。紺と青のように呼び方が揺れる色をまとめて探す`,
+      example: "navy,blue",
+    }),
   place: SearchQuery.optional().openapi({
     description: "拾った場所の部分一致",
   }),

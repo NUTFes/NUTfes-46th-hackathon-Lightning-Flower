@@ -126,6 +126,7 @@ async function seed(myEmail: string) {
           // 論理削除したもの（一覧には出ない）
           categoryId: 12,
           color: "other",
+          memo: "削除したサンプル",
           foundPlace: "どこか",
           foundAt: at("09:00"),
           isValuable: false,

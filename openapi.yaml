@@ -48,7 +48,7 @@ components:
             - id
             - name
         color:
-          $ref: "#/components/schemas/Color"
+          $ref: "#/components/schemas/ItemColor"
         brand:
           type:
             - string
@@ -141,7 +141,7 @@ components:
         - resolved
         - transferred_to_police
         - disposed
-    Color:
+    ItemColor:
       type: string
       enum:
         - black
@@ -183,7 +183,7 @@ components:
             - id
             - name
         color:
-          $ref: "#/components/schemas/Color"
+          $ref: "#/components/schemas/ItemColor"
         brand:
           type:
             - string
@@ -521,8 +521,15 @@ paths:
           name: categoryId
           in: query
         - schema:
-            $ref: "#/components/schemas/Color"
+            type: string
+            description: カンマ区切りで複数（black / white / gray / brown / beige / red / pink /
+              orange / yellow / green / blue / navy / purple / gold / silver /
+              clear / other）。紺と青のように呼び方が揺れる色をまとめて探す
+            example: navy,blue
           required: false
+          description: カンマ区切りで複数（black / white / gray / brown / beige / red / pink /
+            orange / yellow / green / blue / navy / purple / gold / silver /
+            clear / other）。紺と青のように呼び方が揺れる色をまとめて探す
           name: color
           in: query
         - schema:
