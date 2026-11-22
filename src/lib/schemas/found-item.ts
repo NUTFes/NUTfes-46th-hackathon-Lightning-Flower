@@ -52,8 +52,10 @@ export const FoundItem = z
 
 export const FoundItemList = paginated(FoundItem).openapi("FoundItemList");
 
-// GET /api/found-items のクエリ
-export const FoundItemListQuery = PageQuery.extend({
+// GET /api/found-items のクエリの、日時の前後を確かめる前の形。
+// zod では refine を付けたスキーマに .pick() / .omit() を使えないので、項目を減らして使うときは
+// こちらから作り、withFoundRangeCheck を付け直す（例：withFoundRangeCheck(FoundItemListQueryBase.omit({ mine: true }))）
+export const FoundItemListQueryBase = PageQuery.extend({
   q: SearchQuery.optional().openapi({
     description: "特徴・ブランド・メモ・場所の部分一致",
   }),
@@ -77,14 +79,23 @@ export const FoundItemListQuery = PageQuery.extend({
   mine: BooleanQuery.optional().openapi({
     description: "true なら自分の登録だけ",
   }),
-}).refine(
-  // 前後を逆にしたときに「見つからない」と区別できるように 400 にする（オフセットが違うので Date で比べる）
-  (query) =>
-    !query.foundFrom ||
-    !query.foundTo ||
-    new Date(query.foundFrom) <= new Date(query.foundTo),
-  { path: ["foundTo"], message: "foundTo は foundFrom 以降にしてください" },
-);
+});
+
+// foundFrom ≦ foundTo を確かめる。前後を逆にしたときに「見つからない」と区別できるように 400 にする
+// （オフセットが違うので Date で比べる）
+export function withFoundRangeCheck<
+  T extends z.ZodType<{ foundFrom?: string; foundTo?: string }>,
+>(schema: T) {
+  return schema.refine(
+    (query) =>
+      !query.foundFrom ||
+      !query.foundTo ||
+      new Date(query.foundFrom) <= new Date(query.foundTo),
+    { path: ["foundTo"], message: "foundTo は foundFrom 以降にしてください" },
+  );
+}
+
+export const FoundItemListQuery = withFoundRangeCheck(FoundItemListQueryBase);
 
 export type FoundItem = z.infer<typeof FoundItem>;
 export type FoundItemList = z.infer<typeof FoundItemList>;

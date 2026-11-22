@@ -47,6 +47,7 @@ API は Next.js の Route Handlers（`src/app/api/`）で書く。パスと入�
 - 画面からクエリ付きで呼ぶときは、`URLSearchParams` で組み立てる。`+09:00` の `+` は、エンコードしないと空白として届く（`DateTimeQuery` は空白を `+` に戻すが、ほかの値は戻らない）
 - 拾得物は論理削除なので、取るときは `isNull(foundItems.deletedAt)` を条件に入れる。削除できるのは、受理（`received`）で有効な紐づけがないときだけ（それ以外は 409）。そのため、削除した拾得物が申請の `activeMatch` に残ることはない
 - 検索の文字列は `SearchQuery` で受ける（前後の空白を除き、空なら指定なし）
+- refine を付けたスキーマには `.pick()` / `.omit()` が使えない。拾得物の一覧のクエリを減らして使うときは、`withFoundRangeCheck(FoundItemListQueryBase.omit({ ... }))` のように、refine の前の形から作る
 - メッセージは 1 つのトランザクションで 1 通だけ入れる（`created_at` は `now()` でトランザクションの開始の時刻になるので、2 通入れると「最新」が決まらない）
 - 状態を変える処理は、1 つのトランザクションで、`UPDATE` の `WHERE` に今の状態を入れる。更新できなければ `conflict()`（409）
 - スキーマ（`src/lib/schemas/`）の `z` は `./zod` から import する（`.openapi()` が使えるようにするため）

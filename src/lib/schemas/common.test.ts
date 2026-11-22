@@ -9,7 +9,11 @@ import {
   SmallIdQuery,
   toOffset,
 } from "./common";
-import { FoundItemListQuery } from "./found-item";
+import {
+  FoundItemListQuery,
+  FoundItemListQueryBase,
+  withFoundRangeCheck,
+} from "./found-item";
 
 describe("PageQuery", () => {
   it("指定がなければ page=1・limit=20", () => {
@@ -139,6 +143,19 @@ describe("FoundItemListQuery", () => {
         foundTo: "2026-09-19T00:00:00Z",
       }).success,
     ).toBe(true);
+  });
+
+  it("Base から項目を減らしても、日時の前後のチェックを付け直せる", () => {
+    const Query = withFoundRangeCheck(
+      FoundItemListQueryBase.omit({ mine: true }),
+    );
+    expect(Query.parse({ mine: "true" })).not.toHaveProperty("mine");
+    expect(
+      Query.safeParse({
+        foundFrom: "2026-09-20T00:00:00Z",
+        foundTo: "2026-09-19T00:00:00Z",
+      }).success,
+    ).toBe(false);
   });
 
   it("日時でない foundFrom はエラー", () => {
