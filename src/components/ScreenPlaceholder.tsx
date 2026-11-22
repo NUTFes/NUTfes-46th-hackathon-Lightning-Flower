@@ -5,11 +5,9 @@ import { Badge, Heading, Stack, Text } from "@chakra-ui/react";
 export function ScreenPlaceholder({
   code,
   title,
-  children,
 }: {
   code: string;
   title: string;
-  children?: React.ReactNode;
 }) {
   return (
     <Stack gap="3" py="6">
@@ -18,7 +16,6 @@ export function ScreenPlaceholder({
       </Badge>
       <Heading size="xl">{title}</Heading>
       <Text color="fg.muted">この画面はまだ作っていません。</Text>
-      {children}
     </Stack>
   );
 }

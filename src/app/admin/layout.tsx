@@ -1,11 +1,8 @@
 import { Box, Flex, Link, Stack, Text } from "@chakra-ui/react";
-import { headers } from "next/headers";
 import NextLink from "next/link";
-import { AuthMessage } from "@/components/AuthMessage";
-import { getStaff } from "@/lib/auth/staff";
 
 // admin（本部）の画面。PC で見る前提で、左にメニューを置く。
-// ここでのチェックは画面の出し分けだけ。データは API 側で必ず権限を確かめる。
+// admin かどうかの確認は src/proxy.ts で行う（レイアウトでは下のページの実行を止められないため）
 const menu = [
   { href: "/admin", label: "ダッシュボード" },
   { href: "/admin/found-items", label: "拾得物一覧" },
@@ -15,25 +12,7 @@ const menu = [
   { href: "/admin/settings", label: "設定" },
 ] as const;
 
-export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
-  const staff = await getStaff(await headers());
-  if (!staff) {
-    return (
-      <AuthMessage
-        title="ログインしてください"
-        description="本部の画面は、staff 用のアドレスから Cloudflare Access でログインして開きます。"
-      />
-    );
-  }
-  if (staff.role !== "admin") {
-    return (
-      <AuthMessage
-        title="この画面を開く権限がありません"
-        description="本部のアカウントでログインしてください。"
-      />
-    );
-  }
-
+export default function AdminLayout({ children }: LayoutProps<"/admin">) {
   return (
     <Flex minH="100dvh">
       <Box as="nav" w="56" flexShrink={0} borderRightWidth="1px" p="4">

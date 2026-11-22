@@ -94,30 +94,31 @@ pnpm install           # Next.js の型（next typegen）もあわせて作ら�
 
 画面の記号は Figma「オトシル 画面構成」のもの。まだ作っていない画面は `ScreenPlaceholder`（仮の表示）になっているので、置き換えて作る。
 
-| 記号 | 画面                 | URL                                           | ファイル                                    |
-| ---- | -------------------- | --------------------------------------------- | ------------------------------------------- |
-| G01  | トップ・ログイン前   | `/`                                           | `src/app/(guest)/page.tsx`                  |
-| G02  | ホーム               | `/home`                                       | `src/app/(guest)/home/`                     |
-| G03  | 遺失物申請フォーム   | `/lost-reports/new`                           | `src/app/(guest)/lost-reports/new/`         |
-| G04  | 申請完了             | `/lost-reports/[id]/done`                     | `src/app/(guest)/lost-reports/[id]/done/`   |
-| G05  | 申請状況             | `/lost-reports/[id]`                          | `src/app/(guest)/lost-reports/[id]/`        |
-| G06  | チャット             | `/lost-reports/[id]/chat`                     | `src/app/(guest)/lost-reports/[id]/chat/`   |
-| G07  | 受け取り方法         | `/lost-reports/[id]/pickup`                   | `src/app/(guest)/lost-reports/[id]/pickup/` |
-| G08  | 申請取り消し         | `/lost-reports/[id]/cancel`                   | `src/app/(guest)/lost-reports/[id]/cancel/` |
-| M01  | 拾得物一覧・検索     | `/staff`                                      | `src/app/staff/`                            |
-| M02  | 拾得物登録           | `/staff/found-items/new`                      | `src/app/staff/found-items/new/`            |
-| M03  | 登録完了             | `/staff/found-items/[id]/done`                | `src/app/staff/found-items/[id]/done/`      |
-| M04  | 拾得物詳細           | `/staff/found-items/[id]`                     | `src/app/staff/found-items/[id]/`           |
-| A01  | ダッシュボード       | `/admin`                                      | `src/app/admin/`                            |
-| A02  | 拾得物一覧           | `/admin/found-items`                          | `src/app/admin/found-items/`                |
-| A03  | 拾得物詳細・直接返却 | `/admin/found-items/[id]`                     | `src/app/admin/found-items/[id]/`           |
-| A04  | 遺失物申請一覧       | `/admin/lost-reports`                         | `src/app/admin/lost-reports/`               |
-| A05  | 照合画面             | `/admin/lost-reports/[id]`                    | `src/app/admin/lost-reports/[id]/`          |
-| A06  | チャット・本人確認   | `/admin/chats`、`/admin/chats/[lostReportId]` | `src/app/admin/chats/`                      |
-| A07  | 期間終了処理         | `/admin/period-end`                           | `src/app/admin/period-end/`                 |
-| A08  | 設定                 | `/admin/settings`                             | `src/app/admin/settings/`                   |
+| 記号 | 画面                 | URL                                           | ファイル                                             |
+| ---- | -------------------- | --------------------------------------------- | ---------------------------------------------------- |
+| G01  | トップ・ログイン前   | `/`                                           | `src/app/(guest)/page.tsx`                           |
+| G02  | ホーム               | `/home`                                       | `src/app/(guest)/(authed)/home/`                     |
+| G03  | 遺失物申請フォーム   | `/lost-reports/new`                           | `src/app/(guest)/(authed)/lost-reports/new/`         |
+| G04  | 申請完了             | `/lost-reports/[id]/done`                     | `src/app/(guest)/(authed)/lost-reports/[id]/done/`   |
+| G05  | 申請状況             | `/lost-reports/[id]`                          | `src/app/(guest)/(authed)/lost-reports/[id]/`        |
+| G06  | チャット             | `/lost-reports/[id]/chat`                     | `src/app/(guest)/(authed)/lost-reports/[id]/chat/`   |
+| G07  | 受け取り方法         | `/lost-reports/[id]/pickup`                   | `src/app/(guest)/(authed)/lost-reports/[id]/pickup/` |
+| G08  | 申請取り消し         | `/lost-reports/[id]/cancel`                   | `src/app/(guest)/(authed)/lost-reports/[id]/cancel/` |
+| M01  | 拾得物一覧・検索     | `/staff`                                      | `src/app/staff/`                                     |
+| M02  | 拾得物登録           | `/staff/found-items/new`                      | `src/app/staff/found-items/new/`                     |
+| M03  | 登録完了             | `/staff/found-items/[id]/done`                | `src/app/staff/found-items/[id]/done/`               |
+| M04  | 拾得物詳細           | `/staff/found-items/[id]`                     | `src/app/staff/found-items/[id]/`                    |
+| A01  | ダッシュボード       | `/admin`                                      | `src/app/admin/`                                     |
+| A02  | 拾得物一覧           | `/admin/found-items`                          | `src/app/admin/found-items/`                         |
+| A03  | 拾得物詳細・直接返却 | `/admin/found-items/[id]`                     | `src/app/admin/found-items/[id]/`                    |
+| A04  | 遺失物申請一覧       | `/admin/lost-reports`                         | `src/app/admin/lost-reports/`                        |
+| A05  | 照合画面             | `/admin/lost-reports/[id]`                    | `src/app/admin/lost-reports/[id]/`                   |
+| A06  | チャット・本人確認   | `/admin/chats`、`/admin/chats/[lostReportId]` | `src/app/admin/chats/`                               |
+| A07  | 期間終了処理         | `/admin/period-end`                           | `src/app/admin/period-end/`                          |
+| A08  | 設定                 | `/admin/settings`                             | `src/app/admin/settings/`                            |
 
-- `/staff` と `/admin` は、レイアウトで member / admin かを確かめ、違えばメッセージを出す（admin は `/staff` も使える）。これは画面の出し分けだけなので、データを返す API でも必ず権限を確かめる。
+- `/staff` と `/admin` は、`src/proxy.ts` で member / admin かを確かめ、違えば 401 / 403 で説明の画面を出す（admin は `/staff` も使える）。これは画面の入口の守りなので、データを返す API でも必ず権限を確かめる。
+- guest がログインしてから使う画面は `src/app/(guest)/(authed)/` の下に置く（ログイン前のトップ `/` と分けるため）。
 - 画面だけで使う部品は、その画面のフォルダに置く。いくつかの画面で使う部品は `src/components/` に置く。
 
 ## DB のスキーマ変更（マイグレーション）
