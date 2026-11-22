@@ -108,3 +108,27 @@ export const FoundItemListQuery = withFoundRangeCheck(FoundItemListQueryBase);
 export type FoundItem = z.infer<typeof FoundItem>;
 export type FoundItemList = z.infer<typeof FoundItemList>;
 export type FoundItemListQuery = z.infer<typeof FoundItemListQuery>;
+export const FoundItemIdParams = z.object({
+  id: z.uuid(),
+});
+
+export const PatchFoundItemBody = z.object({
+  categoryId: SmallIdQuery.optional(),
+  features: z.string().trim().min(1).optional(),
+  brand: z.string().trim().min(1).nullable().optional(),
+  foundPlace: z.string().trim().min(1).optional(),
+  foundAt: DateTime.optional(),
+  isValuable: z.boolean().optional(),
+  memo: z.string().trim().min(1).nullable().optional(),
+  photos: z
+    .array(
+      z.object({
+        storagePath: z.string().trim().min(1),
+        thumbPath: z.string().trim().min(1),
+      }),
+    )
+    .optional(),
+});
+
+export type FoundItemIdParams = z.infer<typeof FoundItemIdParams>;
+export type PatchFoundItemBody = z.infer<typeof PatchFoundItemBody>;
