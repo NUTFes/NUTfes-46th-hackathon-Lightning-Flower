@@ -400,6 +400,32 @@ components:
       required:
         - items
         - total
+    LostReportPatchBody:
+      type: object
+      properties:
+        categoryId:
+          type: integer
+          minimum: 1
+          maximum: 32767
+        features:
+          type: string
+          minLength: 1
+        brand:
+          type:
+            - string
+            - "null"
+          minLength: 1
+        lostPlace:
+          type: string
+          minLength: 1
+        lostAt:
+          type: string
+          format: date-time
+        note:
+          type:
+            - string
+            - "null"
+          minLength: 1
   parameters: {}
 paths:
   /api/health:
@@ -554,6 +580,114 @@ paths:
                 $ref: "#/components/schemas/Error"
         "403":
           description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/lost-reports/{id}:
+    get:
+      summary: 遺失物申請の詳細・申請状況（guest は自分の申請だけ / admin）
+      description: 他人の申請は 404。admin にだけ guest・activeMatch・awaitingReply を返す
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        "200":
+          description: 遺失物申請の詳細（admin の場合は LostReportForAdmin）
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/LostReport"
+                  - $ref: "#/components/schemas/LostReportForAdmin"
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 対象が見つからない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      summary: 遺失物申請の入力情報の変更（guest は自分の申請だけ）
+      description: searching（探し中）のときだけ変更できる。それ以外は 409
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LostReportPatchBody"
+      responses:
+        "200":
+          description: 更新後の遺失物申請
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LostReport"
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 対象が見つからない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: 今のステータスではできない操作
           content:
             application/json:
               schema:
