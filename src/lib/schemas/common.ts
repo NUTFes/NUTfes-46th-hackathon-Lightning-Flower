@@ -35,7 +35,14 @@ export const SmallIdQuery = z.coerce
   .int()
   .min(1)
   .max(32767)
-  .openapi({ type: "integer" });
+  .openapi({ type: "integer", minimum: 1, maximum: 32767 });
+
+// ?q=財布 のような検索の文字列。前後の空白（全角も）を除き、空になったら指定なしにする
+export const SearchQuery = z
+  .string()
+  .trim()
+  .transform((value) => value || undefined)
+  .openapi({ type: "string" });
 
 // ?foundFrom=2026-09-19T10:00:00%2B09:00 のような日時。`+` をエンコードせずに送ると、
 // クエリ文字列の決まりで空白になって届くので、空白を `+` に戻してから確かめる

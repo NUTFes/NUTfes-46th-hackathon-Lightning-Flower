@@ -478,7 +478,6 @@ paths:
           in: query
         - schema:
             type: string
-            minLength: 1
             description: 特徴・ブランド・メモ・場所の部分一致
           required: false
           description: 特徴・ブランド・メモ・場所の部分一致
@@ -496,12 +495,13 @@ paths:
           in: query
         - schema:
             type: integer
+            minimum: 1
+            maximum: 32767
           required: false
           name: categoryId
           in: query
         - schema:
             type: string
-            minLength: 1
             description: 拾った場所の部分一致
           required: false
           description: 拾った場所の部分一致

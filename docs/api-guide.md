@@ -17,20 +17,20 @@ API は Next.js の Route Handlers（`src/app/api/`）で書く。パスと入�
 
 ## 共通の部品
 
-| 場所                             | 中身                                                                                                                                                                        |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/lib/api/handler.ts`         | `apiHandler`（エラーを共通の形の応答にし、`Cache-Control: private, no-store` を付ける）                                                                                     |
-| `src/lib/api/auth.ts`            | `requireActor`・`requireStaff`・`requireAdmin`・`requireGuest`                                                                                                              |
-| `src/lib/api/parse.ts`           | `parseBody`・`parseQuery`・`parseParams`（入力の検証。失敗は 400。クエリの空の値は指定なし）                                                                                |
-| `src/lib/api/errors.ts`          | `badRequest`・`unauthorized`・`forbidden`・`notFound`・`conflict`                                                                                                           |
-| `src/lib/schemas/common.ts`      | enum（`FoundStatus` など）、`DateTime`、`CategoryRef`、一覧の `PageQuery`・`paginated()`・`toOffset()`、クエリの `csvEnum`・`BooleanQuery`・`SmallIdQuery`・`DateTimeQuery` |
-| `src/lib/schemas/found-item.ts`  | `FoundItem`・`FoundItemList`・`FoundItemListQuery`                                                                                                                          |
-| `src/lib/schemas/lost-report.ts` | `LostReport`（guest にも返す）・`LostReportForAdmin`（admin 用の項目を足したもの）と、それぞれの一覧                                                                        |
-| `src/lib/serializers/`           | DB の行を JSON にする `toFoundItem`・`toLostReport`・`toLostReportForAdmin`（`displayNumber`・`canEdit`・`activeMatch` など）                                               |
-| `src/lib/queries/`               | 上の関数に渡す行を取るための `with`（`foundItemWith`・`lostReportForAdminWith` など。取った行の型が serializer の引数の型になる）と、拾得物の絞り込みの条件                 |
-| `src/lib/storage/photos.ts`      | 写真の署名付き URL をまとめて作る `signPhotoUrls`                                                                                                                           |
-| `src/db/like.ts`                 | 部分一致の検索で、入力の `%` `_` をエスケープする `containsPattern`                                                                                                         |
-| `src/db/enums.ts`                | enum の値（DB と zod の両方で使う）                                                                                                                                         |
+| 場所                             | 中身                                                                                                                                                                                       |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/lib/api/handler.ts`         | `apiHandler`（エラーを共通の形の応答にし、`Cache-Control: private, no-store` を付ける）                                                                                                    |
+| `src/lib/api/auth.ts`            | `requireActor`・`requireStaff`・`requireAdmin`・`requireGuest`                                                                                                                             |
+| `src/lib/api/parse.ts`           | `parseBody`・`parseQuery`・`parseParams`（入力の検証。失敗は 400。クエリの空の値は指定なし）                                                                                               |
+| `src/lib/api/errors.ts`          | `badRequest`・`unauthorized`・`forbidden`・`notFound`・`conflict`                                                                                                                          |
+| `src/lib/schemas/common.ts`      | enum（`FoundStatus` など）、`DateTime`、`CategoryRef`、一覧の `PageQuery`・`paginated()`・`toOffset()`、クエリの `csvEnum`・`BooleanQuery`・`SearchQuery`・`SmallIdQuery`・`DateTimeQuery` |
+| `src/lib/schemas/found-item.ts`  | `FoundItem`・`FoundItemList`・`FoundItemListQuery`                                                                                                                                         |
+| `src/lib/schemas/lost-report.ts` | `LostReport`（guest にも返す）・`LostReportForAdmin`（admin 用の項目を足したもの）と、それぞれの一覧                                                                                       |
+| `src/lib/serializers/`           | DB の行を JSON にする `toFoundItem`・`toLostReport`・`toLostReportForAdmin`（`displayNumber`・`canEdit`・`activeMatch` など）                                                              |
+| `src/lib/queries/`               | 上の関数に渡す行を取るための `with`（`foundItemWith`・`lostReportForAdminWith` など。取った行の型が serializer の引数の型になる）と、拾得物の絞り込みの条件                                |
+| `src/lib/storage/photos.ts`      | 写真の署名付き URL をまとめて作る `signPhotoUrls`                                                                                                                                          |
+| `src/db/like.ts`                 | 部分一致の検索で、入力の `%` `_` をエスケープする `containsPattern`                                                                                                                        |
+| `src/db/enums.ts`                | enum の値（DB と zod の両方で使う）                                                                                                                                                        |
 
 拾得物を返す API は、`foundItemWith` で取って `toFoundItem` に渡せば、一覧・詳細・登録のどれでも同じ形になる。一覧では `foundItemListWith`（写真は 1 枚目だけ）で取り、`photoPathsOf(rows, "thumb")` でサムネイルだけを署名する。
 
@@ -45,7 +45,9 @@ API は Next.js の Route Handlers（`src/app/api/`）で書く。パスと入�
 - 複数の値はカンマ区切りで受ける（`csvEnum`）。真偽値は `"true"` / `"false"`（`BooleanQuery`）
 - クエリの ID は `SmallIdQuery`（`smallint` の列）か `z.uuid()`、日時は `DateTimeQuery` で受ける（範囲外の数を DB に送ると 500 になるため）
 - 画面からクエリ付きで呼ぶときは、`URLSearchParams` で組み立てる。`+09:00` の `+` は、エンコードしないと空白として届く（`DateTimeQuery` は空白を `+` に戻すが、ほかの値は戻らない）
-- 拾得物は論理削除なので、取るときは `isNull(foundItems.deletedAt)` を条件に入れる
+- 拾得物は論理削除なので、取るときは `isNull(foundItems.deletedAt)` を条件に入れる。削除できるのは、受理（`received`）で有効な紐づけがないときだけ（それ以外は 409）。そのため、削除した拾得物が申請の `activeMatch` に残ることはない
+- 検索の文字列は `SearchQuery` で受ける（前後の空白を除き、空なら指定なし）
+- メッセージは 1 つのトランザクションで 1 通だけ入れる（`created_at` は `now()` でトランザクションの開始の時刻になるので、2 通入れると「最新」が決まらない）
 - 状態を変える処理は、1 つのトランザクションで、`UPDATE` の `WHERE` に今の状態を入れる。更新できなければ `conflict()`（409）
 - スキーマ（`src/lib/schemas/`）の `z` は `./zod` から import する（`.openapi()` が使えるようにするため）
 

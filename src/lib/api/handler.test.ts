@@ -27,6 +27,15 @@ describe("apiHandler", () => {
     expect(error.headers.get("Cache-Control")).toBe("private, no-store");
   });
 
+  it("ヘッダーを書き換えられない Response（redirect など）にも付ける", async () => {
+    const res = await call(
+      apiHandler(async () => Response.redirect("http://localhost/photo", 307)),
+    );
+    expect(res.status).toBe(307);
+    expect(res.headers.get("Location")).toBe("http://localhost/photo");
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+  });
+
   it("ハンドラーが Cache-Control を付けたら、そちらを使う", async () => {
     const res = await call(
       apiHandler(async () =>

@@ -2,7 +2,7 @@
 // 拾得物いくつかと、紐づけ・受け渡しを試すための参加者 1 人と遺失物申請 1 件を入れる。
 // 写真のファイルは置かないので、API の写真の URL は "" になる。
 // カテゴリはマイグレーション（src/db/migrations/0001_seed_categories.sql）で入っている。
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { getDb } from "../src/db";
 import {
   foundItemPhotos,
@@ -12,6 +12,7 @@ import {
   lostReports,
   matches,
 } from "../src/db/schema";
+import { createSupabaseAdminClient } from "../src/lib/supabase/admin";
 
 // 2 回目以降は入れない（入れ直すときは make db-reset）。この参加者がいるかで判定する
 const GUEST_ID = "00000000-0000-4000-8000-000000000001";
@@ -19,19 +20,26 @@ const GUEST_EMAIL = "guest@example.com";
 // DEV_STAFF_EMAIL の登録（?mine=true・canEdit を試す）と、ほかの member の登録を混ぜる
 const OTHER_EMAIL = "other-member@example.com";
 
-function main() {
-  // auth.users に偽のユーザーを入れるので、ローカルの Supabase の DB にだけ入れる
-  // （.env.local の DATABASE_URL をリモートの Supabase に向けていても入れない）
-  const databaseUrl = process.env.DATABASE_URL;
-  const host = databaseUrl ? new URL(databaseUrl).hostname : "";
-  if (!["127.0.0.1", "localhost"].includes(host)) {
-    throw new Error(
-      `ローカルの Supabase の DB にだけ入れます（DATABASE_URL のホストが ${host || "空"}）`,
-    );
+const LOCAL_HOSTS = ["127.0.0.1", "localhost"];
+
+function hostOf(url: string | undefined) {
+  return url ? new URL(url).hostname : "";
+}
+
+async function main() {
+  // Supabase Auth に偽のユーザーを作るので、ローカルの Supabase にだけ入れる
+  // （.env.local の DATABASE_URL や Supabase の URL を、リモートに向けていても入れない）
+  for (const name of ["DATABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"]) {
+    const host = hostOf(process.env[name]);
+    if (!LOCAL_HOSTS.includes(host)) {
+      throw new Error(
+        `ローカルの Supabase にだけ入れます（${name} のホストが ${host || "空"}）`,
+      );
+    }
   }
   const myEmail = process.env.DEV_STAFF_EMAIL;
   if (!myEmail) throw new Error("DEV_STAFF_EMAIL が設定されていません");
-  return seed(myEmail);
+  await seed(myEmail);
 }
 
 async function seed(myEmail: string) {
@@ -45,6 +53,19 @@ async function seed(myEmail: string) {
       "サンプルデータはもう入っています（入れ直すなら make db-reset）",
     );
     return;
+  }
+
+  // 参加者は Supabase Auth のユーザーが要る。ログインや admin API でも使えるように、
+  // auth.users に SQL で入れずに admin API で作る（前の実行で作ってあれば、そのまま使う）
+  const auth = createSupabaseAdminClient().auth.admin;
+  const { data: user } = await auth.getUserById(GUEST_ID);
+  if (!user.user) {
+    const { error } = await auth.createUser({
+      id: GUEST_ID,
+      email: GUEST_EMAIL,
+      email_confirm: true,
+    });
+    if (error) throw error;
   }
 
   await db.transaction(async (tx) => {
@@ -128,10 +149,6 @@ async function seed(myEmail: string) {
       },
     ]);
 
-    // 参加者は Supabase Auth のユーザーが要るので、ローカルの auth.users に直接入れる
-    await tx.execute(
-      sql`insert into auth.users (id, email, aud, role) values (${GUEST_ID}, ${GUEST_EMAIL}, 'authenticated', 'authenticated')`,
-    );
     await tx.insert(guests).values({
       id: GUEST_ID,
       email: GUEST_EMAIL,

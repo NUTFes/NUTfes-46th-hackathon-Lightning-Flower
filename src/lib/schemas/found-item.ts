@@ -7,6 +7,7 @@ import {
   FoundStatus,
   PageQuery,
   paginated,
+  SearchQuery,
   SmallIdQuery,
 } from "./common";
 import { FOUND_STATUSES } from "@/db/enums";
@@ -53,12 +54,9 @@ export const FoundItemList = paginated(FoundItem).openapi("FoundItemList");
 
 // GET /api/found-items のクエリ
 export const FoundItemListQuery = PageQuery.extend({
-  q: z
-    .string()
-    .trim()
-    .min(1)
-    .optional()
-    .openapi({ description: "特徴・ブランド・メモ・場所の部分一致" }),
+  q: SearchQuery.optional().openapi({
+    description: "特徴・ブランド・メモ・場所の部分一致",
+  }),
   status: csvEnum(FOUND_STATUSES)
     .optional()
     .openapi({
@@ -67,12 +65,9 @@ export const FoundItemListQuery = PageQuery.extend({
       example: "received,matching",
     }),
   categoryId: SmallIdQuery.optional(),
-  place: z
-    .string()
-    .trim()
-    .min(1)
-    .optional()
-    .openapi({ description: "拾った場所の部分一致" }),
+  place: SearchQuery.optional().openapi({
+    description: "拾った場所の部分一致",
+  }),
   foundFrom: DateTimeQuery.optional().openapi({
     description: "この日時以降に拾ったもの",
   }),
@@ -82,7 +77,14 @@ export const FoundItemListQuery = PageQuery.extend({
   mine: BooleanQuery.optional().openapi({
     description: "true なら自分の登録だけ",
   }),
-});
+}).refine(
+  // 前後を逆にしたときに「見つからない」と区別できるように 400 にする（オフセットが違うので Date で比べる）
+  (query) =>
+    !query.foundFrom ||
+    !query.foundTo ||
+    new Date(query.foundFrom) <= new Date(query.foundTo),
+  { path: ["foundTo"], message: "foundTo は foundFrom 以降にしてください" },
+);
 
 export type FoundItem = z.infer<typeof FoundItem>;
 export type FoundItemList = z.infer<typeof FoundItemList>;

@@ -5,6 +5,7 @@ import {
   csvEnum,
   DateTimeQuery,
   PageQuery,
+  SearchQuery,
   SmallIdQuery,
   toOffset,
 } from "./common";
@@ -65,6 +66,14 @@ describe("BooleanQuery", () => {
   });
 });
 
+describe("SearchQuery", () => {
+  it("前後の空白（全角も）を除き、空になったら指定なし", () => {
+    expect(SearchQuery.parse("　財布 ")).toBe("財布");
+    expect(SearchQuery.parse(" ")).toBeUndefined();
+    expect(SearchQuery.parse("　")).toBeUndefined();
+  });
+});
+
 describe("SmallIdQuery", () => {
   it("1〜32767 の整数だけを受ける（DB の smallint）", () => {
     expect(SmallIdQuery.parse("3")).toBe(3);
@@ -112,8 +121,27 @@ describe("FoundItemListQuery", () => {
     });
   });
 
-  it("空白だけの q はエラー、日時でない foundFrom もエラー", () => {
-    expect(FoundItemListQuery.safeParse({ q: "  " }).success).toBe(false);
+  it("空白だけの q は指定なし", () => {
+    expect(FoundItemListQuery.parse({ q: "  " }).q).toBeUndefined();
+  });
+
+  it("foundTo が foundFrom より前ならエラー（オフセットが違っても日時で比べる）", () => {
+    expect(
+      FoundItemListQuery.safeParse({
+        foundFrom: "2026-09-20T00:00:00Z",
+        foundTo: "2026-09-19T00:00:00Z",
+      }).success,
+    ).toBe(false);
+    // 2026-09-19T09:00+09:00 と 2026-09-19T00:00Z は同じ時刻
+    expect(
+      FoundItemListQuery.safeParse({
+        foundFrom: "2026-09-19T09:00:00+09:00",
+        foundTo: "2026-09-19T00:00:00Z",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("日時でない foundFrom はエラー", () => {
     expect(
       FoundItemListQuery.safeParse({ foundFrom: "2026-11-21" }).success,
     ).toBe(false);

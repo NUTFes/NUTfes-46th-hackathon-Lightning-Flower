@@ -34,9 +34,14 @@ export function apiHandler<Ctx>(
         );
       }
     }
-    if (!response.headers.has("Cache-Control")) {
-      response.headers.set("Cache-Control", "private, no-store");
-    }
-    return response;
+    if (response.headers.has("Cache-Control")) return response;
+    // Response.redirect() や fetch() の結果は、ヘッダーを書き換えられないので作り直す
+    const headers = new Headers(response.headers);
+    headers.set("Cache-Control", "private, no-store");
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
   };
 }
