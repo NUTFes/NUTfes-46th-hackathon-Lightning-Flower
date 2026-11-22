@@ -5,6 +5,7 @@ import {
   LostStatus,
   paginated,
   PickupMethod,
+  PageQuery,
 } from "./common";
 import { z } from "./zod";
 
@@ -53,3 +54,20 @@ export const LostReportForAdminList = paginated(LostReportForAdmin).openapi(
 
 export type LostReport = z.infer<typeof LostReport>;
 export type LostReportForAdmin = z.infer<typeof LostReportForAdmin>;
+export type LostReportList = z.infer<typeof LostReportList>;
+// POST /api/lost-reports のリクエストボディ用
+export const CreateLostReportBody = z
+  .object({
+    categoryId: z.number().int().min(1).max(32767),
+    features: z.string().trim().min(1),
+    brand: z.string().trim().min(1).nullable().optional(),
+    lostPlace: z.string().trim().min(1),
+    lostAt: DateTime,
+    note: z.string().trim().min(1).nullable().optional(),
+  })
+  .openapi("CreateLostReportBody");
+
+export type CreateLostReportBody = z.infer<typeof CreateLostReportBody>;
+
+// GET /api/my/lost-reports のクエリ用（?page=1&limit=20）
+export const MyLostReportListQuery = PageQuery;
