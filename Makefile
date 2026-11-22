@@ -13,7 +13,7 @@ FORGET_INSTALL := rm -f node_modules/.lock-hash
 
 .DEFAULT_GOAL := help
 .PHONY: help setup up down restart logs sh add add-dev remove supabase-start supabase-stop \
-	supabase-status supabase-running env db-generate db-migrate db-reset db-studio check format openapi
+	supabase-status supabase-running env db-generate db-custom db-migrate db-reset db-studio check format openapi
 
 help: ## コマンドの一覧
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  make %-16s %s\n", $$1, $$2}'
@@ -73,8 +73,11 @@ supabase-status: ## Supabase の URL とキーを表示する
 env: ## .env.local にローカルの Supabase の値を書く
 	SUPABASE="$(SUPABASE)" ./scripts/setup-env.sh
 
-db-generate: supabase-running ## src/db/schema.ts からマイグレーションを作る
-	$(APP) pnpm db:generate
+db-generate: supabase-running ## src/db/schema.ts からマイグレーションを作る（例：make db-generate NAME=add_areas）
+	$(APP) pnpm db:generate $(if $(NAME),--name $(NAME))
+
+db-custom: supabase-running ## 中身を手で書く空のマイグレーションを作る（データの投入など。例：make db-custom NAME=seed_areas）
+	$(APP) pnpm db:generate --custom --name $(NAME)
 
 db-migrate: supabase-running ## マイグレーションをローカルの DB に当てる
 	$(APP) pnpm db:migrate

@@ -18,6 +18,7 @@ components:
                 - FORBIDDEN
                 - NOT_FOUND
                 - CONFLICT
+                - INTERNAL_ERROR
             message:
               type: string
           required:
@@ -53,6 +54,56 @@ components:
       required:
         - status
         - db
+    CategoryList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Category"
+      required:
+        - items
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        isValuableDefault:
+          type: boolean
+      required:
+        - id
+        - name
+        - isValuableDefault
+    Me:
+      oneOf:
+        - type: object
+          properties:
+            role:
+              type: string
+              enum:
+                - admin
+                - member
+            email:
+              type: string
+          required:
+            - role
+            - email
+        - type: object
+          properties:
+            role:
+              type: string
+              enum:
+                - guest
+            email:
+              type: string
+            consented:
+              type: boolean
+          required:
+            - role
+            - email
+            - consented
   parameters: {}
 paths:
   /api/health:
@@ -71,4 +122,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthError"
+  /api/categories:
+    get:
+      summary: カテゴリ 12 種と貴重品の初期値
+      responses:
+        "200":
+          description: カテゴリの一覧（並び順どおり）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryList"
+  /api/me:
+    get:
+      summary: ログイン中の人のロール・メール・同意済みか
+      responses:
+        "200":
+          description: ログイン中の人
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 webhooks: {}
