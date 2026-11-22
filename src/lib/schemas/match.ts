@@ -1,9 +1,7 @@
+import { LostReportParams } from "./lost-report";
 import { z } from "./zod";
 
-// 紐づけ・解除・本人確認（/api/lost-reports/{id}/matches・/verify）の入力
-
-// URL の [id]（遺失物申請）
-export const LostReportParams = z.object({ id: z.uuid() });
+// 紐づけ・解除（/api/lost-reports/{id}/matches）の入力
 
 // URL の [id]/matches/[foundItemId]
 export const MatchParams = LostReportParams.extend({ foundItemId: z.uuid() });

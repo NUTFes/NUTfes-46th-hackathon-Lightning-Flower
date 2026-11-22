@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { notFoundOrConflict } from "./transition";
+import { conflictOnUniqueViolation, notFoundOrConflict } from "./transition";
 
 describe("notFoundOrConflict", () => {
   it("行があれば、状態が違うので 409 にする", async () => {
@@ -23,5 +23,24 @@ describe("notFoundOrConflict", () => {
       code: "NOT_FOUND",
       message: "申請が見つかりません",
     });
+  });
+});
+
+describe("conflictOnUniqueViolation", () => {
+  const onError = conflictOnUniqueViolation("すでに有効な紐づけがあります");
+
+  it("UNIQUE 制約の違反（Drizzle が cause に入れたもの）を 409 にする", () => {
+    const pgError = Object.assign(new Error("duplicate key"), {
+      code: "23505",
+    });
+    const error = new Error("Failed query", { cause: pgError });
+    expect(() => onError(error)).toThrow(
+      expect.objectContaining({ code: "CONFLICT" }),
+    );
+  });
+
+  it("ほかのエラーはそのまま投げ直す", () => {
+    const error = Object.assign(new Error("deadlock"), { code: "40P01" });
+    expect(() => onError(error)).toThrow(error);
   });
 });

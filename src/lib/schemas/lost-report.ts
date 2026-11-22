@@ -48,6 +48,9 @@ export const LostReportForAdmin = LostReport.extend({
   awaitingReply: z.boolean(), // 最新のメッセージが guest のもの
 }).openapi("LostReportForAdmin");
 
+// URL の [id]（/api/lost-reports/{id}/...）
+export const LostReportParams = z.object({ id: z.uuid() });
+
 export const LostReportList = paginated(LostReport).openapi("LostReportList");
 export const LostReportForAdminList = paginated(LostReportForAdmin).openapi(
   "LostReportForAdminList",

@@ -1,6 +1,6 @@
 import { and, eq, exists, isNull, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { lostReports, matches } from "@/db/schema";
+import { foundItems, lostReports, matches } from "@/db/schema";
 import { requireAdmin } from "@/lib/api/auth";
 import { notFound } from "@/lib/api/errors";
 import { apiHandler } from "@/lib/api/handler";
@@ -10,8 +10,10 @@ import {
   findLostReportForAdmin,
   findLostReportId,
 } from "@/lib/queries/lost-reports";
-import type { LostReportForAdmin } from "@/lib/schemas/lost-report";
-import { LostReportParams } from "@/lib/schemas/match";
+import {
+  LostReportParams,
+  type LostReportForAdmin,
+} from "@/lib/schemas/lost-report";
 import { toLostReportForAdmin } from "@/lib/serializers/lost-report";
 
 // 本人確認 OK にする（admin）。画面：A05・A06
@@ -22,7 +24,9 @@ export const POST = apiHandler(
     const { id } = parseParams(await ctx.params, LostReportParams);
 
     const row = await getDb().transaction(async (tx) => {
-      // 「見つかったかも」で、まだ本人確認をしていなくて、有効な紐づけがあるときだけ
+      // 「見つかったかも」で、まだ本人確認をしていなくて、有効な紐づけ（拾得物が照合中で、削除していない）が
+      // あるときだけ。EXISTS は同時の更新を待ったあとも見直されないが、紐づけを変える処理は申請の行を先に
+      // UPDATE するので、申請の status の条件で 0 行になる（docs/api-guide.md の「状態を変える API」）
       const [report] = await tx
         .update(lostReports)
         .set({ verifiedAt: sql`now()` })
@@ -35,10 +39,13 @@ export const POST = apiHandler(
               tx
                 .select({ id: matches.id })
                 .from(matches)
+                .innerJoin(foundItems, eq(foundItems.id, matches.foundItemId))
                 .where(
                   and(
                     eq(matches.lostReportId, lostReports.id),
                     isNull(matches.releasedAt),
+                    eq(foundItems.status, "matching"),
+                    isNull(foundItems.deletedAt),
                   ),
                 ),
             ),

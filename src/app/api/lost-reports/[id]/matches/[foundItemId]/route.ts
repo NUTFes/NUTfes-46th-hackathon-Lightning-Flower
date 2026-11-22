@@ -2,10 +2,11 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { foundItems, lostReports, matches } from "@/db/schema";
 import { requireAdmin } from "@/lib/api/auth";
-import { conflict, notFound } from "@/lib/api/errors";
+import { notFound } from "@/lib/api/errors";
 import { apiHandler } from "@/lib/api/handler";
 import { parseParams } from "@/lib/api/parse";
 import { notFoundOrConflict } from "@/lib/api/transition";
+import { findFoundItemId } from "@/lib/queries/found-items";
 import {
   findLostReportForAdmin,
   findLostReportId,
@@ -53,22 +54,25 @@ export const DELETE = apiHandler(
           ),
         )
         .returning({ id: matches.id });
-      if (!match) throw conflict("この申請はこの拾得物と紐づいていません");
+      if (!match) {
+        throw await notFoundOrConflict(
+          findFoundItemId(tx, foundItemId),
+          "この申請はこの拾得物と紐づいていません",
+          "拾得物が見つかりません",
+        );
+      }
 
-      const [item] = await tx
+      // 拾得物は「照合中」のときだけ「受理」に戻す。ほかの状態に変わっていても（データの食い違いなど）
+      // 解除は通す（通さないと、申請が「見つかったかも」のまま戻せなくなる）
+      await tx
         .update(foundItems)
         .set({ status: "received" })
         .where(
           and(
             eq(foundItems.id, foundItemId),
             eq(foundItems.status, "matching"),
-            isNull(foundItems.deletedAt),
           ),
-        )
-        .returning({ id: foundItems.id });
-      if (!item) {
-        throw conflict("この拾得物は「照合中」ではないので、解除できません");
-      }
+        );
 
       return findLostReportForAdmin(tx, id);
     });

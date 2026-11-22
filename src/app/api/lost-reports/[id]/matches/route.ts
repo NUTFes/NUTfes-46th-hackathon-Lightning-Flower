@@ -5,14 +5,20 @@ import { requireAdmin } from "@/lib/api/auth";
 import { notFound } from "@/lib/api/errors";
 import { apiHandler } from "@/lib/api/handler";
 import { parseBody, parseParams } from "@/lib/api/parse";
-import { notFoundOrConflict } from "@/lib/api/transition";
+import {
+  conflictOnUniqueViolation,
+  notFoundOrConflict,
+} from "@/lib/api/transition";
 import { findFoundItemId } from "@/lib/queries/found-items";
 import {
   findLostReportForAdmin,
   findLostReportId,
 } from "@/lib/queries/lost-reports";
-import type { LostReportForAdmin } from "@/lib/schemas/lost-report";
-import { LostReportParams, MatchCreateBody } from "@/lib/schemas/match";
+import {
+  LostReportParams,
+  type LostReportForAdmin,
+} from "@/lib/schemas/lost-report";
+import { MatchCreateBody } from "@/lib/schemas/match";
 import { toLostReportForAdmin } from "@/lib/serializers/lost-report";
 
 // 申請を拾得物と紐づける（admin）。画面：A05・A06
@@ -61,9 +67,15 @@ export const POST = apiHandler(
         );
       }
 
+      // 状態の列と食い違って有効な紐づけが残っていると、部分 UNIQUE インデックスに当たる
       await tx
         .insert(matches)
-        .values({ lostReportId: id, foundItemId, matchedByEmail: staff.email });
+        .values({ lostReportId: id, foundItemId, matchedByEmail: staff.email })
+        .catch(
+          conflictOnUniqueViolation(
+            "この申請か拾得物には、すでに有効な紐づけがあります",
+          ),
+        );
 
       return findLostReportForAdmin(tx, id);
     });

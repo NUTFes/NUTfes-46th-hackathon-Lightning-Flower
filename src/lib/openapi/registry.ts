@@ -14,12 +14,9 @@ import {
   LostReportForAdmin,
   LostReportForAdminList,
   LostReportList,
-} from "@/lib/schemas/lost-report";
-import {
   LostReportParams,
-  MatchCreateBody,
-  MatchParams,
-} from "@/lib/schemas/match";
+} from "@/lib/schemas/lost-report";
+import { MatchCreateBody, MatchParams } from "@/lib/schemas/match";
 import { Me } from "@/lib/schemas/me";
 
 // API を足したら、ここにスキーマとパスを登録する。`make openapi` で openapi.yaml を出力する。

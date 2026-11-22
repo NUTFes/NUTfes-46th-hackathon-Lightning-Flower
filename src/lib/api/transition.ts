@@ -28,3 +28,22 @@ export async function notFoundOrConflict(
 ): Promise<ApiError> {
   return (await existing) ? conflict(message) : notFound(notFoundMessage);
 }
+
+// INSERT が UNIQUE 制約に当たったら 409 にする（状態の列と行が食い違っていたときなど）。
+// 例：有効な紐づけは 1 申請・1 拾得物に 1 件まで（matches の部分 UNIQUE インデックス）
+//
+//   await tx.insert(matches).values({ ... }).catch(conflictOnUniqueViolation("…すでに…があります"));
+export function conflictOnUniqueViolation(message: string) {
+  return (error: unknown): never => {
+    if (isUniqueViolation(error)) throw conflict(message);
+    throw error;
+  };
+}
+
+// Postgres の unique_violation（23505）。Drizzle は postgres のエラーを cause に入れて投げ直す
+function isUniqueViolation(error: unknown): boolean {
+  for (let e = error; e instanceof Error; e = e.cause) {
+    if ((e as { code?: unknown }).code === "23505") return true;
+  }
+  return false;
+}
