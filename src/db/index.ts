@@ -1,8 +1,28 @@
+import type {
+  BuildQueryResult,
+  DBQueryConfig,
+  ExtractTablesWithRelations,
+} from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
 
 type Db = PostgresJsDatabase<typeof schema>;
+
+type Tables = ExtractTablesWithRelations<typeof schema>;
+
+// db.query.<テーブル>.findMany({ with }) に渡す with の型。
+// 共通の with を定数にするときは `satisfies WithOf<"foundItems">` と書く
+// （as const にすると配列が readonly になり、Drizzle の型に合わなくなる）
+export type WithOf<TTable extends keyof Tables> = NonNullable<
+  DBQueryConfig<"many", true, Tables, Tables[TTable]>["with"]
+>;
+
+// その with で取った 1 行の型（with の形が serializer の行の型に合うかを、テストで確かめるのに使う）
+export type RowOf<
+  TTable extends keyof Tables,
+  TWith extends WithOf<TTable>,
+> = BuildQueryResult<Tables, Tables[TTable], { with: TWith }>;
 
 // 開発中はファイルを保存するたびにモジュールが読み直されるので、
 // 接続プールを globalThis に置いて使い回す（読み直すたびに増やさない）。

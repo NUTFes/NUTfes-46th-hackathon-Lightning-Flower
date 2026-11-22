@@ -21,7 +21,7 @@ export async function parseBody<T extends z.ZodType>(
 
 // クエリ文字列（?page=1&status=a,b）。値はすべて文字列なので、数値は z.coerce.number() などで受ける。
 // 複数の値はカンマ区切りで受ける。同じキーを繰り返したとき（?status=a&status=b）は、黙って片方を
-// 捨てないように 400 にする
+// 捨てないように 400 にする。値が空のキー（検索欄を空のまま送った ?q=&status=）は、指定なしとして扱う
 export function parseQuery<T extends z.ZodType>(
   request: Request,
   schema: T,
@@ -34,7 +34,10 @@ export function parseQuery<T extends z.ZodType>(
       `${repeated}: 同じキーは 1 回だけにしてください（複数の値はカンマ区切り）`,
     );
   }
-  return validate(schema, Object.fromEntries(params));
+  return validate(
+    schema,
+    Object.fromEntries([...params].filter(([, value]) => value !== "")),
+  );
 }
 
 // URL の [id]（例：parseParams(await ctx.params, z.object({ id: z.uuid() }))）
