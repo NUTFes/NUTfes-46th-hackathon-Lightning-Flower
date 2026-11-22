@@ -1,4 +1,3 @@
-
 import { Box, Flex, Heading } from "@chakra-ui/react";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -9,11 +8,7 @@ type AppHeaderProps = {
   rightSlot?: ReactNode;
 };
 
-export function AppHeader({
-  title,
-  backHref,
-  rightSlot,
-}: AppHeaderProps) {
+export function AppHeader({ title, backHref, rightSlot }: AppHeaderProps) {
   return (
     <Flex
       as="header"
@@ -32,12 +27,7 @@ export function AppHeader({
         </Link>
       )}
 
-      <Heading
-        as="h1"
-        fontSize="20px"
-        fontWeight="bold"
-        flex="1"
-      >
+      <Heading as="h1" fontSize="20px" fontWeight="bold" flex="1">
         {title}
       </Heading>
 

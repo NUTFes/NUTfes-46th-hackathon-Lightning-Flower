@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Flex, Text, VStack } from "@chakra-ui/react";
@@ -31,15 +30,9 @@ export function GuestBottomNav() {
 
         return (
           <Link href={item.href} key={item.href}>
-            <VStack
-              gap="4px"
-              color={isActive ? "blue.500" : "gray.500"}
-            >
+            <VStack gap="4px" color={isActive ? "blue.500" : "gray.500"}>
               <Icon size={24} />
-              <Text
-                fontSize="12px"
-                fontWeight={isActive ? "bold" : "normal"}
-              >
+              <Text fontSize="12px" fontWeight={isActive ? "bold" : "normal"}>
                 {item.label}
               </Text>
             </VStack>
