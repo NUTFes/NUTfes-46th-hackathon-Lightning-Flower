@@ -8,6 +8,7 @@ import {
   inArray,
   isNull,
   lte,
+  ne,
   or,
 } from "drizzle-orm";
 import type { Db, Tx, WithOf } from "@/db";
@@ -85,4 +86,31 @@ export function findFoundItemId(db: Db | Tx, id: string) {
     where: activeFoundItemById(id),
     columns: { id: true },
   });
+}
+
+// 写真のパスを、ほかの拾得物（論理削除したものも含む）がもう使っているか。
+// 登録（POST）と写真の差し替え（PATCH）で使い、ほかの拾得物の写真を自分の写真として出させない。
+// PATCH では、差し替える前の自分の写真（exceptFoundItemId）は数えない
+export async function isPhotoPathUsed(
+  db: Db | Tx,
+  paths: string[],
+  exceptFoundItemId?: string,
+): Promise<boolean> {
+  if (paths.length === 0) return false;
+  const [used] = await db
+    .select({ id: foundItemPhotos.id })
+    .from(foundItemPhotos)
+    .where(
+      and(
+        exceptFoundItemId === undefined
+          ? undefined
+          : ne(foundItemPhotos.foundItemId, exceptFoundItemId),
+        or(
+          inArray(foundItemPhotos.storagePath, paths),
+          inArray(foundItemPhotos.thumbPath, paths),
+        ),
+      ),
+    )
+    .limit(1);
+  return used !== undefined;
 }

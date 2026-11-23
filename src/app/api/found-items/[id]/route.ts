@@ -5,7 +5,11 @@ import { requireStaff } from "@/lib/api/auth";
 import { badRequest, conflict, forbidden, notFound } from "@/lib/api/errors";
 import { apiHandler } from "@/lib/api/handler";
 import { parseBody, parseParams } from "@/lib/api/parse";
-import { activeFoundItemById, foundItemWith } from "@/lib/queries/found-items";
+import {
+  activeFoundItemById,
+  foundItemWith,
+  isPhotoPathUsed,
+} from "@/lib/queries/found-items";
 import {
   type FoundItem,
   FoundItemIdParams,
@@ -93,6 +97,10 @@ export const PATCH = apiHandler(async (request, ctx: RouteContext) => {
     }
 
     if (body.photos !== undefined) {
+      const paths = body.photos.flatMap((p) => [p.path, p.thumbPath]);
+      if (await isPhotoPathUsed(tx, paths, id)) {
+        throw badRequest("すでに使用されている写真パスは指定できません");
+      }
       await tx
         .delete(foundItemPhotos)
         .where(eq(foundItemPhotos.foundItemId, id));
