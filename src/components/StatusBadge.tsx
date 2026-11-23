@@ -16,6 +16,11 @@ const STATUS_META = {
   cancelled: { label: "取り消し済み", tone: "neutral" },
 } satisfies Record<FoundItemStatus | LostReportStatus, BadgeLabel>;
 
+// セレクトの選択肢など、バッジ以外でステータスの名前を出すときに使う
+export function statusLabel(status: FoundItemStatus | LostReportStatus) {
+  return STATUS_META[status].label;
+}
+
 type StatusBadgeProps = (
   | { kind: "found"; status: FoundItemStatus }
   | { kind: "lost"; status: LostReportStatus }

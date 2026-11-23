@@ -1,14 +1,15 @@
 "use client";
 
-import { Button, Field, Textarea } from "@chakra-ui/react";
+import { Button } from "@chakra-ui/react";
 import { type SubmitEvent, useState, useTransition } from "react";
+import { ChoiceCardGroup } from "@/components/ChoiceCardGroup";
+import { Field } from "@/components/Field";
+import styles from "@/components/Form.module.css";
 import { PICKUP_METHODS } from "@/db/enums";
 import type { ActionResult } from "@/lib/action-result";
 import { PICKUP_METHOD_LABELS } from "@/lib/constants";
 import { PickupMethodInput } from "@/lib/schemas/form-inputs";
 import type { PickupMethod } from "@/lib/types";
-import { ChoiceCardGroup } from "@/components/ui/ChoiceCardGroup";
-import styles from "./Form.module.css";
 
 const OPTIONS = PICKUP_METHODS.map((method) => ({
   value: method,
@@ -25,8 +26,8 @@ export function PickupMethodForm({
   defaultValue?: { method: PickupMethod; note?: string | null } | null;
   action: (input: PickupMethodInput) => Promise<ActionResult>;
 }) {
-  const [method, setMethod] = useState<PickupMethod | null>(
-    defaultValue?.method ?? null,
+  const [method, setMethod] = useState<PickupMethod | "">(
+    defaultValue?.method ?? "",
   );
   const [note, setNote] = useState(defaultValue?.note ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +53,7 @@ export function PickupMethodForm({
     startTransition(async () => {
       const result = await action(parsed.data);
       if (result.ok) setSaved(true);
-      else setError(result.message);
+      else setError(result.error);
     });
   }
 
@@ -64,25 +65,23 @@ export function PickupMethodForm({
         options={OPTIONS}
         value={method}
         onChange={(value) => {
-          setMethod(value);
+          setMethod(value as PickupMethod);
           setSaved(false);
         }}
         disabled={pending}
       />
 
       {method === "other" && (
-        <Field.Root required>
-          <Field.Label>
-            受け取り方法の希望
-            <Field.RequiredIndicator />
-          </Field.Label>
-          <Textarea
-            className={styles.textarea}
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-            placeholder="例：明日の 10 時ごろに友人が代わりに取りに行きます"
-          />
-        </Field.Root>
+        <Field
+          kind="textarea"
+          label="受け取り方法の希望"
+          required
+          control={{
+            value: note,
+            onChange: (event) => setNote(event.currentTarget.value),
+            placeholder: "例：明日の 10 時ごろに友人が代わりに取りに行きます",
+          }}
+        />
       )}
 
       {error && (

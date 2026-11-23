@@ -8,12 +8,10 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import type { ActionResult } from "@/lib/action-result";
 import type { ChatMessage, ChatSenderRole } from "./ChatBubble";
 import { ChatComposer } from "./ChatComposer";
 import { ChatMessageList } from "./ChatMessageList";
-
-type SendResult =
-  { ok: true; message: ChatMessage } | { ok: false; error: string };
 
 type ChatPanelProps = {
   reportId: string;
@@ -21,7 +19,10 @@ type ChatPanelProps = {
   initialMessages: readonly ChatMessage[];
   viewer: ChatSenderRole;
   canSend: boolean;
-  sendAction: (reportId: string, body: string) => Promise<SendResult>;
+  sendAction: (
+    reportId: string,
+    body: string,
+  ) => Promise<ActionResult<ChatMessage>>;
   footerSlot?: ReactNode;
 };
 
@@ -72,7 +73,7 @@ function ChatSession({
     try {
       const result = await sendAction(reportId, body);
       if (!result.ok) throw new Error(result.error);
-      setSentMessages((previous) => [...previous, result.message]);
+      setSentMessages((previous) => [...previous, result.data]);
     } finally {
       setPendingMessage(undefined);
     }

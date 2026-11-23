@@ -1,16 +1,18 @@
 "use client";
 
-import { Badge, Image, Link } from "@chakra-ui/react";
+import { Image, Link } from "@chakra-ui/react";
 import NextLink from "next/link";
 import type { ReactNode } from "react";
-import { formatDateTime } from "@/lib/constants";
-import type { FoundItemSummary } from "@/lib/types";
-import { ColorLabel } from "../ColorLabel";
-import { StatusBadge } from "../StatusBadge";
-import { DataTable, type DataTableColumn } from "./DataTable";
+import type { FoundItem } from "@/lib/schemas/found-item";
 import styles from "./AdminTables.module.css";
+import { ColorLabel } from "./ColorLabel";
+import { DataTable, type DataTableColumn } from "./DataTable";
+import { formatItemDate } from "./DetailList";
+import { StatusBadge } from "./StatusBadge";
+import { ValuableBadge } from "./ValuableBadge";
 
-const columns: DataTableColumn<FoundItemSummary>[] = [
+// 一覧 API（GET /api/found-items）の FoundItem をそのまま渡す
+const columns: DataTableColumn<FoundItem>[] = [
   {
     key: "number",
     header: "管理番号",
@@ -42,11 +44,7 @@ const columns: DataTableColumn<FoundItemSummary>[] = [
     render: (item) => (
       <span className={styles.stack}>
         {item.category.name}
-        {item.isValuable && (
-          <Badge colorPalette="red" variant="outline" size="xs">
-            貴重品
-          </Badge>
-        )}
+        <ValuableBadge isValuable={item.isValuable} />
       </span>
     ),
   },
@@ -69,7 +67,7 @@ const columns: DataTableColumn<FoundItemSummary>[] = [
     key: "foundAt",
     header: "拾った時刻",
     render: (item) => (
-      <span className={styles.nowrap}>{formatDateTime(item.foundAt)}</span>
+      <span className={styles.nowrap}>{formatItemDate(item.foundAt)}</span>
     ),
   },
   {
@@ -110,7 +108,7 @@ export function FoundItemTable({
   onSelectionChange,
   emptyState,
 }: {
-  rows: FoundItemSummary[];
+  rows: FoundItem[];
   selectable?: boolean;
   selectedIds?: string[];
   onSelectionChange?: (ids: string[]) => void;

@@ -1,22 +1,16 @@
-import { Badge } from "@chakra-ui/react";
-import type { Role } from "@/lib/types";
-import { LogoutButton } from "../LogoutButton";
-import styles from "./Panel.module.css";
+import { LogoutButton } from "@/components/LogoutButton";
+import styles from "@/components/Panel.module.css";
+import { RoleBadge } from "@/components/RoleBadge";
+import type { Me } from "@/lib/schemas/me";
 
-const ROLE_LABELS: Record<Role, string> = {
-  admin: "本部（admin）",
-  member: "実行委員（member）",
-  guest: "参加者（guest）",
-};
-
-// 設定（A08）のアカウント情報
+// 設定（A08）のアカウント情報。/admin は Cloudflare Access の内側なので guest は来ない
 export function AccountInfoCard({
   email,
   role,
   authProvider,
 }: {
   email: string;
-  role: Role;
+  role: Exclude<Me["role"], "guest">;
   authProvider: string;
 }) {
   return (
@@ -29,14 +23,12 @@ export function AccountInfoCard({
         <dd>{email}</dd>
         <dt>権限</dt>
         <dd>
-          <Badge colorPalette={role === "admin" ? "purple" : "gray"}>
-            {ROLE_LABELS[role]}
-          </Badge>
+          <RoleBadge role={role} />
         </dd>
         <dt>ログイン方法</dt>
         <dd>{authProvider}</dd>
       </dl>
-      <LogoutButton />
+      <LogoutButton role={role} />
     </section>
   );
 }

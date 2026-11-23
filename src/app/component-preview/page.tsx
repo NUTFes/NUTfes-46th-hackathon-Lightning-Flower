@@ -21,6 +21,7 @@ import { PhotoGallery } from "@/components/PhotoGallery";
 import { StatCard } from "@/components/StatCard";
 import type { FoundItem } from "@/lib/schemas/found-item";
 import type { LostReport } from "@/lib/schemas/lost-report";
+import { AdminExample, FormExample } from "./DomainExamples";
 import { ChatExample, InputExample } from "./InteractiveExamples";
 
 export const metadata: Metadata = {
@@ -33,6 +34,8 @@ const sections = [
   { key: "items", label: "一覧・詳細" },
   { key: "input", label: "入力" },
   { key: "chat", label: "チャット" },
+  { key: "forms", label: "フォーム" },
+  { key: "admin", label: "admin" },
 ] as const;
 
 const photos = [
@@ -215,6 +218,8 @@ export default async function Page({
             {section.key === "items" && <ItemsExample />}
             {section.key === "input" && <InputExample />}
             {section.key === "chat" && <ChatExample activeThread={thread} />}
+            {section.key === "forms" && <FormExample />}
+            {section.key === "admin" && <AdminExample />}
           </Stack>
         </Stack>
       </Container>

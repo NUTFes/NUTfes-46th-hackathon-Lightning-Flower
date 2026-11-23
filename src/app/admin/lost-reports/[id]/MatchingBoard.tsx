@@ -3,12 +3,12 @@
 import { Button } from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { FoundItemCard } from "@/components/FoundItemCard";
+import { LostReportDetailFields } from "@/components/LostReportDetailFields";
 import type { ActionResult } from "@/lib/action-result";
+import type { FoundItem } from "@/lib/schemas/found-item";
 import type { MatchInput } from "@/lib/schemas/form-inputs";
 import type { LostReport } from "@/lib/schemas/lost-report";
-import type { FoundItemSummary } from "@/lib/types";
-import { FoundItemCard } from "../FoundItemCard";
-import { LostReportDetailFields } from "../LostReportDetailFields";
 import styles from "./MatchingBoard.module.css";
 
 type MatchAction = (input: MatchInput) => Promise<ActionResult>;
@@ -23,7 +23,8 @@ export function MatchingBoard({
   proceedToVerifyAction,
 }: {
   report: LostReport;
-  candidates: FoundItemSummary[];
+  // GET /api/lost-reports/{id}/candidates の items
+  candidates: FoundItem[];
   linkedFoundItemId?: string;
   linkAction: MatchAction;
   unlinkAction: MatchAction;
@@ -42,7 +43,7 @@ export function MatchingBoard({
       const result = await action({ reportId: report.id, foundItemId });
       setPendingId(null);
       if (!result.ok) {
-        setError(result.message);
+        setError(result.error);
         return;
       }
       router.refresh();
@@ -93,7 +94,7 @@ export function MatchingBoard({
                   key={item.id}
                   item={item}
                   href={`/admin/found-items/${item.id}`}
-                  highlighted={linked}
+                  selected={linked}
                   actions={
                     linked ? (
                       <>

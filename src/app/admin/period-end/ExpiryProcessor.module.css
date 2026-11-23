@@ -38,14 +38,6 @@
   font-size: 0.875rem;
 }
 
-.error {
-  padding: 8px 12px;
-  border-radius: var(--chakra-radii-l2);
-  background: var(--chakra-colors-red-subtle);
-  color: var(--chakra-colors-red-fg);
-  font-size: 0.875rem;
-}
-
 /* --- BroadcastMessageDialog --- */
 
 .broadcast {

@@ -1,9 +1,10 @@
 "use client";
 
-import { Button, Checkbox } from "@chakra-ui/react";
+import { Button } from "@chakra-ui/react";
 import NextLink from "next/link";
 import { useState } from "react";
-import styles from "./Form.module.css";
+import { Checkbox } from "@/components/Checkbox";
+import styles from "@/components/Form.module.css";
 
 // guest のログイン画面。個人情報の取り扱いに同意するまで、ログインのボタンを押せないようにする。
 // ボタンは /auth/login?provider=…&next=…&consent=1 へ移る（OAuth を始める Route Handler は別に作る。
@@ -32,14 +33,9 @@ export function LoginConsentForm({
         をご覧ください。
       </div>
 
-      <Checkbox.Root
-        checked={agreed}
-        onCheckedChange={(details) => setAgreed(details.checked === true)}
-      >
-        <Checkbox.HiddenInput />
-        <Checkbox.Control />
-        <Checkbox.Label>個人情報の取り扱いに同意する</Checkbox.Label>
-      </Checkbox.Root>
+      <Checkbox checked={agreed} onChange={setAgreed}>
+        個人情報の取り扱いに同意する
+      </Checkbox>
 
       <div className={styles.actions}>
         {providers.map((provider) =>

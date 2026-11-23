@@ -76,6 +76,8 @@ export function DataTable<T>({
   }
 
   function onRowKeyDown(event: KeyboardEvent, row: T) {
+    // 行の中のリンクやボタンで押した Enter は、そちらに任せる
+    if (event.target !== event.currentTarget) return;
     if (event.key === "Enter") openRow(row);
   }
 

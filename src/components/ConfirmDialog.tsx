@@ -2,8 +2,7 @@
 
 import { Button, Dialog, Portal, Text } from "@chakra-ui/react";
 import { useRef, useState, type ReactElement, type ReactNode } from "react";
-
-type ActionResult = { ok: true } | { ok: false; error: string };
+import type { ActionResult } from "@/lib/action-result";
 
 type ConfirmDialogProps = {
   trigger?: ReactElement;

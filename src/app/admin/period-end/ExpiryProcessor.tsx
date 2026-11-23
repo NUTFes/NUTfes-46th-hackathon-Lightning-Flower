@@ -2,13 +2,13 @@
 
 import { Button, NativeSelect, Tabs } from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState } from "react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { FoundItemTable } from "@/components/FoundItemTable";
+import { statusLabel } from "@/components/StatusBadge";
 import type { ActionResult } from "@/lib/action-result";
-import { FOUND_STATUS_LABELS } from "@/lib/constants";
-import type { FoundItemSummary } from "@/lib/types";
-import { ConfirmDialog } from "../ConfirmDialog";
+import type { FoundItem } from "@/lib/schemas/found-item";
 import { BroadcastMessageDialog } from "./BroadcastMessageDialog";
-import { FoundItemTable } from "./FoundItemTable";
 import styles from "./ExpiryProcessor.module.css";
 
 type Tab = "valuable" | "nonValuable";
@@ -28,8 +28,8 @@ export function ExpiryProcessor({
   broadcastAction,
   recipientCount,
 }: {
-  valuableItems: FoundItemSummary[];
-  nonValuableItems: FoundItemSummary[];
+  valuableItems: FoundItem[];
+  nonValuableItems: FoundItem[];
   bulkUpdateAction: (
     ids: string[],
     status: TargetStatus,
@@ -44,10 +44,7 @@ export function ExpiryProcessor({
     defaultTargetOf("valuable"),
   );
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(
-    null,
-  );
-  const [pending, startTransition] = useTransition();
+  const [message, setMessage] = useState<string | null>(null);
 
   const rows = tab === "valuable" ? valuableItems : nonValuableItems;
   // 表にない ID（別のタブの分や、更新で消えた分）は数えない
@@ -61,21 +58,17 @@ export function ExpiryProcessor({
     setMessage(null);
   }
 
-  function update() {
-    startTransition(async () => {
-      const result = await bulkUpdateAction(targetIds, targetStatus);
-      setConfirmOpen(false);
-      if (!result.ok) {
-        setMessage({ ok: false, text: result.message });
-        return;
-      }
-      setMessage({
-        ok: true,
-        text: `${targetIds.length} 件を「${FOUND_STATUS_LABELS[targetStatus]}」にしました`,
-      });
+  // 失敗したときは、ダイアログの中にエラーが出る
+  async function update() {
+    const result = await bulkUpdateAction(targetIds, targetStatus);
+    if (result.ok) {
+      setMessage(
+        `${targetIds.length} 件を「${statusLabel(targetStatus)}」にしました`,
+      );
       setSelectedIds([]);
       router.refresh();
-    });
+    }
+    return result;
   }
 
   return (
@@ -115,7 +108,7 @@ export function ExpiryProcessor({
             >
               {TARGET_STATUSES.map((status) => (
                 <option key={status} value={status}>
-                  {FOUND_STATUS_LABELS[status]}
+                  {statusLabel(status)}
                 </option>
               ))}
             </NativeSelect.Field>
@@ -133,11 +126,8 @@ export function ExpiryProcessor({
       </div>
 
       {message && (
-        <p
-          role={message.ok ? "status" : "alert"}
-          className={message.ok ? styles.success : styles.error}
-        >
-          {message.text}
+        <p role="status" className={styles.success}>
+          {message}
         </p>
       )}
 
@@ -152,12 +142,11 @@ export function ExpiryProcessor({
       <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title={`${targetIds.length} 件を「${FOUND_STATUS_LABELS[targetStatus]}」にしますか？`}
+        title={`${targetIds.length} 件を「${statusLabel(targetStatus)}」にしますか？`}
         description="紐づいている申請がある場合は、その申請のステータスも合わせて変わります。"
         confirmLabel="更新する"
-        onConfirm={update}
-        pending={pending}
-        destructive
+        colorPalette="red"
+        action={update}
       />
     </div>
   );

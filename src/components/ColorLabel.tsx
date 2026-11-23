@@ -1,6 +1,7 @@
-import { ITEM_COLOR_LABELS, ITEM_COLOR_SWATCHES } from "@/lib/constants";
+import { ITEM_COLOR_SWATCHES } from "@/lib/constants";
 import type { ItemColor } from "@/lib/types";
 import styles from "./ColorLabel.module.css";
+import { itemColorLabels } from "./FoundItemDetailFields";
 
 // 色の見本の丸と、色の名前
 export function ColorLabel({ color }: { color: ItemColor }) {
@@ -12,7 +13,7 @@ export function ColorLabel({ color }: { color: ItemColor }) {
         style={{ backgroundColor: ITEM_COLOR_SWATCHES[color] }}
         aria-hidden
       />
-      {ITEM_COLOR_LABELS[color]}
+      {itemColorLabels[color]}
     </span>
   );
 }

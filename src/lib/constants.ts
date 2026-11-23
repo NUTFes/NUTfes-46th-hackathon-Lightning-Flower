@@ -1,75 +1,10 @@
-import type {
-  CancelReason,
-  FoundItemStatus,
-  ItemColor,
-  LostReportStatus,
-  PickupMethod,
-} from "@/lib/types";
+import type { CancelReason, ItemColor, PickupMethod } from "@/lib/types";
 
 // 画面に出す文言と、画面で使う決まった値。enum の値そのものは src/db/enums.ts にある。
-
-// --- ステータス --------------------------------------------------------------
-
-export const FOUND_STATUS_LABELS: Record<FoundItemStatus, string> = {
-  received: "受理",
-  matching: "照合中",
-  awaiting_handover: "受け渡し待ち",
-  resolved: "解決済み",
-  transferred_to_police: "警察へ移管",
-  disposed: "処分",
-};
-
-export const LOST_STATUS_LABELS: Record<LostReportStatus, string> = {
-  searching: "探し中",
-  maybe_found: "見つかったかも",
-  awaiting_handover: "受け渡し待ち",
-  resolved: "解決済み",
-  transferred_to_police: "警察へ移管",
-  disposed: "処分",
-  cancelled: "取り消し済み",
-};
-
-// Chakra の colorPalette。バッジの色に使う
-export const FOUND_STATUS_PALETTES: Record<FoundItemStatus, string> = {
-  received: "blue",
-  matching: "orange",
-  awaiting_handover: "purple",
-  resolved: "green",
-  transferred_to_police: "gray",
-  disposed: "gray",
-};
-
-export const LOST_STATUS_PALETTES: Record<LostReportStatus, string> = {
-  searching: "blue",
-  maybe_found: "orange",
-  awaiting_handover: "purple",
-  resolved: "green",
-  transferred_to_police: "gray",
-  disposed: "gray",
-  cancelled: "gray",
-};
+// ステータスの表示名は StatusBadge、色の表示名は FoundItemDetailFields の itemColorLabels、
+// 日時の表示は DetailList の formatItemDate を使う（ここには書かない）。
 
 // --- 色 ----------------------------------------------------------------------
-
-export const ITEM_COLOR_LABELS: Record<ItemColor, string> = {
-  black: "黒",
-  white: "白",
-  gray: "灰",
-  brown: "茶",
-  beige: "ベージュ",
-  red: "赤",
-  pink: "ピンク",
-  orange: "オレンジ",
-  yellow: "黄",
-  green: "緑",
-  blue: "青",
-  navy: "紺",
-  purple: "紫",
-  gold: "金",
-  silver: "銀",
-  clear: "透明",
-  other: "その他",
-};
 
 // 色の見本（丸い印）に使う CSS の色
 export const ITEM_COLOR_SWATCHES: Record<ItemColor, string> = {
@@ -109,14 +44,15 @@ export const CANCEL_REASON_LABELS: Record<CancelReason, string> = {
 // --- 拾得物の登録 ------------------------------------------------------------
 
 // 「証明書・カード・定期券類」のカテゴリ ID（src/db/migrations/0001_seed_categories.sql）。
-// 個人情報が写るので、このカテゴリだけ写真を任意にする
+// 個人情報が写るので、このカテゴリだけ写真を任意にする。
+// TODO: シードの ID が変わると壊れるので、categories に「写真を任意にする」フラグを持たせる（DB 担当と相談）
 export const ID_CARD_CATEGORY_ID = 1;
 
 export function isPhotoRequired(categoryId: number | null | undefined) {
   return categoryId !== ID_CARD_CATEGORY_ID;
 }
 
-// 1 件の拾得物に付けられる写真の枚数
+// 1 件の拾得物に付けられる写真の枚数（API の上限は 10 枚。画面ではこの枚数までにする）
 export const MAX_PHOTOS = 4;
 
 // 拾った場所・なくした場所のエリア。
@@ -138,19 +74,6 @@ export const PLACE_AREAS = [
 // 技大祭は日本で開くので、画面の日時は日本時間で扱う
 // （サーバーの時刻帯に左右されず、サーバーとブラウザで同じ表示にするため）
 const TIME_ZONE = "Asia/Tokyo";
-
-const dateTimeFormat = new Intl.DateTimeFormat("ja-JP", {
-  timeZone: TIME_ZONE,
-  month: "numeric",
-  day: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-});
-
-// 例：9/19 13:35
-export function formatDateTime(iso: string) {
-  return dateTimeFormat.format(new Date(iso));
-}
 
 // ISO 8601 → <input type="datetime-local"> の値（日本時間の YYYY-MM-DDTHH:mm）
 export function toLocalInputValue(iso: string) {

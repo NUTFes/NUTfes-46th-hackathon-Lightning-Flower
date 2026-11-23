@@ -1,24 +1,23 @@
 "use client";
 
-import { Badge } from "@chakra-ui/react";
-import type { CategoryRef } from "@/lib/schemas/common";
-import type { z } from "zod";
-import { DataTable, type DataTableColumn } from "./DataTable";
-import styles from "./AdminTables.module.css";
+import styles from "@/components/AdminTables.module.css";
+import { BadgePill, type BadgeLabel } from "@/components/BadgePill";
+import { DataTable, type DataTableColumn } from "@/components/DataTable";
+import type { Category } from "@/lib/schemas/category";
 
 export type PendingReason = "awaiting_reply" | "verifying" | "searching";
 
 export type PendingReportRow = {
   reportId: string;
   number: string;
-  category: z.infer<typeof CategoryRef>;
+  category: Pick<Category, "id" | "name">;
   reason: PendingReason;
 };
 
-const REASONS: Record<PendingReason, { label: string; palette: string }> = {
-  awaiting_reply: { label: "返信待ち", palette: "red" },
-  verifying: { label: "本人確認中", palette: "orange" },
-  searching: { label: "未照合", palette: "blue" },
+const REASONS: Record<PendingReason, BadgeLabel> = {
+  awaiting_reply: { label: "返信待ち", tone: "danger" },
+  verifying: { label: "本人確認中", tone: "warning" },
+  searching: { label: "未照合", tone: "info" },
 };
 
 const columns: DataTableColumn<PendingReportRow>[] = [
@@ -37,11 +36,7 @@ const columns: DataTableColumn<PendingReportRow>[] = [
     key: "reason",
     header: "対応",
     width: "8rem",
-    render: (row) => (
-      <Badge colorPalette={REASONS[row.reason].palette} variant="subtle">
-        {REASONS[row.reason].label}
-      </Badge>
-    ),
+    render: (row) => <BadgePill {...REASONS[row.reason]} />,
   },
 ];
 

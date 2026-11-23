@@ -41,7 +41,7 @@ export function BroadcastMessageDialog({
     startTransition(async () => {
       const result = await action(parsed.data.body);
       if (!result.ok) {
-        setError(result.message);
+        setError(result.error);
         return;
       }
       setSent(true);

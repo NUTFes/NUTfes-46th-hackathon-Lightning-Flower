@@ -1,14 +1,15 @@
 "use client";
 
-import { Badge, Link } from "@chakra-ui/react";
+import { Link } from "@chakra-ui/react";
 import NextLink from "next/link";
 import type { ReactNode } from "react";
-import { formatDateTime } from "@/lib/constants";
+import styles from "@/components/AdminTables.module.css";
+import { AwaitingReplyBadge } from "@/components/AwaitingReplyBadge";
+import { ColorLabel } from "@/components/ColorLabel";
+import { DataTable, type DataTableColumn } from "@/components/DataTable";
+import { formatItemDate } from "@/components/DetailList";
+import { StatusBadge } from "@/components/StatusBadge";
 import type { LostReportForAdmin } from "@/lib/schemas/lost-report";
-import { ColorLabel } from "../ColorLabel";
-import { StatusBadge } from "../StatusBadge";
-import { DataTable, type DataTableColumn } from "./DataTable";
-import styles from "./AdminTables.module.css";
 
 const columns: DataTableColumn<LostReportForAdmin>[] = [
   {
@@ -23,7 +24,7 @@ const columns: DataTableColumn<LostReportForAdmin>[] = [
     key: "createdAt",
     header: "受付日時",
     render: (report) => (
-      <span className={styles.nowrap}>{formatDateTime(report.createdAt)}</span>
+      <span className={styles.nowrap}>{formatItemDate(report.createdAt)}</span>
     ),
   },
   {
@@ -52,11 +53,7 @@ const columns: DataTableColumn<LostReportForAdmin>[] = [
     render: (report) => (
       <span className={styles.stack}>
         <StatusBadge kind="lost" status={report.status} />
-        {report.awaitingReply && (
-          <Badge colorPalette="red" variant="solid" size="xs">
-            返信待ち
-          </Badge>
-        )}
+        <AwaitingReplyBadge awaiting={report.awaitingReply} />
       </span>
     ),
   },

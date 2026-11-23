@@ -1,15 +1,16 @@
 "use client";
 
-import { Button, Field, Textarea } from "@chakra-ui/react";
-import { type SubmitEvent, useState, useTransition } from "react";
+import { Button } from "@chakra-ui/react";
+import { type SubmitEvent, useState } from "react";
+import { ChoiceCardGroup } from "@/components/ChoiceCardGroup";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { Field } from "@/components/Field";
+import styles from "@/components/Form.module.css";
 import { CANCEL_REASONS } from "@/db/enums";
 import type { ActionResult } from "@/lib/action-result";
 import { CANCEL_REASON_LABELS } from "@/lib/constants";
 import { CancelReportInput } from "@/lib/schemas/form-inputs";
 import type { CancelReason } from "@/lib/types";
-import { ChoiceCardGroup } from "@/components/ui/ChoiceCardGroup";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import styles from "./Form.module.css";
 
 const OPTIONS = CANCEL_REASONS.map((reason) => ({
   value: reason,
@@ -25,11 +26,10 @@ export function CancelReportForm({
   reportId: string;
   action: (input: CancelReportInput) => Promise<ActionResult>;
 }) {
-  const [reason, setReason] = useState<CancelReason | null>(null);
+  const [reason, setReason] = useState<CancelReason | "">("");
   const [note, setNote] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
 
   function buildInput() {
     return CancelReportInput.safeParse({
@@ -50,14 +50,11 @@ export function CancelReportForm({
     setConfirmOpen(true);
   }
 
-  function submit() {
+  // 失敗したときは、ダイアログの中にエラーが出る
+  async function submit(): Promise<ActionResult> {
     const parsed = buildInput();
-    if (!parsed.success) return;
-    startTransition(async () => {
-      const result = await action(parsed.data);
-      if (!result.ok) setError(result.message);
-      setConfirmOpen(false);
-    });
+    if (!parsed.success) return { ok: false, error: "入力を確かめてください" };
+    return action(parsed.data);
   }
 
   return (
@@ -67,19 +64,18 @@ export function CancelReportForm({
         label="取り消す理由"
         options={OPTIONS}
         value={reason}
-        onChange={setReason}
-        disabled={pending}
+        onChange={(value) => setReason(value as CancelReason)}
       />
 
       {reason === "other" && (
-        <Field.Root>
-          <Field.Label>理由（任意）</Field.Label>
-          <Textarea
-            className={styles.textarea}
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-          />
-        </Field.Root>
+        <Field
+          kind="textarea"
+          label="理由（任意）"
+          control={{
+            value: note,
+            onChange: (event) => setNote(event.currentTarget.value),
+          }}
+        />
       )}
 
       {error && (
@@ -103,9 +99,8 @@ export function CancelReportForm({
         title="申請を取り消しますか？"
         description="取り消した申請は元に戻せません。もう一度探すときは、新しく申請してください。"
         confirmLabel="取り消す"
-        onConfirm={submit}
-        pending={pending}
-        destructive
+        colorPalette="red"
+        action={submit}
       />
     </form>
   );
