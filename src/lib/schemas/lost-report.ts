@@ -78,6 +78,30 @@ export type CreateLostReportBody = z.infer<typeof CreateLostReportBody>;
 // GET /api/my/lost-reports のクエリ用（?page=1&limit=20）
 export const MyLostReportListQuery = PageQuery;
 
+// URL の /api/lost-reports/{id} の id 用
+export const LostReportIdParams = z.object({
+  id: z.uuid(),
+});
+
+// PATCH /api/lost-reports/{id} のリクエストボディ用（変更したい項目だけ送れる）
+// status や verifiedAt などのシステム管理項目は変更させないため含めない
+export const LostReportPatchBody = z
+  .object({
+    categoryId: z.number().int().min(1).max(32767),
+    color: ItemColor,
+    brand: z.string().trim().min(1).nullable(),
+    lostPlace: z.string().trim().min(1),
+    lostAt: DateTime,
+    note: z.string().trim().min(1).nullable(),
+  })
+  .partial()
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "更新する項目を 1 つ以上指定してください",
+  })
+  .openapi("LostReportPatchBody");
+
+export type LostReportPatchBody = z.infer<typeof LostReportPatchBody>;
+
 // GET /api/lost-reports のクエリパラメータ（admin）
 export const LostReportListQuery = PageQuery.extend({
   q: SearchQuery.optional(),
