@@ -28,6 +28,10 @@ describe("MessageCreate", () => {
     );
   });
 
+  it("NUL の入った本文は受けない（DB に入らないので）", () => {
+    expect(MessageCreate.safeParse({ body: "あ\u0000い" }).success).toBe(false);
+  });
+
   it("テキスト以外は受けない", () => {
     expect(MessageCreate.safeParse({ body: 1 }).success).toBe(false);
     expect(MessageCreate.safeParse({}).success).toBe(false);

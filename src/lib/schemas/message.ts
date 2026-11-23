@@ -38,8 +38,14 @@ export const MessageListQuery = z.object({
   }),
 });
 
-// 本文（1〜1000 文字）。前後の空白（改行も）を除いてから数える（空白だけのメッセージを送らせない）
-export const MessageBody = z.string().trim().min(1).max(1000);
+// 本文（1〜1000 文字）。前後の空白（改行も）を除いてから数える（空白だけのメッセージを送らせない）。
+// NUL（\u0000）は Postgres の text に入らず 500 になるので、400 にする
+export const MessageBody = z
+  .string()
+  .trim()
+  .min(1)
+  .max(1000)
+  .refine((body) => !body.includes("\u0000"), "本文に使えない文字があります");
 
 export const MessageCreate = z
   .object({ body: MessageBody })
