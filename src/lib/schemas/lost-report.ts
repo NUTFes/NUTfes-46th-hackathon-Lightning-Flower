@@ -65,7 +65,7 @@ export const LostReportIdParams = z.object({
 export const LostReportPatchBody = z
   .object({
     categoryId: z.number().int().min(1).max(32767),
-    features: z.string().trim().min(1),
+    color: ItemColor,
     brand: z.string().trim().min(1).nullable(),
     lostPlace: z.string().trim().min(1),
     lostAt: DateTime,

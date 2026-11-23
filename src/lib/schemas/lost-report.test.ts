@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ITEM_COLORS } from "@/db/enums";
 import { LostReportIdParams, LostReportPatchBody } from "./lost-report";
 
 describe("LostReportIdParams", () => {
@@ -15,11 +16,11 @@ describe("LostReportIdParams", () => {
 describe("LostReportPatchBody", () => {
   it("一部の項目だけの更新を通す", () => {
     const parsed = LostReportPatchBody.parse({
-      features: "黒い折りたたみ傘",
+      color: ITEM_COLORS[0],
       brand: null,
     });
     expect(parsed).toEqual({
-      features: "黒い折りたたみ傘",
+      color: ITEM_COLORS[0],
       brand: null,
     });
   });
@@ -27,7 +28,7 @@ describe("LostReportPatchBody", () => {
   it("すべての変更可能項目を通す", () => {
     const input = {
       categoryId: 3,
-      features: "白いモバイルバッテリー",
+      color: ITEM_COLORS[1] ?? ITEM_COLORS[0],
       brand: "Anker",
       lostPlace: "講義棟 101",
       lostAt: "2026-09-19T13:35:00+09:00",
@@ -40,8 +41,9 @@ describe("LostReportPatchBody", () => {
     expect(() => LostReportPatchBody.parse({})).toThrow();
   });
 
-  it("空文字や範囲外の categoryId はエラーにする", () => {
-    expect(() => LostReportPatchBody.parse({ features: "   " })).toThrow();
+  it("決まった色でない値や範囲外の categoryId はエラーにする", () => {
+    expect(() => LostReportPatchBody.parse({ color: "rainbow" })).toThrow();
+    expect(() => LostReportPatchBody.parse({ color: "" })).toThrow();
     expect(() => LostReportPatchBody.parse({ categoryId: 0 })).toThrow();
     expect(() => LostReportPatchBody.parse({ categoryId: 99999 })).toThrow();
   });

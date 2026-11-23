@@ -427,9 +427,8 @@ components:
           type: integer
           minimum: 1
           maximum: 32767
-        features:
-          type: string
-          minLength: 1
+        color:
+          $ref: "#/components/schemas/ItemColor"
         brand:
           type:
             - string
