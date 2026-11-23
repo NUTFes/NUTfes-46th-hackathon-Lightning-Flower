@@ -33,9 +33,25 @@ export const CategoryRef = Category.pick({ id: true, name: true });
 // --- クエリ文字列 ------------------------------------------------------------
 
 // 一覧の ?page=1&limit=20
+// page は PAGE_MAX まで。OFFSET（(page - 1) * limit）を 9999900 までにして、int4（2^31 未満）に収める。
+// 上限がないと、とても大きい page で OFFSET が bigint（2^63）を超えて 500 になる。int4 に収めるのは、
+// 余裕を持たせるため（実際の件数は数千件なので、ふつうの一覧では届かない）。LIMIT_MAX を上げるときは、
+// PAGE_MAX * LIMIT_MAX が 2^31 を超えないかを確かめる
+export const PAGE_MAX = 100000;
+export const LIMIT_MAX = 100;
+
 export const PageQuery = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  // 範囲を先に確かめて止める（1e17・-1e17 などで、int の範囲の英語の文言が一緒に出ないように）
+  page: z.coerce
+    .number()
+    .min(1, { abort: true })
+    .max(PAGE_MAX, {
+      message: `page は ${PAGE_MAX} までにしてください`,
+      abort: true,
+    })
+    .int()
+    .default(1),
+  limit: z.coerce.number().int().min(1).max(LIMIT_MAX).default(20),
 });
 
 // ?categoryId=3 のような ID（DB の smallint に入る 1〜32767。範囲外を DB まで送ると 500 になるため）

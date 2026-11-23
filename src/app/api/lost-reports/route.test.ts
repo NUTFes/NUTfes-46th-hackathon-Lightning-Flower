@@ -78,6 +78,15 @@ describe("GET /api/lost-reports", () => {
     expect(res3.status).toBe(400);
   });
 
+  it("page が 100000 を超えれば 400 を返し、DB に送らない", async () => {
+    const res = await GET(
+      new Request("http://localhost/api/lost-reports?page=100001&limit=100"),
+      undefined,
+    );
+    expect(res.status).toBe(400);
+    expect(mockFindMany).not.toHaveBeenCalled();
+  });
+
   // 3. 正常系のテスト
   it("admin でクエリを指定して一覧と総件数を取得できる", async () => {
     mockFindMany.mockResolvedValueOnce([

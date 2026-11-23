@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { POST } from "./route";
+import { GET, POST } from "./route";
 
 // 登録の、使用済みの写真のパスの確認を確かめる（DB は mock にする）
 const mockSelect = vi.fn();
@@ -84,5 +84,16 @@ describe("POST /api/found-items", () => {
     expect(res.status).toBe(201);
     // カテゴリを取る 1 回だけ
     expect(mockSelect).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("GET /api/found-items", () => {
+  // DB の mock は transaction しか持たないので、DB を使えば 500 になる
+  it("page が 100000 を超えれば、DB の前で 400", async () => {
+    const response = await GET(
+      new Request("http://localhost/api/found-items?page=100001&limit=100"),
+      undefined,
+    );
+    expect(response.status).toBe(400);
   });
 });
