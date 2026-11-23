@@ -1,12 +1,14 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull, notExists } from "drizzle-orm";
 import { getDb } from "@/db";
-import { categories, foundItemPhotos, foundItems } from "@/db/schema";
+import { categories, foundItemPhotos, foundItems, matches } from "@/db/schema";
 import { requireStaff } from "@/lib/api/auth";
-import { badRequest, conflict, forbidden, notFound } from "@/lib/api/errors";
+import { badRequest, forbidden, notFound } from "@/lib/api/errors";
 import { apiHandler } from "@/lib/api/handler";
 import { parseBody, parseParams } from "@/lib/api/parse";
+import { notFoundOrConflict } from "@/lib/api/transition";
 import {
   activeFoundItemById,
+  findFoundItemId,
   foundItemWith,
   isPhotoPathUsed,
 } from "@/lib/queries/found-items";
@@ -127,18 +129,50 @@ export const DELETE = apiHandler(async (request, ctx: RouteContext) => {
   const staff = await requireStaff(request);
   const { id } = parseParams(await ctx.params, FoundItemIdParams);
 
+  // 先に読むのは、権限（自分が登録したものか）を確かめるため。登録した人は変わらないので、読んだ値で決めてよい
   const existing = await findActiveFoundItem(id);
   assertCanEdit(staff.role, existing.registeredByEmail, staff.email);
 
-  if (existing.status !== "received") {
-    throw conflict("保管中（received）以外の拾得物は削除できません");
-  }
-
+  // 受理（received）のときだけ削除する。状態は読んだ値ではなく UPDATE の WHERE で確かめる（#49）。
+  // 読んでから UPDATE するまでに紐づけ・受け渡し・ステータスの変更が通ると、拾得物は received でなくなり、
+  // この UPDATE はそのコミットを待ってから WHERE を見直すので 0 行になる。
+  //
+  // lockActiveMatch（申請 → 拾得物の順のロック）は使わない。received の拾得物には有効な紐づけがなく
+  // （紐づけは拾得物を matching にする）、この API は申請の行に触らず、拾得物の 1 行を 1 文で更新する
+  // だけなので、ほかの API とロックの順が逆になることはない（docs/api-guide.md の手順 3 の例外の bulk-status と同じ）。
+  //
+  // bulk-status と同じく、状態の列と食い違って、受理なのに有効な紐づけが残っているものも削除しない
+  // （削除すると、申請が削除した拾得物に紐づいたまま残る）。NOT EXISTS は文の始まりの時点で見るが、
+  // 同時に入る紐づけは拾得物を matching にするので、そちらは status の見直しで 0 行になる
   const db = getDb();
-  await db
+  const [row] = await db
     .update(foundItems)
     .set({ deletedAt: new Date() })
-    .where(activeFoundItemById(id));
+    .where(
+      and(
+        activeFoundItemById(id),
+        eq(foundItems.status, "received"),
+        notExists(
+          db
+            .select({ id: matches.id })
+            .from(matches)
+            .where(
+              and(
+                eq(matches.foundItemId, foundItems.id),
+                isNull(matches.releasedAt),
+              ),
+            ),
+        ),
+      ),
+    )
+    .returning({ id: foundItems.id });
+  if (!row) {
+    throw await notFoundOrConflict(
+      findFoundItemId(db, id),
+      "保管中（received）で、申請と紐づいていない拾得物だけ削除できます",
+      "拾得物が見つかりません",
+    );
+  }
 
   return new Response(null, { status: 204 });
 });

@@ -259,7 +259,8 @@ registry.registerPath({
   method: "delete",
   path: "/api/found-items/{id}",
   summary: "拾得物の論理削除（member は自分の登録だけ / admin）",
-  description: "status が received のときだけ削除できる",
+  description:
+    "status が received で、有効な紐づけがないときだけ削除できる（それ以外は 409）",
   request: {
     params: FoundItemIdParams,
   },
