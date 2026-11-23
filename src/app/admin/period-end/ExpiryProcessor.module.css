@@ -38,6 +38,20 @@
   font-size: 0.875rem;
 }
 
+.error {
+  padding: 8px 12px;
+  border-radius: var(--chakra-radii-l2);
+  background: var(--chakra-colors-red-subtle);
+  color: var(--chakra-colors-red-fg);
+  font-size: 0.875rem;
+}
+
+.limitNote {
+  margin-left: 8px;
+  color: var(--chakra-colors-red-fg);
+  font-weight: 400;
+}
+
 /* --- BroadcastMessageDialog --- */
 
 .broadcast {
@@ -49,6 +63,11 @@
 
 .sent {
   color: var(--chakra-colors-green-fg);
+  font-size: 0.875rem;
+}
+
+.uncertain {
+  color: var(--chakra-colors-red-fg);
   font-size: 0.875rem;
 }
 
