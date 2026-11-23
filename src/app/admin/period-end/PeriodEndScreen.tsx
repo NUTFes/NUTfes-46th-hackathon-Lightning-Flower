@@ -3,7 +3,6 @@
 import { Alert, Button, Flex, Skeleton, Stack, Text } from "@chakra-ui/react";
 import { useEffect, useRef, useState } from "react";
 import { errorMessageOf, FetchApiError, fetchApi } from "@/app/staff/fetch-api";
-import type { ActionResult } from "@/lib/action-result";
 import type {
   BulkStatusResult,
   FoundItem,
@@ -11,6 +10,7 @@ import type {
 } from "@/lib/schemas/found-item";
 import type { LostReportList } from "@/lib/schemas/lost-report";
 import type { MessageBroadcastResult } from "@/lib/schemas/message";
+import type { BroadcastResult } from "./BroadcastMessageDialog";
 import {
   type BulkUpdateResult,
   ExpiryProcessor,
@@ -32,7 +32,7 @@ type Data = {
   nonValuableItems: FoundItem[];
   // 受理の拾得物を取りきれなかった（取っている途中で減った、上限で止めた）
   incomplete: boolean;
-  // 照合中・受け渡し待ち（申請と紐づいているので、一括の対象にしない）の数
+  // 申請と紐づいている（照合中・受け渡し待ちと、受理なのに紐づけが残っている）ので、一括の対象にしない数
   linkedCount: number;
   // 探し中の申請（期間終了まで見つからなかった人）の数
   recipientCount: number;
@@ -41,20 +41,26 @@ type Data = {
 // 受理（received）の拾得物をすべてのページから取る
 async function fetchReceivedItems(signal?: AbortSignal) {
   const items: FoundItem[] = [];
+  let firstTotal: number | null = null;
   let total = 0;
+  let changed = false;
   for (let page = 1; page <= MAX_PAGES; page++) {
     const body = await fetchApi<FoundItemList>(
       `/api/found-items?status=received&page=${page}&limit=${PAGE_LIMIT}`,
       { signal },
     );
     total = body.total;
+    // 途中で増減すると、ページの境目がずれて取りこぼしたり重なったりする。
+    // 減ったときは取りこぼした数と減った数が同じになり、件数では気づけないので、total の変化で見る
+    firstTotal ??= total;
+    if (total !== firstTotal) changed = true;
     // 途中で登録が増えると、ページの境目で同じものが重なるので除く
     const seen = new Set(items.map((item) => item.id));
     items.push(...body.items.filter((item) => !seen.has(item.id)));
     if (body.items.length < PAGE_LIMIT || items.length >= total) break;
   }
-  // 途中で減ると、後ろのものが前のページへずれて取りこぼす。最後の total に足りなければ知らせる
-  return { items, incomplete: items.length < total };
+  // 途中で一覧が変わったか、上限（MAX_PAGES）で止めて取りきれなかったら知らせる
+  return { items, incomplete: changed || items.length < total };
 }
 
 async function loadData(signal?: AbortSignal): Promise<Data> {
@@ -188,9 +194,7 @@ export function PeriodEndScreen() {
     }
   }
 
-  async function broadcast(
-    body: string,
-  ): Promise<ActionResult<{ sent: number }>> {
+  async function broadcast(body: string): Promise<BroadcastResult> {
     try {
       const { sent } = await fetchApi<MessageBroadcastResult>(
         "/api/messages/broadcast",
@@ -199,6 +203,16 @@ export function PeriodEndScreen() {
       void refreshRecipientCount();
       return { ok: true, data: { sent } };
     } catch (error) {
+      // 返事が届く前に切れたときは、サーバーで送り終えていることがある。押し直すと二重に届くので、
+      // 送り直す前に確かめてもらう
+      if (!(error instanceof FetchApiError)) {
+        return {
+          ok: false,
+          uncertain: true,
+          error:
+            "通信が切れたので、送れたかどうかわかりません。チャットの一覧で届いているか確かめてから、ページを読み込み直して送ってください。",
+        };
+      }
       return { ok: false, error: errorMessageOf(error) };
     }
   }
@@ -272,8 +286,9 @@ export function PeriodEndScreen() {
         </Text>
         {data && data.linkedCount > 0 && (
           <Text>
-            照合中・受け渡し待ちの拾得物（{data.linkedCount}{" "}
-            件）は、申請と紐づいているので対象に含めていません。紐づけを外すと「受理」に戻り、ここに出ます。
+            申請と紐づいている拾得物（照合中・受け渡し待ちなど{" "}
+            {data.linkedCount}{" "}
+            件）は、対象に含めていません。紐づけを外すと「受理」に戻り、ここに出ます。
           </Text>
         )}
       </Stack>

@@ -7,7 +7,10 @@ import { FoundItemTable } from "@/components/FoundItemTable";
 import { statusLabel } from "@/components/StatusBadge";
 import type { ActionFailure, ActionResult } from "@/lib/action-result";
 import type { FoundItem } from "@/lib/schemas/found-item";
-import { BroadcastMessageDialog } from "./BroadcastMessageDialog";
+import {
+  type BroadcastResult,
+  BroadcastMessageDialog,
+} from "./BroadcastMessageDialog";
 import styles from "./ExpiryProcessor.module.css";
 
 export type Tab = "valuable" | "nonValuable";
@@ -42,7 +45,7 @@ export function ExpiryProcessor({
     ids: string[],
     status: TargetStatus,
   ) => Promise<BulkUpdateResult>;
-  broadcastAction: (body: string) => Promise<ActionResult<{ sent: number }>>;
+  broadcastAction: (body: string) => Promise<BroadcastResult>;
   // 一斉送信のダイアログを開いたとき（宛先の人数を取り直すため）
   onBroadcastOpen?: () => void;
   recipientCount: number;
@@ -63,8 +66,10 @@ export function ExpiryProcessor({
     tone: "success" | "error";
     text: string;
   } | null>(null);
-  // 確認ダイアログを開いたときの件数（更新のあとで一覧が変わっても、見出しの件数を変えない）
-  const [confirmCount, setConfirmCount] = useState(0);
+  // 確認ダイアログを開いたときに選んでいた ID。確かめた内容のとおりに送る
+  // （開いているあいだに裏の読み直しで一覧が変わっても、見出しの件数と送るものを変えない。
+  // ほかの人が変えていれば API が 409 を返し、選び直してもらう）
+  const [confirmIds, setConfirmIds] = useState<string[]>([]);
 
   const rows = tab === "valuable" ? valuableItems : nonValuableItems;
   // 表にない ID（別のタブの分や、更新で消えた分）は数えない
@@ -90,14 +95,14 @@ export function ExpiryProcessor({
   // 失敗したときは、ダイアログの中にエラーが出る。一覧の読み直しは action の側で行う
   async function update(): Promise<ActionResult> {
     // 読み直しで選んだものが一覧から消えたとき
-    if (targetIds.length === 0) {
+    if (confirmIds.length === 0) {
       return { ok: false, error: "変える拾得物を選び直してください。" };
     }
-    const result = await bulkUpdateAction(targetIds, targetStatus);
+    const result = await bulkUpdateAction(confirmIds, targetStatus);
     if (result.ok) {
       setNotice({
         tone: "success",
-        text: `${targetIds.length} 件を「${statusLabel(targetStatus)}」にしました`,
+        text: `${confirmIds.length} 件を「${statusLabel(targetStatus)}」にしました`,
       });
       setSelectedIds([]);
       return result;
@@ -165,7 +170,7 @@ export function ExpiryProcessor({
             colorPalette="red"
             disabled={targetIds.length === 0 || overLimit}
             onClick={() => {
-              setConfirmCount(targetIds.length);
+              setConfirmIds(targetIds);
               setNotice(null);
               setConfirmOpen(true);
             }}
@@ -195,7 +200,7 @@ export function ExpiryProcessor({
       <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title={`${confirmCount} 件を「${statusLabel(targetStatus)}」にしますか？`}
+        title={`${confirmIds.length} 件を「${statusLabel(targetStatus)}」にしますか？`}
         description="変えた拾得物は、この一覧から消えます。"
         confirmLabel="更新する"
         colorPalette="red"

@@ -66,6 +66,11 @@
   font-size: 0.875rem;
 }
 
+.uncertain {
+  color: var(--chakra-colors-red-fg);
+  font-size: 0.875rem;
+}
+
 .dialogBody {
   display: flex;
   flex-direction: column;
