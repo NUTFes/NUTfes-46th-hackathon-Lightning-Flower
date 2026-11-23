@@ -1,6 +1,6 @@
 "use client";
 
-import { Link, Stack } from "@chakra-ui/react";
+import { Link, Stack, Text } from "@chakra-ui/react";
 import NextLink from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -21,14 +21,14 @@ const menu = [
   { href: "/admin/settings", label: "設定", icon: FiSettings },
 ] as const;
 
-export function AdminSidebar() {
+export function AdminSidebar({ showBrand = false }: { showBrand?: boolean }) {
   const pathname = usePathname();
 
   return (
     <Stack
       as="nav"
       aria-label="管理画面メニュー"
-      w="220px"
+      w={showBrand ? "56" : "220px"}
       flexShrink={0}
       gap="2"
       p="3"
@@ -36,6 +36,11 @@ export function AdminSidebar() {
       borderRightWidth="1px"
       borderColor="gray.200"
     >
+      {showBrand && (
+        <Text fontWeight="bold" px="1" pt="1" mb="2">
+          オトシル 本部
+        </Text>
+      )}
       {menu.map(({ href, label, icon: Icon }) => {
         const isCurrentPage = pathname === href;
         const isActive =
