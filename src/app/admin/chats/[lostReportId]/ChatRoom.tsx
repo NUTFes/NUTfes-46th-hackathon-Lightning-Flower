@@ -57,9 +57,24 @@ export function ChatRoom({ reportId }: { reportId: string }) {
     });
   }, []);
 
+  // 申請の表示の世代。本人確認・解除を始めたときと終えたときに進め、それより前に投げた取り直しの
+  // 応答（操作の前の状態）で、操作の結果を上書きしないようにする
+  const reportEpoch = useRef(0);
+
   const applyReport = useCallback((report: LostReportForAdmin) => {
     setLoaded((prev) => (prev.state === "ok" ? { ...prev, report } : prev));
   }, []);
+
+  // 申請を取り直す。応答が届くまでに操作が走ったら、その応答は使わない
+  const refetchReport = useCallback(
+    async (signal?: AbortSignal) => {
+      const epoch = reportEpoch.current;
+      const report = await fetchApi<LostReportForAdmin>(base, { signal });
+      if (!signal?.aborted && reportEpoch.current === epoch)
+        applyReport(report);
+    },
+    [base, applyReport],
+  );
 
   // 最初に、申請とメッセージを全部取る
   useEffect(() => {
@@ -86,12 +101,14 @@ export function ChatRoom({ reportId }: { reportId: string }) {
   }, [base, reloadCount]);
 
   // 開いている間、30 秒ごとに新しいメッセージと申請の状態を取り直す
-  // （guest が受け取り方法を選ぶと「受け渡し待ち」になるので、申請も取り直す）
+  // （guest が受け取り方法を選ぶと「受け渡し待ち」になるので、申請も取り直す）。
+  // タブが見えないときは取らず、見えるようになったらすぐ取る
   const ready = loaded.state === "ok";
   useEffect(() => {
     if (!ready) return;
     let controller: AbortController | undefined;
-    const timer = setInterval(() => {
+    function poll() {
+      if (document.visibilityState === "hidden") return;
       controller?.abort();
       controller = new AbortController();
       const { signal } = controller;
@@ -100,25 +117,32 @@ export function ChatRoom({ reportId }: { reportId: string }) {
         ? `?${new URLSearchParams({ after: pollAfterOf(after) })}`
         : "";
       Promise.all([
-        fetchApi<MessageList>(`${base}/messages${query}`, { signal }),
-        fetchApi<LostReportForAdmin>(base, { signal }),
+        fetchApi<MessageList>(`${base}/messages${query}`, { signal }).then(
+          ({ items }) => {
+            if (!signal.aborted) applyMessages(items);
+          },
+        ),
+        refetchReport(signal),
       ])
-        .then(([{ items }, report]) => {
-          if (signal.aborted) return;
-          applyMessages(items);
-          applyReport(report);
-          setPollError(null);
+        .then(() => {
+          if (!signal.aborted) setPollError(null);
         })
         .catch((error: unknown) => {
           if (signal.aborted) return;
           setPollError(errorMessageOf(error));
         });
-    }, CHAT_POLL_INTERVAL_MS);
+    }
+    function onVisibilityChange() {
+      if (document.visibilityState === "visible") poll();
+    }
+    const timer = setInterval(poll, CHAT_POLL_INTERVAL_MS);
+    document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       controller?.abort();
     };
-  }, [ready, base, applyMessages, applyReport]);
+  }, [ready, base, applyMessages, refetchReport]);
 
   const send = useCallback(
     async (_reportId: string, body: string): Promise<ActionResult<Message>> => {
@@ -140,21 +164,33 @@ export function ChatRoom({ reportId }: { reportId: string }) {
 
   // 本人確認・解除。成功したら、返ってきた申請で表示を合わせる
   const runReportAction = useCallback(
-    async (path: string, method: "POST" | "DELETE"): Promise<ActionResult> => {
+    async (
+      path: string,
+      method: "POST" | "DELETE",
+      conflictMessage: string,
+    ): Promise<ActionResult> => {
+      reportEpoch.current += 1;
       try {
         const report = await fetchApi<LostReportForAdmin>(path, { method });
+        reportEpoch.current += 1;
         applyReport(report);
         refreshThreads();
         return { ok: true };
       } catch (error) {
-        // 409 などで失敗したときは、今の状態に合わせるため取り直しておく
-        fetchApi<LostReportForAdmin>(base)
-          .then(applyReport)
-          .catch(() => {});
-        return { ok: false, error: errorMessageOf(error) };
+        reportEpoch.current += 1;
+        // 失敗したときは、今の状態に合わせるため取り直しておく
+        refetchReport().catch(() => {});
+        // 409 は、取り直した表示を見れば次にすることがわかるように、操作ごとの文言にする
+        return {
+          ok: false,
+          error:
+            error instanceof FetchApiError && error.status === 409
+              ? conflictMessage
+              : errorMessageOf(error),
+        };
       }
     },
-    [base, applyReport, refreshThreads],
+    [applyReport, refetchReport, refreshThreads],
   );
 
   if (loaded.state === "loading") {
@@ -200,7 +236,9 @@ export function ChatRoom({ reportId }: { reportId: string }) {
   const { report, messages } = loaded;
 
   return (
-    <Box h="full">
+    // ChatBubble の「（自分）」の読み上げ用の文字（VisuallyHidden）は position: absolute で、
+    // 包む要素がないとスクロールの外まで伸びてページに縦のスクロールが出るので、ここで閉じ込める
+    <Box h="full" position="relative" overflow="hidden">
       <ChatPanel
         reportId={report.id}
         viewer="admin"
@@ -212,11 +250,19 @@ export function ChatRoom({ reportId }: { reportId: string }) {
           <ChatHeader
             report={report}
             pollError={pollError}
-            onVerify={() => runReportAction(`${base}/verify`, "POST")}
+            onVerify={() =>
+              runReportAction(
+                `${base}/verify`,
+                "POST",
+                // verify は、紐づいた拾得物が「照合中」で削除されていないことも求める
+                "本人確認 OK にできませんでした。申請の状態か、紐づいた拾得物（照合中か、削除されていないか）が変わっています。表示を最新にしたので、照合画面で確かめてください。",
+              )
+            }
             onRelease={(foundItemId) =>
               runReportAction(
                 `${base}/matches/${encodeURIComponent(foundItemId)}`,
                 "DELETE",
+                "解除できませんでした。申請の状態が変わっています。表示を最新にしたので、確かめてください。",
               )
             }
           />
@@ -325,7 +371,7 @@ function ChatHeader({
           />
           <ConfirmDialog
             title="受け取り方法を聞きますか？"
-            description="本人確認 OK にします。参加者のチャットに、受け取り方法を選ぶボタンが出ます（選ぶと「受け渡し待ち」になります）。"
+            description="本人確認 OK にします。参加者の画面に、受け取り方法を選ぶボタンが出ます（選ぶと「受け渡し待ち」になります）。メッセージは送られないので、参加者にはチャットでも一言伝えてください。"
             confirmLabel="受け取り方法を聞く"
             colorPalette="blue"
             action={onVerify}

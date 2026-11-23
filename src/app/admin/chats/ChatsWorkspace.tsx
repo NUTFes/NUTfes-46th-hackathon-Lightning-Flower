@@ -16,7 +16,13 @@ import {
   useRouter,
   useSearchParams,
 } from "next/navigation";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   ChatThreadList,
   type ChatThreadSummary,
@@ -76,10 +82,23 @@ export function ChatsWorkspace({ children }: { children: ReactNode }) {
     searchParams.get("filter") === "awaiting" ? "awaiting" : "all";
 
   const [pages, setPages] = useState(1);
-  const [result, setResult] = useState<Result | null>(null);
+  const [result, setResultState] = useState<Result | null>(null);
+  // 取得の失敗を扱うときに、今出している結果を見るための写し
+  const resultRef = useRef<Result | null>(null);
+  const setResult = useCallback(
+    (next: Result | ((prev: Result | null) => Result | null)) => {
+      setResultState((prev) => {
+        const value = typeof next === "function" ? next(prev) : next;
+        resultRef.current = value;
+        return value;
+      });
+    },
+    [],
+  );
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [reloadCount, setReloadCount] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [moreError, setMoreError] = useState<string | null>(null);
 
   const key = JSON.stringify([filter, pages]);
   const current = result?.key === key ? result : null;
@@ -119,6 +138,12 @@ export function ChatsWorkspace({ children }: { children: ReactNode }) {
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
         setLoadingMore(false);
+        // 「もっと見る」で失敗したときは、ページ数を戻して前の一覧を出したままにする
+        if (currentPages > 1 && resultRef.current?.key !== key) {
+          setPages(currentPages - 1);
+          setMoreError(errorMessageOf(error));
+          return;
+        }
         // すでに一覧が出ているときは消さずに、取り直せなかったことだけ出す
         setResult((prev) =>
           prev?.key === key && prev.state === "ok"
@@ -128,28 +153,47 @@ export function ChatsWorkspace({ children }: { children: ReactNode }) {
         setRefreshError(errorMessageOf(error));
       });
     return () => controller.abort();
-  }, [key, reloadCount]);
+  }, [key, reloadCount, setResult]);
 
-  // 30 秒ごとに取り直す（返信待ちが増えたことに気づけるように）
+  // 30 秒ごとに取り直す（返信待ちが増えたことに気づけるように）。
+  // タブが見えないときは取らず、見えるようになったらすぐ取る
   useEffect(() => {
-    const timer = setInterval(refresh, CHAT_POLL_INTERVAL_MS);
-    return () => clearInterval(timer);
+    function poll() {
+      if (document.visibilityState !== "hidden") refresh();
+    }
+    function onVisibilityChange() {
+      if (document.visibilityState === "visible") refresh();
+    }
+    const timer = setInterval(poll, CHAT_POLL_INTERVAL_MS);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, [refresh]);
 
   function changeFilter(next: Filter) {
     if (next === filter) return;
     setPages(1);
+    setLoadingMore(false);
+    setMoreError(null);
     router.replace(`${pathname}${filterQueryOf(next)}`, { scroll: false });
   }
 
   function loadMore() {
     setLoadingMore(true);
+    setMoreError(null);
     setPages((count) => count + 1);
   }
 
-  // 「もっと見る」で増やした分は、取り終わるまで今の一覧を出しておく
+  // 「もっと見る」で増やした分は、取り終わるまで今の一覧（同じ絞り込みの 1 つ前のページ数）を出しておく
   const shown =
-    current ?? (loadingMore && result?.state === "ok" ? result : null);
+    current ??
+    (loadingMore &&
+    result?.state === "ok" &&
+    result.key === JSON.stringify([filter, pages - 1])
+      ? result
+      : null);
 
   return (
     <ThreadsRefreshContext.Provider value={refresh}>
@@ -240,6 +284,11 @@ export function ChatsWorkspace({ children }: { children: ReactNode }) {
                         `/admin/chats/${encodeURIComponent(id)}${filterQueryOf(filter)}`
                       }
                     />
+                  )}
+                  {moreError && (
+                    <Text role="alert" fontSize="xs" color="red.600">
+                      続きを読み込めませんでした。{moreError}
+                    </Text>
                   )}
                   {shown.items.length < shown.total && (
                     <Button
