@@ -641,6 +641,15 @@ components:
           minLength: 1
       required:
         - reason
+    LostReportCandidates:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/FoundItem"
+      required:
+        - items
   parameters: {}
 paths:
   /api/health:
@@ -1671,6 +1680,55 @@ paths:
                 $ref: "#/components/schemas/Error"
         "409":
           description: 現在のステータスでは操作できない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/lost-reports/{id}/candidates:
+    get:
+      summary: 照合の候補一覧（admin）
+      description: 申請と同じカテゴリで status が received の拾得物を、拾得日時（foundAt）が申請の lostAt
+        に近い順で返す。論理削除したものは除く
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        "200":
+          description: 照合候補の拾得物一覧
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LostReportCandidates"
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 見つからない（削除済みを含む）
           content:
             application/json:
               schema:

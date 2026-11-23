@@ -19,6 +19,7 @@ import {
   LostReportIdParams,
   LostReportPatchBody,
   LostReportPickupBody,
+  LostReportCandidates,
 } from "@/lib/schemas/lost-report";
 import { MatchCreateBody, MatchParams } from "@/lib/schemas/match";
 import { Me } from "@/lib/schemas/me";
@@ -501,6 +502,26 @@ registry.registerPath({
     ...forbiddenResponse,
     ...guestLostReportNotFoundResponse,
     ...conflictResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/lost-reports/{id}/candidates",
+  summary: "照合の候補一覧（admin）",
+  description:
+    "申請と同じカテゴリで status が received の拾得物を、拾得日時（foundAt）が申請の lostAt に近い順で返す。論理削除したものは除く",
+  request: { params: LostReportIdParams },
+  responses: {
+    200: {
+      description: "照合候補の拾得物一覧",
+      content: { "application/json": { schema: LostReportCandidates } },
+    },
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...notFoundResponse,
     ...serverErrorResponse,
   },
 });

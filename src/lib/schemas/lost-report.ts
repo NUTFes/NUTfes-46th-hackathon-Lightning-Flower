@@ -1,3 +1,4 @@
+import { FoundItem } from "./found-item";
 import {
   CancelReason,
   CategoryRef,
@@ -120,3 +121,11 @@ export const LostReportCancelBody = z
   .openapi("LostReportCancelBody");
 
 export type LostReportCancelBody = z.infer<typeof LostReportCancelBody>;
+
+export const LostReportCandidates = z
+  .object({
+    items: z.array(FoundItem),
+  })
+  .openapi("LostReportCandidates");
+
+export type LostReportCandidates = z.infer<typeof LostReportCandidates>;
