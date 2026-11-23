@@ -15,7 +15,7 @@ function row(overrides: Partial<FoundItemRow> = {}): FoundItemRow {
     id: "11111111-1111-4111-8111-111111111111",
     number: 42,
     categoryId: 6,
-    features: "紺色のイヤホン",
+    color: "navy",
     brand: "SONY",
     foundPlace: "屋外ステージ付近",
     foundAt: new Date("2026-09-19T04:35:00.000Z"),
