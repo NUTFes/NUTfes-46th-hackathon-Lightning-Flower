@@ -65,7 +65,8 @@ export const PATCH = apiHandler(
         .set(
           status === "received"
             ? { status, disposedAt: null, disposalNote: null }
-            : { status, disposedAt: sql`now()` },
+            : // 移管と処分を行き来したとき、前の預り書の番号などを残さない（PATCH では note を受けない）
+              { status, disposedAt: sql`now()`, disposalNote: null },
         )
         .where(and(activeFoundItemById(id), inArray(foundItems.status, from)))
         .returning({ id: foundItems.id });

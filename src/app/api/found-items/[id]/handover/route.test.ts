@@ -45,6 +45,16 @@ describe("POST /api/found-items/[id]/handover", () => {
     ],
     ["receiverName がない", FOUND_ITEM_ID, { handedAt: BODY.handedAt }],
     ["receiverName が空白だけ", FOUND_ITEM_ID, { ...BODY, receiverName: "  " }],
+    [
+      "handedAt が DB の範囲外（年 0000）",
+      FOUND_ITEM_ID,
+      { ...BODY, handedAt: "0000-01-01T00:00:00Z" },
+    ],
+    [
+      "handedAt が 2 日より先",
+      FOUND_ITEM_ID,
+      { ...BODY, handedAt: new Date(Date.now() + 2 * 86400000).toISOString() },
+    ],
   ])("%s なら 400 にする", async (_, id, body) => {
     vi.mocked(requireAdmin).mockResolvedValue({
       role: "admin",

@@ -221,9 +221,20 @@ export type PatchFoundItemBody = z.infer<typeof PatchFoundItemBody>;
 // --- 状態を変える API の入力（#14） ------------------------------------------
 
 // POST /api/found-items/{id}/handover の本文
+// 受け渡しの日時は 2000 年から今の 1 日後まで（年 0000 などを DB に送ると 500 になるため。時計のずれは 1 日まで許す）
+const HandedAt = DateTime.refine(
+  (value) => {
+    const time = new Date(value).getTime();
+    return (
+      time >= Date.UTC(2000, 0, 1) && time <= Date.now() + 24 * 60 * 60 * 1000
+    );
+  },
+  { message: "handedAt は 2000 年から今までの日時にしてください" },
+);
+
 export const HandoverBody = z
   .object({
-    handedAt: DateTime,
+    handedAt: HandedAt,
     receiverName: NonEmptySafeText,
   })
   .openapi("HandoverBody");

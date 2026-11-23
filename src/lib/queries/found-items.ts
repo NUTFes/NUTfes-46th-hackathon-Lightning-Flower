@@ -104,7 +104,7 @@ export function findFoundItem(db: Db | Tx, id: string) {
 
 // 拾得物から始める、状態を変える API の最初の手順（docs/api-guide.md の「状態を変える API」の 3）。
 // 有効な紐づけがあれば、その申請の行を先にロックし（申請 → 拾得物の順）、紐づけがまだ有効かを確かめ直して、
-// 申請の ID を返す。紐づけがなければ null を返す。
+// 申請の ID を返す。最初から紐づけがなければ null を返し、ロックを待つ間に紐づけが変わっていたら 409 にする。
 //
 // null のとき、呼ぶ側は拾得物の UPDATE の WHERE に「受理（received）」を入れる。紐づけは拾得物を
 // received → matching に UPDATE するので、このあとで紐づけが入っても、拾得物の UPDATE が 0 行になって 409 になる
@@ -121,11 +121,11 @@ export async function lockActiveMatch(
     .where(eq(lostReports.id, match.lostReportId))
     .for("update");
 
-  // ロックを待つ間に解除されていたら、紐づけを取り直す。別の申請と紐づき直していると、
-  // その申請はロックしていないので、やり直してもらう
+  // ロックを待つ間に解除されていたり、別の申請と紐づき直していたりしたら、やり直してもらう。
+  // 解除のあとで null を返すと、受け渡しが「申請の人への受け渡し」のつもりで押されたのに、
+  // 本人確認で違った人への直接返却として通ってしまう
   const current = await findActiveMatch(tx, foundItemId);
-  if (!current) return null;
-  if (current.lostReportId !== match.lostReportId) {
+  if (!current || current.lostReportId !== match.lostReportId) {
     throw conflict("紐づけが変わりました。画面を読み込み直してください");
   }
   return current.lostReportId;
