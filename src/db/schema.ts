@@ -20,6 +20,7 @@ import { authUsers } from "drizzle-orm/supabase";
 import {
   CANCEL_REASONS,
   FOUND_STATUSES,
+  ITEM_COLORS,
   LOST_STATUSES,
   PICKUP_METHODS,
   SENDER_ROLES,
@@ -31,6 +32,7 @@ export const foundStatus = pgEnum("found_status", FOUND_STATUSES);
 export const lostStatus = pgEnum("lost_status", LOST_STATUSES);
 export const pickupMethod = pgEnum("pickup_method", PICKUP_METHODS);
 export const cancelReason = pgEnum("cancel_reason", CANCEL_REASONS);
+export const itemColor = pgEnum("item_color", ITEM_COLORS);
 export const senderRole = pgEnum("sender_role", SENDER_ROLES);
 
 // --- 共通の列 ----------------------------------------------------------------
@@ -64,7 +66,7 @@ export const foundItems = pgTable(
     categoryId: smallint("category_id")
       .notNull()
       .references(() => categories.id),
-    features: text("features").notNull(),
+    color: itemColor("color").notNull(),
     brand: text("brand"),
     foundPlace: text("found_place").notNull(),
     foundAt: timestamptz("found_at").notNull().defaultNow(),
@@ -127,7 +129,7 @@ export const lostReports = pgTable(
     categoryId: smallint("category_id")
       .notNull()
       .references(() => categories.id),
-    features: text("features").notNull(),
+    color: itemColor("color").notNull(),
     brand: text("brand"),
     lostPlace: text("lost_place").notNull(),
     lostAt: timestamptz("lost_at").notNull(),

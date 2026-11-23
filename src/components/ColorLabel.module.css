@@ -1,0 +1,27 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid var(--chakra-colors-border-emphasized);
+  flex-shrink: 0;
+}
+
+/* 透明・その他は塗りがないので、斜線で見分ける */
+.swatch[data-color="clear"],
+.swatch[data-color="other"] {
+  background-image: linear-gradient(
+    135deg,
+    transparent 45%,
+    var(--chakra-colors-fg-subtle) 45%,
+    var(--chakra-colors-fg-subtle) 55%,
+    transparent 55%
+  );
+}

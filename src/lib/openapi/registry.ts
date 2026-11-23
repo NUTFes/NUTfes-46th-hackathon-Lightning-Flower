@@ -3,8 +3,11 @@ import { CategoryList } from "@/lib/schemas/category";
 import { ErrorResponse } from "@/lib/schemas/error";
 import {
   FoundItem,
+  FoundItemCreateBody,
+  FoundItemIdParams,
   FoundItemList,
   FoundItemListQuery,
+  PatchFoundItemBody,
 } from "@/lib/schemas/found-item";
 import { HealthError, HealthOk } from "@/lib/schemas/health";
 import {
@@ -13,8 +16,9 @@ import {
   LostReportForAdminList,
   LostReportList,
 } from "@/lib/schemas/lost-report";
-import { Me } from "@/lib/schemas/me";
 import { AdminDashboard } from "@/lib/schemas/admin";
+import { Me } from "@/lib/schemas/me";
+
 // API を足したら、ここにスキーマとパスを登録する。`make openapi` で openapi.yaml を出力する。
 export const registry = new OpenAPIRegistry();
 
@@ -32,6 +36,15 @@ const unauthorizedResponse = {
 const forbiddenResponse = {
   403: { description: "権限がない", content: errorContent },
 };
+const notFoundResponse = {
+  404: { description: "見つからない（削除済みを含む）", content: errorContent },
+};
+const conflictResponse = {
+  409: {
+    description: "現在のステータスでは操作できない",
+    content: errorContent,
+  },
+};
 // apiHandler で包んだ API は、想定外のエラーのとき 500 INTERNAL_ERROR を返す
 const serverErrorResponse = {
   500: { description: "サーバーのエラー", content: errorContent },
@@ -39,11 +52,13 @@ const serverErrorResponse = {
 
 // 複数の API で返すデータの形（まだパスで使っていないものも、FE が型を見られるように登録しておく）
 registry.register("FoundItem", FoundItem);
+registry.register("FoundItemCreateBody", FoundItemCreateBody);
 registry.register("LostReport", LostReport);
 registry.register("LostReportForAdmin", LostReportForAdmin);
 registry.register("LostReportList", LostReportList);
 registry.register("LostReportForAdminList", LostReportForAdminList);
 registry.register("AdminDashboard", AdminDashboard);
+
 registry.registerPath({
   method: "get",
   path: "/api/health",
@@ -105,6 +120,99 @@ registry.registerPath({
     ...serverErrorResponse,
   },
 });
+
+registry.registerPath({
+  method: "post",
+  path: "/api/found-items",
+  summary: "拾得物の登録（member / admin）",
+  description:
+    "拾得物を 1 件登録する。photos は原則必須だが、「証明書・カード・定期券類」のみ空配列可",
+  request: {
+    body: {
+      required: true,
+      content: {
+        "application/json": { schema: FoundItemCreateBody },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: "登録した拾得物",
+      content: { "application/json": { schema: FoundItem } },
+    },
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    404: { description: "カテゴリが見つからない", content: errorContent },
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/found-items/{id}",
+  summary: "拾得物の詳細（member / admin）",
+  request: {
+    params: FoundItemIdParams,
+  },
+  responses: {
+    200: {
+      description: "拾得物の詳細",
+      content: { "application/json": { schema: FoundItem } },
+    },
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...notFoundResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "patch",
+  path: "/api/found-items/{id}",
+  summary: "拾得物の編集（member は自分の登録だけ / admin）",
+  description: "photos を送ったら丸ごと置き換える。ステータス変更はしない",
+  request: {
+    params: FoundItemIdParams,
+    body: {
+      content: { "application/json": { schema: PatchFoundItemBody } },
+    },
+  },
+  responses: {
+    200: {
+      description: "更新後の拾得物",
+      content: { "application/json": { schema: FoundItem } },
+    },
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...notFoundResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "delete",
+  path: "/api/found-items/{id}",
+  summary: "拾得物の論理削除（member は自分の登録だけ / admin）",
+  description: "status が received のときだけ削除できる",
+  request: {
+    params: FoundItemIdParams,
+  },
+  responses: {
+    204: {
+      description: "削除完了（ボディなし）",
+    },
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...notFoundResponse,
+    ...conflictResponse,
+    ...serverErrorResponse,
+  },
+});
+
 registry.registerPath({
   method: "get",
   path: "/api/admin/dashboard",

@@ -47,8 +47,8 @@ components:
           required:
             - id
             - name
-        features:
-          type: string
+        color:
+          $ref: "#/components/schemas/ItemColor"
         brand:
           type:
             - string
@@ -120,7 +120,7 @@ components:
         - displayNumber
         - status
         - category
-        - features
+        - color
         - brand
         - foundPlace
         - foundAt
@@ -141,6 +141,73 @@ components:
         - resolved
         - transferred_to_police
         - disposed
+    ItemColor:
+      type: string
+      enum:
+        - black
+        - white
+        - gray
+        - brown
+        - beige
+        - red
+        - pink
+        - orange
+        - yellow
+        - green
+        - blue
+        - navy
+        - purple
+        - gold
+        - silver
+        - clear
+        - other
+    FoundItemCreateBody:
+      type: object
+      properties:
+        categoryId:
+          type: integer
+          minimum: 1
+          maximum: 32767
+        color:
+          $ref: "#/components/schemas/ItemColor"
+        brand:
+          type:
+            - string
+            - "null"
+          minLength: 1
+        foundPlace:
+          type: string
+          minLength: 1
+        foundAt:
+          type: string
+          format: date-time
+        isValuable:
+          type: boolean
+        memo:
+          type:
+            - string
+            - "null"
+          minLength: 1
+        photos:
+          type: array
+          items:
+            type: object
+            properties:
+              path:
+                type: string
+                minLength: 1
+              thumbPath:
+                type: string
+                minLength: 1
+            required:
+              - path
+              - thumbPath
+          maxItems: 10
+      required:
+        - categoryId
+        - color
+        - foundPlace
+        - photos
     LostReport:
       type: object
       properties:
@@ -162,8 +229,8 @@ components:
           required:
             - id
             - name
-        features:
-          type: string
+        color:
+          $ref: "#/components/schemas/ItemColor"
         brand:
           type:
             - string
@@ -219,7 +286,7 @@ components:
         - displayNumber
         - status
         - category
-        - features
+        - color
         - brand
         - lostPlace
         - lostAt
@@ -506,9 +573,9 @@ paths:
           in: query
         - schema:
             type: string
-            description: 特徴・ブランド・メモ・場所の部分一致
+            description: ブランド・メモ・場所の部分一致
           required: false
-          description: 特徴・ブランド・メモ・場所の部分一致
+          description: ブランド・メモ・場所の部分一致
           name: q
           in: query
         - schema:
@@ -527,6 +594,18 @@ paths:
             maximum: 32767
           required: false
           name: categoryId
+          in: query
+        - schema:
+            type: string
+            description: カンマ区切りで複数（black / white / gray / brown / beige / red / pink /
+              orange / yellow / green / blue / navy / purple / gold / silver /
+              clear / other）。紺と青のように呼び方が揺れる色をまとめて探す
+            example: navy,blue
+          required: false
+          description: カンマ区切りで複数（black / white / gray / brown / beige / red / pink /
+            orange / yellow / green / blue / navy / purple / gold / silver /
+            clear / other）。紺と青のように呼び方が揺れる色をまとめて探す
+          name: color
           in: query
         - schema:
             type: string
@@ -582,6 +661,240 @@ paths:
                 $ref: "#/components/schemas/Error"
         "403":
           description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      summary: 拾得物の登録（member / admin）
+      description: 拾得物を 1 件登録する。photos は原則必須だが、「証明書・カード・定期券類」のみ空配列可
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FoundItemCreateBody"
+      responses:
+        "201":
+          description: 登録した拾得物
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FoundItem"
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: カテゴリが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/found-items/{id}:
+    get:
+      summary: 拾得物の詳細（member / admin）
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        "200":
+          description: 拾得物の詳細
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FoundItem"
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 見つからない（削除済みを含む）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      summary: 拾得物の編集（member は自分の登録だけ / admin）
+      description: photos を送ったら丸ごと置き換える。ステータス変更はしない
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                categoryId:
+                  type: integer
+                  minimum: 1
+                  maximum: 32767
+                color:
+                  $ref: "#/components/schemas/ItemColor"
+                brand:
+                  type:
+                    - string
+                    - "null"
+                  minLength: 1
+                foundPlace:
+                  type: string
+                  minLength: 1
+                foundAt:
+                  type: string
+                  format: date-time
+                isValuable:
+                  type: boolean
+                memo:
+                  type:
+                    - string
+                    - "null"
+                  minLength: 1
+                photos:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      path:
+                        type: string
+                        minLength: 1
+                      thumbPath:
+                        type: string
+                        minLength: 1
+                    required:
+                      - path
+                      - thumbPath
+                  maxItems: 10
+      responses:
+        "200":
+          description: 更新後の拾得物
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FoundItem"
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 見つからない（削除済みを含む）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      summary: 拾得物の論理削除（member は自分の登録だけ / admin）
+      description: status が received のときだけ削除できる
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        "204":
+          description: 削除完了（ボディなし）
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 見つからない（削除済みを含む）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: 現在のステータスでは操作できない
           content:
             application/json:
               schema:
