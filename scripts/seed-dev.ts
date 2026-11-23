@@ -1,5 +1,5 @@
 // ローカルの DB に、開発用のサンプルデータを入れる（make db-seed-dev）。本番には入れない。
-// 拾得物いくつかと、紐づけ・受け渡しを試すための参加者 1 人と遺失物申請 1 件を入れる。
+// 拾得物いくつかと、紐づけ・受け渡しを試すための参加者 1 人と遺失物申請 2 件を入れる。
 // 写真のファイルは置かないので、API の写真の URL は "" になる。
 // カテゴリはマイグレーション（src/db/migrations/0001_seed_categories.sql）で入っている。
 import { eq } from "drizzle-orm";
@@ -177,6 +177,16 @@ async function seed(myEmail: string) {
       lostReportId: report.id,
       foundItemId: wallet.id,
       matchedByEmail: OTHER_EMAIL,
+    });
+
+    // 探し中の申請（受理のタオルとの紐づけ・解除・本人確認を試す）
+    await tx.insert(lostReports).values({
+      guestId: GUEST_ID,
+      categoryId: 9,
+      color: "white",
+      note: "タオル（模擬店のロゴ入り）",
+      lostPlace: "屋外ステージ",
+      lostAt: at("14:30"),
     });
 
     // 鍵は本部で直接返却した（handover を試す）

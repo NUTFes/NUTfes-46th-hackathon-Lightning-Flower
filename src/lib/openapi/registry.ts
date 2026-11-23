@@ -18,6 +18,7 @@ import {
   LostReportIdParams,
   LostReportPatchBody,
 } from "@/lib/schemas/lost-report";
+import { MatchCreateBody, MatchParams } from "@/lib/schemas/match";
 import { Me } from "@/lib/schemas/me";
 import {
   ChatThreadList,
@@ -186,6 +187,7 @@ registry.registerPath({
   request: {
     params: FoundItemIdParams,
     body: {
+      required: true,
       content: { "application/json": { schema: PatchFoundItemBody } },
     },
   },
@@ -255,6 +257,7 @@ registry.registerPath({
   request: {
     params: LostReportIdParams,
     body: {
+      required: true,
       content: { "application/json": { schema: LostReportPatchBody } },
     },
   },
@@ -366,6 +369,74 @@ registry.registerPath({
     ...badRequestResponse,
     ...unauthorizedResponse,
     ...forbiddenResponse,
+    ...serverErrorResponse,
+  },
+});
+
+// 紐づけ・解除・本人確認は、どれも更新したあとの申請を返す
+const updatedLostReportResponse = {
+  200: {
+    description: "更新したあとの申請",
+    content: { "application/json": { schema: LostReportForAdmin } },
+  },
+};
+
+registry.registerPath({
+  method: "post",
+  path: "/api/lost-reports/{id}/matches",
+  summary: "申請を拾得物と紐づける（admin）",
+  description:
+    "申請が searching、拾得物が received のときだけ（それ以外は 409）。申請を maybe_found、拾得物を matching にする",
+  request: {
+    params: LostReportIdParams,
+    body: {
+      required: true,
+      content: { "application/json": { schema: MatchCreateBody } },
+    },
+  },
+  responses: {
+    ...updatedLostReportResponse,
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...notFoundResponse,
+    ...conflictResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "delete",
+  path: "/api/lost-reports/{id}/matches/{foundItemId}",
+  summary: "紐づけを解除する（admin。本人確認で違ったとき）",
+  description:
+    "申請が maybe_found で、この拾得物と有効な紐づけがあるときだけ（それ以外は 409）。紐づけに releasedAt を入れ、申請を searching（本人確認も消す）、拾得物を received に戻す",
+  request: { params: MatchParams },
+  responses: {
+    ...updatedLostReportResponse,
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...notFoundResponse,
+    ...conflictResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/lost-reports/{id}/verify",
+  summary: "本人確認 OK にする（admin）",
+  description:
+    "申請が maybe_found で、有効な紐づけがあり、まだ本人確認をしていないときだけ（それ以外は 409）。verified を true にする。ステータスは変えない",
+  request: { params: LostReportIdParams },
+  responses: {
+    ...updatedLostReportResponse,
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...notFoundResponse,
+    ...conflictResponse,
     ...serverErrorResponse,
   },
 });
