@@ -98,3 +98,10 @@ export function fromLocalInputValue(value: string) {
   const date = new Date(`${value}:00+09:00`);
   return Number.isNaN(date.getTime()) ? "" : date.toISOString();
 }
+
+// 学園祭本部の場所（トップ画面などに出す）。
+// TODO: 技大祭の会場図が決まったら場所を書く
+export const HQ_LOCATION = {
+  name: "学園祭本部",
+  note: "場所は運用時に記載します",
+} as const;
