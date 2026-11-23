@@ -1,8 +1,13 @@
 "use client";
 
+import { Button, Stack, Text } from "@chakra-ui/react";
+import NextLink from "next/link";
 import styles from "@/components/AdminTables.module.css";
 import { BadgePill, type BadgeLabel } from "@/components/BadgePill";
 import { DataTable, type DataTableColumn } from "@/components/DataTable";
+import { formatItemDate } from "@/components/DetailList";
+import { itemColorLabels } from "@/components/FoundItemDetailFields";
+import type { FoundItem } from "@/lib/schemas/found-item";
 import type { Category } from "@/lib/schemas/category";
 
 export type PendingReason = "awaiting_reply" | "verifying" | "searching";
@@ -12,6 +17,8 @@ export type PendingReportRow = {
   number: string;
   category: Pick<Category, "id" | "name">;
   reason: PendingReason;
+  color?: FoundItem["color"];
+  pendingAt?: string;
 };
 
 const REASONS: Record<PendingReason, BadgeLabel> = {
@@ -23,20 +30,52 @@ const REASONS: Record<PendingReason, BadgeLabel> = {
 const columns: DataTableColumn<PendingReportRow>[] = [
   {
     key: "number",
-    header: "管理番号",
+    header: "申請番号 / 日時",
     width: "8rem",
-    render: (row) => <span className={styles.number}>{row.number}</span>,
+    render: (row) => (
+      <Stack gap="0">
+        <span className={styles.number}>{row.number}</span>
+        {row.pendingAt && (
+          <Text fontSize="xs" color="gray.600" whiteSpace="nowrap">
+            {row.reason === "awaiting_reply" ? "最終メッセージ" : "受付"}{" "}
+            {formatItemDate(row.pendingAt)}
+          </Text>
+        )}
+      </Stack>
+    ),
   },
   {
     key: "category",
-    header: "カテゴリ",
-    render: (row) => row.category.name,
+    header: "申請内容",
+    render: (row) =>
+      row.color
+        ? `${itemColorLabels[row.color]}の${row.category.name}`
+        : row.category.name,
   },
   {
     key: "reason",
     header: "対応",
     width: "8rem",
     render: (row) => <BadgePill {...REASONS[row.reason]} />,
+  },
+  {
+    key: "action",
+    header: "操作",
+    width: "112px",
+    render: (row) => {
+      const label = row.reason === "awaiting_reply" ? "返信する" : "詳しく見る";
+      return (
+        <Button asChild size="xs" w="24" variant="outline" colorPalette="blue">
+          <NextLink
+            href={hrefOf(row)}
+            aria-label={`${row.number} ${label}`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            {label}
+          </NextLink>
+        </Button>
+      );
+    },
   },
 ];
 
