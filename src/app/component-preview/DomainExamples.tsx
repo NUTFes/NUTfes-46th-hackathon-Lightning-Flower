@@ -417,7 +417,7 @@ export function AdminExample() {
       <Example title="BroadcastMessageDialog（A07）">
         <BroadcastMessageDialog
           recipientCount={12}
-          action={mock("BroadcastMessageDialog")}
+          action={mock("BroadcastMessageDialog", { sent: 12 })}
         />
       </Example>
       <Example title="ExpiryProcessor（A07）">
@@ -425,7 +425,7 @@ export function AdminExample() {
           valuableItems={foundItems.filter((item) => item.isValuable)}
           nonValuableItems={foundItems.filter((item) => !item.isValuable)}
           bulkUpdateAction={mock("ExpiryProcessor.bulkUpdate")}
-          broadcastAction={mock("ExpiryProcessor.broadcast")}
+          broadcastAction={mock("ExpiryProcessor.broadcast", { sent: 12 })}
           recipientCount={12}
         />
       </Example>

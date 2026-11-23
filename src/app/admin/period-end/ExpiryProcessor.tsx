@@ -5,7 +5,7 @@ import { useState } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { FoundItemTable } from "@/components/FoundItemTable";
 import { statusLabel } from "@/components/StatusBadge";
-import type { ActionResult } from "@/lib/action-result";
+import type { ActionFailure, ActionResult } from "@/lib/action-result";
 import type { FoundItem } from "@/lib/schemas/found-item";
 import { BroadcastMessageDialog } from "./BroadcastMessageDialog";
 import styles from "./ExpiryProcessor.module.css";
@@ -14,6 +14,11 @@ export type Tab = "valuable" | "nonValuable";
 type TargetStatus = "transferred_to_police" | "disposed";
 
 const TARGET_STATUSES: TargetStatus[] = ["transferred_to_police", "disposed"];
+
+// 一括変更の結果。reselect が付いた失敗は、確認ダイアログを閉じて、一覧で選び直してもらう
+// （ほかの人が先に変えた、など。移管・処分は取り消しにくいので、残りをそのまま続けさせない）
+export type BulkUpdateResult =
+  ActionResult | (ActionFailure & { reselect: true });
 
 // 貴重品は警察へ、それ以外は処分を初期値にする
 const defaultTargetOf = (tab: Tab): TargetStatus =>
@@ -25,7 +30,9 @@ export function ExpiryProcessor({
   nonValuableItems,
   bulkUpdateAction,
   broadcastAction,
+  onBroadcastOpen,
   recipientCount,
+  maxSelection,
   tab: controlledTab,
   onTabChange,
 }: {
@@ -34,9 +41,13 @@ export function ExpiryProcessor({
   bulkUpdateAction: (
     ids: string[],
     status: TargetStatus,
-  ) => Promise<ActionResult>;
-  broadcastAction: (body: string) => Promise<ActionResult>;
+  ) => Promise<BulkUpdateResult>;
+  broadcastAction: (body: string) => Promise<ActionResult<{ sent: number }>>;
+  // 一斉送信のダイアログを開いたとき（宛先の人数を取り直すため）
+  onBroadcastOpen?: () => void;
   recipientCount: number;
+  // 一度に選べる数の上限（一括変更の API の上限）
+  maxSelection?: number;
   // 渡すと、表示するタブを外から決められる（A07 の集計カードの「対象を確認」から切り替えるため）
   tab?: Tab;
   onTabChange?: (tab: Tab) => void;
@@ -48,12 +59,19 @@ export function ExpiryProcessor({
     defaultTargetOf(tab),
   );
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{
+    tone: "success" | "error";
+    text: string;
+  } | null>(null);
+  // 確認ダイアログを開いたときの件数（更新のあとで一覧が変わっても、見出しの件数を変えない）
+  const [confirmCount, setConfirmCount] = useState(0);
 
   const rows = tab === "valuable" ? valuableItems : nonValuableItems;
   // 表にない ID（別のタブの分や、更新で消えた分）は数えない
   const rowIds = new Set(rows.map((item) => item.id));
   const targetIds = selectedIds.filter((id) => rowIds.has(id));
+  const overLimit =
+    maxSelection !== undefined && targetIds.length > maxSelection;
 
   // 外からタブが変わったときも、選択と変更後のステータスを合わせ直す
   const [shownTab, setShownTab] = useState<Tab>(tab);
@@ -61,7 +79,7 @@ export function ExpiryProcessor({
     setShownTab(tab);
     setSelectedIds([]);
     setTargetStatus(defaultTargetOf(tab));
-    setMessage(null);
+    setNotice(null);
   }
 
   function changeTab(next: Tab) {
@@ -77,10 +95,17 @@ export function ExpiryProcessor({
     }
     const result = await bulkUpdateAction(targetIds, targetStatus);
     if (result.ok) {
-      setMessage(
-        `${targetIds.length} 件を「${statusLabel(targetStatus)}」にしました`,
-      );
+      setNotice({
+        tone: "success",
+        text: `${targetIds.length} 件を「${statusLabel(targetStatus)}」にしました`,
+      });
       setSelectedIds([]);
+      return result;
+    }
+    if ("reselect" in result) {
+      // 成功として返すと、ConfirmDialog が閉じる。理由は一覧の上に出す（選択は残す）
+      setNotice({ tone: "error", text: result.error });
+      return { ok: true };
     }
     return result;
   }
@@ -90,6 +115,7 @@ export function ExpiryProcessor({
       <BroadcastMessageDialog
         recipientCount={recipientCount}
         action={broadcastAction}
+        onOpen={onBroadcastOpen}
       />
 
       <Tabs.Root
@@ -110,6 +136,12 @@ export function ExpiryProcessor({
       <div className={styles.toolbar}>
         <span className={styles.selectedCount}>
           {targetIds.length} 件を選択中
+          {overLimit && (
+            <span className={styles.limitNote}>
+              （一度に変えられるのは {maxSelection}{" "}
+              件までです。選ぶ数を減らしてください）
+            </span>
+          )}
         </span>
         <div className={styles.toolbarActions}>
           <NativeSelect.Root size="sm" className={styles.statusSelect}>
@@ -131,17 +163,24 @@ export function ExpiryProcessor({
           <Button
             size="sm"
             colorPalette="red"
-            disabled={targetIds.length === 0}
-            onClick={() => setConfirmOpen(true)}
+            disabled={targetIds.length === 0 || overLimit}
+            onClick={() => {
+              setConfirmCount(targetIds.length);
+              setNotice(null);
+              setConfirmOpen(true);
+            }}
           >
             選択したものを更新
           </Button>
         </div>
       </div>
 
-      {message && (
-        <p role="status" className={styles.success}>
-          {message}
+      {notice && (
+        <p
+          role={notice.tone === "error" ? "alert" : "status"}
+          className={notice.tone === "error" ? styles.error : styles.success}
+        >
+          {notice.text}
         </p>
       )}
 
@@ -156,7 +195,7 @@ export function ExpiryProcessor({
       <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title={`${targetIds.length} 件を「${statusLabel(targetStatus)}」にしますか？`}
+        title={`${confirmCount} 件を「${statusLabel(targetStatus)}」にしますか？`}
         description="変えた拾得物は、この一覧から消えます。"
         confirmLabel="更新する"
         colorPalette="red"

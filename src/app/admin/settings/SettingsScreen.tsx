@@ -49,6 +49,18 @@ export function SettingsScreen() {
         </Alert.Root>
       )}
 
+      {result?.state === "ok" && result.me.role === "guest" && (
+        <Alert.Root status="error">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>この画面を見る権限がありません</Alert.Title>
+            <Alert.Description>
+              実行委員のアカウントでログインしてください。
+            </Alert.Description>
+          </Alert.Content>
+        </Alert.Root>
+      )}
+
       {result?.state === "ok" && result.me.role !== "guest" && (
         <AccountInfoCard
           email={result.me.email}

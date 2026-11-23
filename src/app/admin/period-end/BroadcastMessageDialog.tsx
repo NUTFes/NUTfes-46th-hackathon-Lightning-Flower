@@ -21,14 +21,18 @@ const DEFAULT_BODY =
 export function BroadcastMessageDialog({
   recipientCount,
   action,
+  onOpen,
 }: {
   recipientCount: number;
-  action: (body: string) => Promise<ActionResult>;
+  // 返す sent は、実際に送った人数（送る時点の宛先で決まるので、画面の人数と違うことがある）
+  action: (body: string) => Promise<ActionResult<{ sent: number }>>;
+  onOpen?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [body, setBody] = useState(DEFAULT_BODY);
   const [error, setError] = useState<string | null>(null);
-  const [sent, setSent] = useState(false);
+  // 送った人数。送ったら、このページではもう送れなくする（同じ人に二重に送らないように）
+  const [sentCount, setSentCount] = useState<number | null>(null);
   const [pending, startTransition] = useTransition();
 
   function send() {
@@ -44,7 +48,7 @@ export function BroadcastMessageDialog({
         setError(result.error);
         return;
       }
-      setSent(true);
+      setSentCount(result.data.sent);
       setOpen(false);
     });
   }
@@ -56,16 +60,17 @@ export function BroadcastMessageDialog({
           variant="outline"
           colorPalette="blue"
           onClick={() => {
-            setSent(false);
+            setError(null);
             setOpen(true);
+            onOpen?.();
           }}
-          disabled={recipientCount === 0}
+          disabled={recipientCount === 0 || sentCount !== null}
         >
           見つからなかった人へ一斉送信（{recipientCount} 人）
         </Button>
-        {sent && (
+        {sentCount !== null && (
           <span role="status" className={styles.sent}>
-            送信しました
+            {sentCount} 人に送信しました
           </span>
         )}
       </div>
@@ -87,7 +92,8 @@ export function BroadcastMessageDialog({
                 <p className={styles.muted}>
                   期間終了まで見つからなかった {recipientCount}{" "}
                   人のチャットに、同じメッセージを送ります。
-                  送ったメッセージは取り消せません。
+                  送ったメッセージは取り消せません。前に送っていないか、確かめてから送ってください。
+                  宛先は送る時点の「探し中」の申請で決まるので、人数が変わることがあります。
                 </p>
                 <Field.Root invalid={!!error}>
                   <Field.Label>本文</Field.Label>
