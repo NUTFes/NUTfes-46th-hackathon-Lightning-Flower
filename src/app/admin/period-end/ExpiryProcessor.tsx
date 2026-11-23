@@ -1,7 +1,6 @@
 "use client";
 
 import { Button, NativeSelect, Tabs } from "@chakra-ui/react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { FoundItemTable } from "@/components/FoundItemTable";
@@ -11,7 +10,7 @@ import type { FoundItem } from "@/lib/schemas/found-item";
 import { BroadcastMessageDialog } from "./BroadcastMessageDialog";
 import styles from "./ExpiryProcessor.module.css";
 
-type Tab = "valuable" | "nonValuable";
+export type Tab = "valuable" | "nonValuable";
 type TargetStatus = "transferred_to_police" | "disposed";
 
 const TARGET_STATUSES: TargetStatus[] = ["transferred_to_police", "disposed"];
@@ -27,6 +26,8 @@ export function ExpiryProcessor({
   bulkUpdateAction,
   broadcastAction,
   recipientCount,
+  tab: controlledTab,
+  onTabChange,
 }: {
   valuableItems: FoundItem[];
   nonValuableItems: FoundItem[];
@@ -36,12 +37,15 @@ export function ExpiryProcessor({
   ) => Promise<ActionResult>;
   broadcastAction: (body: string) => Promise<ActionResult>;
   recipientCount: number;
+  // 渡すと、表示するタブを外から決められる（A07 の集計カードの「対象を確認」から切り替えるため）
+  tab?: Tab;
+  onTabChange?: (tab: Tab) => void;
 }) {
-  const router = useRouter();
-  const [tab, setTab] = useState<Tab>("valuable");
+  const [internalTab, setInternalTab] = useState<Tab>("valuable");
+  const tab = controlledTab ?? internalTab;
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [targetStatus, setTargetStatus] = useState<TargetStatus>(
-    defaultTargetOf("valuable"),
+    defaultTargetOf(tab),
   );
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -51,22 +55,32 @@ export function ExpiryProcessor({
   const rowIds = new Set(rows.map((item) => item.id));
   const targetIds = selectedIds.filter((id) => rowIds.has(id));
 
-  function changeTab(next: Tab) {
-    setTab(next);
+  // 外からタブが変わったときも、選択と変更後のステータスを合わせ直す
+  const [shownTab, setShownTab] = useState<Tab>(tab);
+  if (shownTab !== tab) {
+    setShownTab(tab);
     setSelectedIds([]);
-    setTargetStatus(defaultTargetOf(next));
+    setTargetStatus(defaultTargetOf(tab));
     setMessage(null);
   }
 
-  // 失敗したときは、ダイアログの中にエラーが出る
-  async function update() {
+  function changeTab(next: Tab) {
+    setInternalTab(next);
+    onTabChange?.(next);
+  }
+
+  // 失敗したときは、ダイアログの中にエラーが出る。一覧の読み直しは action の側で行う
+  async function update(): Promise<ActionResult> {
+    // 読み直しで選んだものが一覧から消えたとき
+    if (targetIds.length === 0) {
+      return { ok: false, error: "変える拾得物を選び直してください。" };
+    }
     const result = await bulkUpdateAction(targetIds, targetStatus);
     if (result.ok) {
       setMessage(
         `${targetIds.length} 件を「${statusLabel(targetStatus)}」にしました`,
       );
       setSelectedIds([]);
-      router.refresh();
     }
     return result;
   }
@@ -143,7 +157,7 @@ export function ExpiryProcessor({
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title={`${targetIds.length} 件を「${statusLabel(targetStatus)}」にしますか？`}
-        description="紐づいている申請がある場合は、その申請のステータスも合わせて変わります。"
+        description="変えた拾得物は、この一覧から消えます。"
         confirmLabel="更新する"
         colorPalette="red"
         action={update}
