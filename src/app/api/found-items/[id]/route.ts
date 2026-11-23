@@ -101,7 +101,7 @@ export const PATCH = apiHandler(async (request, ctx: RouteContext) => {
         await tx.insert(foundItemPhotos).values(
           body.photos.map((photo, index) => ({
             foundItemId: id,
-            storagePath: photo.storagePath,
+            storagePath: photo.path,
             thumbPath: photo.thumbPath,
             sortOrder: index,
           })),

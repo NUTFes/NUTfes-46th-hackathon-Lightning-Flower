@@ -166,6 +166,62 @@ describe("PATCH /api/found-items/[id]", () => {
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toMatchObject({ color: "blue" });
   });
+
+  it("正常：photos を差し替えて 200 を返す", async () => {
+    const mockInsertValues = vi.fn().mockResolvedValue(undefined);
+    mockFindFirstFoundItem
+      .mockResolvedValueOnce({
+        id: VALID_ID,
+        status: "received",
+        color: "black",
+        registeredByEmail: "member@example.com",
+      })
+      .mockResolvedValueOnce({
+        id: VALID_ID,
+        status: "received",
+        color: "black",
+        registeredByEmail: "member@example.com",
+      });
+    mockTransaction.mockImplementation(async (cb) => {
+      await cb({
+        update: () => ({
+          set: () => ({
+            where: vi.fn().mockResolvedValue(undefined),
+          }),
+        }),
+        delete: () => ({
+          where: vi.fn().mockResolvedValue(undefined),
+        }),
+        insert: () => ({
+          values: mockInsertValues,
+        }),
+      });
+    });
+
+    const req = new Request(`http://localhost/api/found-items/${VALID_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        photos: [
+          {
+            path: "found/replaced.jpg",
+            thumbPath: "found/replaced_thumb.jpg",
+          },
+        ],
+      }),
+    });
+    const res = await PATCH(req, makeContext());
+
+    expect(res.status).toBe(200);
+    expect(mockInsertValues).toHaveBeenCalledWith([
+      {
+        foundItemId: VALID_ID,
+        storagePath: "found/replaced.jpg",
+        thumbPath: "found/replaced_thumb.jpg",
+        sortOrder: 0,
+      },
+    ]);
+  });
 });
 
 describe("DELETE /api/found-items/[id]", () => {

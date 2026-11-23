@@ -688,14 +688,14 @@ paths:
                   items:
                     type: object
                     properties:
-                      storagePath:
+                      path:
                         type: string
                         minLength: 1
                       thumbPath:
                         type: string
                         minLength: 1
                     required:
-                      - storagePath
+                      - path
                       - thumbPath
       responses:
         "200":

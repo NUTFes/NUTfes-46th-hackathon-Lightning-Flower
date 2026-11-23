@@ -112,6 +112,13 @@ export const FoundItemIdParams = z.object({
   id: z.uuid(),
 });
 
+export const FoundItemPhotoInput = z.object({
+  path: z.string().trim().min(1),
+  thumbPath: z.string().trim().min(1),
+});
+
+export type FoundItemPhotoInput = z.infer<typeof FoundItemPhotoInput>;
+
 export const PatchFoundItemBody = z.object({
   categoryId: SmallIdQuery.optional(),
   color: ItemColor.optional(),
@@ -120,14 +127,7 @@ export const PatchFoundItemBody = z.object({
   foundAt: DateTime.optional(),
   isValuable: z.boolean().optional(),
   memo: z.string().trim().min(1).nullable().optional(),
-  photos: z
-    .array(
-      z.object({
-        storagePath: z.string().trim().min(1),
-        thumbPath: z.string().trim().min(1),
-      }),
-    )
-    .optional(),
+  photos: z.array(FoundItemPhotoInput).optional(),
 });
 
 export type FoundItemIdParams = z.infer<typeof FoundItemIdParams>;
