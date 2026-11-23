@@ -3,7 +3,7 @@ import { requestOrigin } from "@/lib/auth/login";
 import { getStaff } from "@/lib/auth/staff";
 import { updateGuestSession } from "@/lib/supabase/proxy";
 
-// 画面と API の前に通る。クライアント側の画面遷移（RSC のリクエスト）も含め、すべてのリクエストがここを通る。
+// 画面の前に通る。クライアント側の画面遷移（RSC のリクエスト）も含め、API と静的なファイルのほかのリクエストがここを通る。
 //   - /staff（member）と /admin（admin）：Cloudflare Access の JWT を確かめる。
 //     失敗したら、401 / 403 の説明のページをここで返す（URL はそのまま）
 //   - それ以外（guest の画面）：guest（Supabase Auth）のセッションを更新する。
