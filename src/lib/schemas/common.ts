@@ -17,8 +17,15 @@ export const PickupMethod = z.enum(PICKUP_METHODS).openapi("PickupMethod");
 export const CancelReason = z.enum(CANCEL_REASONS).openapi("CancelReason");
 export const ItemColor = z.enum(ITEM_COLORS).openapi("ItemColor");
 
-// 日時は ISO 8601 の文字列（例 2026-09-19T04:35:00.000Z）
-export const DateTime = z.iso.datetime({ offset: true });
+// 日時は ISO 8601 の文字列（例 2026-09-19T04:35:00.000Z）。
+// 2000 年から 2099 年までに限る（年 0000 などを DB に送ると、timestamptz の範囲外で 500 になるため）
+export const DateTime = z.iso.datetime({ offset: true }).refine(
+  (value) => {
+    const time = new Date(value).getTime();
+    return time >= Date.UTC(2000, 0, 1) && time < Date.UTC(2100, 0, 1);
+  },
+  { message: "日時は 2000 年から 2099 年までにしてください" },
+);
 
 // 一覧などに埋め込むカテゴリ
 export const CategoryRef = Category.pick({ id: true, name: true });

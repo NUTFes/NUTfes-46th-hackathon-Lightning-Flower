@@ -243,7 +243,7 @@ registry.registerPath({
   path: "/api/found-items/{id}/handover",
   summary: "受け渡しを記録して解決済みにする（admin）",
   description:
-    "拾得物が received / matching / awaiting_handover のときだけ（それ以外は 409）。handovers に記録し、拾得物を resolved にする。有効な紐づけの申請があれば（maybe_found でも awaiting_handover でも。本人確認の前に窓口へ来たときも含む）それも resolved にする。ロックを待つ間に紐づけが変わっていたら 409。紐づけがなければ直接返却（lostReportId なし）",
+    "拾得物が received / matching / awaiting_handover のときだけ（それ以外は 409）。handovers に記録し、拾得物を resolved にする。有効な紐づけの申請があれば（maybe_found でも awaiting_handover でも。本人確認の前（verified でない maybe_found）でも通す。窓口で現物を見せて本人確認する運用のため）それも resolved にする。ロックを待つ間に紐づけが変わっていたら 409。紐づけがなければ直接返却（lostReportId なし）",
   request: {
     params: FoundItemIdParams,
     body: {
@@ -267,7 +267,7 @@ registry.registerPath({
   path: "/api/found-items/{id}/status",
   summary: "ステータスを手で変える（admin）",
   description:
-    "紐づけがないときの received と transferred_to_police・disposed の行き来だけ（それ以外は 409）。移管・処分にしたら disposedAt を入れて disposalNote を消し、received に戻したら disposedAt・disposalNote を消す",
+    "紐づけがないときの received と transferred_to_police・disposed の行き来だけ。ほかの値は 400、今と同じ値や紐づけがあるときは 409。移管・処分にしたら disposedAt を入れて disposalNote を消し、received に戻したら disposedAt・disposalNote を消す",
   request: {
     params: FoundItemIdParams,
     body: {

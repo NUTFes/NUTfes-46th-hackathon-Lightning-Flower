@@ -221,15 +221,10 @@ export type PatchFoundItemBody = z.infer<typeof PatchFoundItemBody>;
 // --- 状態を変える API の入力（#14） ------------------------------------------
 
 // POST /api/found-items/{id}/handover の本文
-// 受け渡しの日時は 2000 年から今の 1 日後まで（年 0000 などを DB に送ると 500 になるため。時計のずれは 1 日まで許す）
+// 受け渡しの日時は、今より先にしない（時計のずれは 1 日まで許す）
 const HandedAt = DateTime.refine(
-  (value) => {
-    const time = new Date(value).getTime();
-    return (
-      time >= Date.UTC(2000, 0, 1) && time <= Date.now() + 24 * 60 * 60 * 1000
-    );
-  },
-  { message: "handedAt は 2000 年から今までの日時にしてください" },
+  (value) => new Date(value).getTime() <= Date.now() + 24 * 60 * 60 * 1000,
+  { message: "handedAt は今までの日時にしてください" },
 );
 
 export const HandoverBody = z
@@ -239,10 +234,17 @@ export const HandoverBody = z
   })
   .openapi("HandoverBody");
 
-// PATCH /api/found-items/{id}/status の本文。値は FoundStatus のどれでも受け、
-// 手で変えられない値（matching・awaiting_handover・resolved）は route で 409 にする
+// 手で変えられるステータス。紐づけがないときの「受理」と「警察へ移管」「処分」の行き来だけで、
+// 照合中・受け渡し待ち・解決済みには、紐づけ・受け取り方法・受け渡しの API でしか変わらない
+export const MANUAL_FOUND_STATUSES = [
+  "received",
+  "transferred_to_police",
+  "disposed",
+] as const satisfies readonly (typeof FOUND_STATUSES)[number][];
+
+// PATCH /api/found-items/{id}/status の本文。手で変えられない値は 400 にする（bulk-status とそろえる）
 export const FoundItemStatusBody = z
-  .object({ status: FoundStatus })
+  .object({ status: z.enum(MANUAL_FOUND_STATUSES) })
   .openapi("FoundItemStatusBody");
 
 // POST /api/found-items/bulk-status の本文

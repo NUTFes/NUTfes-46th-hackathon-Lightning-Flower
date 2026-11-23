@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/api/auth";
 import { forbidden, unauthorized } from "@/lib/api/errors";
 import { PATCH } from "./route";
 
-// 権限・入力の誤りと、手で変えられないステータスは DB の前で止まることを確かめる
+// 権限・入力の誤り（手で変えられないステータスを含む）は DB の前で止まることを確かめる
 // （CI に DB がないので、DB を使う正常系は curl で確かめる）
 vi.mock("@/lib/api/auth", () => ({ requireAdmin: vi.fn() }));
 vi.mock("@/db", () => ({ getDb: vi.fn() }));
@@ -46,6 +46,21 @@ describe("PATCH /api/found-items/[id]/status", () => {
     ["拾得物の ID が uuid でない", "abc", { status: "disposed" }],
     ["status がない", FOUND_ITEM_ID, {}],
     ["status が enum にない", FOUND_ITEM_ID, { status: "lost" }],
+    [
+      "status が照合中（手で変えられない）",
+      FOUND_ITEM_ID,
+      { status: "matching" },
+    ],
+    [
+      "status が受け渡し待ち（手で変えられない）",
+      FOUND_ITEM_ID,
+      { status: "awaiting_handover" },
+    ],
+    [
+      "status が解決済み（手で変えられない）",
+      FOUND_ITEM_ID,
+      { status: "resolved" },
+    ],
   ])("%s なら 400 にする", async (_, id, body) => {
     asAdmin();
     const res = await call(id, body);
@@ -53,15 +68,4 @@ describe("PATCH /api/found-items/[id]/status", () => {
     expect((await res.json()).error.code).toBe("VALIDATION_ERROR");
     expect(getDb).not.toHaveBeenCalled();
   });
-
-  it.each(["matching", "awaiting_handover", "resolved"])(
-    "%s には手で変えられないので 409 にする",
-    async (status) => {
-      asAdmin();
-      const res = await call(FOUND_ITEM_ID, { status });
-      expect(res.status).toBe(409);
-      expect((await res.json()).error.code).toBe("CONFLICT");
-      expect(getDb).not.toHaveBeenCalled();
-    },
-  );
 });
