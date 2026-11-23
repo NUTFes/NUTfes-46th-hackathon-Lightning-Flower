@@ -3,17 +3,17 @@ import NextLink from "next/link";
 import type { ReactNode } from "react";
 import type { FoundItem } from "@/lib/schemas/found-item";
 import { formatItemDate } from "./DetailList";
+import { itemColorLabels } from "./FoundItemDetailFields";
 import { ItemThumbnail, type Photo } from "./ItemThumbnail";
 import { StatusBadge, type FoundItemStatus } from "./StatusBadge";
 
 export type FoundItemSummary = Pick<
   FoundItem,
-  "id" | "displayNumber" | "category" | "features" | "foundPlace" | "foundAt"
+  "id" | "displayNumber" | "category" | "color" | "foundPlace" | "foundAt"
 > & {
   status: FoundItemStatus;
   thumbnail?: Photo;
   photos?: FoundItem["photos"];
-  color?: string;
 };
 
 type FoundItemCardProps = {
@@ -38,7 +38,7 @@ export function FoundItemCard({
       id: firstPhoto.id,
       url: firstPhoto.thumbUrl || firstPhoto.url,
     });
-  const title = item.features || item.category.name;
+  const title = item.category.name;
 
   return (
     <LinkBox
@@ -69,8 +69,7 @@ export function FoundItemCard({
             )}
           </Text>
           <Text fontSize="xs" lineHeight="16px" color="gray.600">
-            {item.category.name}
-            {item.color && ` · ${item.color}`}
+            {itemColorLabels[item.color]}
           </Text>
           <Text fontSize="xs" lineHeight="16px" color="gray.600">
             {item.foundPlace} · {formatItemDate(item.foundAt)}

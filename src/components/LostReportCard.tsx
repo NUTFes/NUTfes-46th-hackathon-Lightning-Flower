@@ -9,14 +9,13 @@ import {
 import NextLink from "next/link";
 import { FiChevronRight } from "react-icons/fi";
 import type { LostReport } from "@/lib/schemas/lost-report";
+import { itemColorLabels } from "./FoundItemDetailFields";
 import { StatusBadge } from "./StatusBadge";
 
 export type LostReportSummary = Pick<
   LostReport,
-  "id" | "displayNumber" | "category" | "features" | "status"
-> & {
-  color?: string;
-};
+  "id" | "displayNumber" | "category" | "color" | "status"
+>;
 
 type LostReportCardProps = { report: LostReportSummary; href: string };
 
@@ -37,14 +36,11 @@ export function LostReportCard({ report, href }: LostReportCardProps) {
           </Text>
           <Text fontSize="sm" lineHeight="20px" fontWeight="bold">
             <LinkOverlay asChild>
-              <NextLink href={href}>
-                {report.features || report.category.name}
-              </NextLink>
+              <NextLink href={href}>{report.category.name}</NextLink>
             </LinkOverlay>
           </Text>
           <Text fontSize="xs" lineHeight="16px" color="gray.600">
-            {report.category.name}
-            {report.color && ` · ${report.color}`}
+            {itemColorLabels[report.color]}
           </Text>
         </Stack>
         <Flex align="center" gap="1">

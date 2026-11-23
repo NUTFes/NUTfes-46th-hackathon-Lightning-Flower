@@ -1,5 +1,6 @@
 import type { LostReport } from "@/lib/schemas/lost-report";
 import { DetailList, formatItemDate } from "./DetailList";
+import { itemColorLabels } from "./FoundItemDetailFields";
 
 type LostReportDetailFieldsProps = {
   report: LostReport;
@@ -12,7 +13,7 @@ export function LostReportDetailFields({
 }: LostReportDetailFieldsProps) {
   const fields = [
     { key: "category", label: "カテゴリ", value: report.category.name },
-    { key: "features", label: "特徴", value: report.features },
+    { key: "color", label: "色", value: itemColorLabels[report.color] },
     { key: "brand", label: "ブランド", value: report.brand },
     { key: "lostPlace", label: "なくした場所", value: report.lostPlace },
     {

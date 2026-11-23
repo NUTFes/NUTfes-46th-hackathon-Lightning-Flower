@@ -34,7 +34,7 @@ export function ItemFilterBar({
   categories = [],
   timeOptions = [],
   statusOptions = [],
-  searchPlaceholder = "特徴を検索",
+  searchPlaceholder = "ブランド・メモ・場所を検索",
   size = "md",
 }: ItemFilterBarProps) {
   return (
