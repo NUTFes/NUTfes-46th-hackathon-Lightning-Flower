@@ -59,3 +59,11 @@ export const CANCEL_REASONS = [
 
 // チャットの送り手
 export const SENDER_ROLES = ["admin", "guest"] as const;
+
+// 終わった申請のステータス（guest はチャットを送れない）
+export const ENDED_LOST_STATUSES = [
+  "resolved",
+  "transferred_to_police",
+  "disposed",
+  "cancelled",
+] as const satisfies readonly (typeof LOST_STATUSES)[number][];
