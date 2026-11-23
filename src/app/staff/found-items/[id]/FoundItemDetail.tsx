@@ -187,7 +187,12 @@ export function FoundItemDetail({ id }: { id: string }) {
       return { ok: true };
     } catch (error) {
       // 一覧などで状態が変わっていた。詳細を取り直して、今のステータスとボタンにする
+      // 取り直すと削除ボタンとダイアログが消えるので、理由は詳細の画面にも出す
       if (error instanceof FetchApiError && error.status === 409) {
+        setNotice(null);
+        setEditError(
+          "ほかの人が状態を変えたため、削除できませんでした。今の状態を表示しています。",
+        );
         setReloadCount((count) => count + 1);
       }
       return { ok: false, error: errorMessageOf(error) };
@@ -213,6 +218,8 @@ export function FoundItemDetail({ id }: { id: string }) {
             uploadPhoto={uploadPhoto}
             action={save}
             submitLabel="保存する"
+            // PATCH が今の写真を残したまま足せないので、上げる前に止める（photosToSend も参照）
+            replacePhotosOnly
           />
         ) : (
           <Stack gap="4" aria-busy="true">

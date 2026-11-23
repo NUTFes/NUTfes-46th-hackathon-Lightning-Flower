@@ -39,6 +39,7 @@ export function FoundItemForm({
   uploadPhoto,
   action,
   submitLabel,
+  replacePhotosOnly = false,
 }: {
   mode: "create" | "edit";
   // GET /api/categories と同じもの（サーバーで取って渡す）
@@ -47,6 +48,10 @@ export function FoundItemForm({
   uploadPhoto: (file: File) => Promise<ActionResult<FoundItemPhotoInput>>;
   action: (input: FoundItemInput) => Promise<ActionResult<{ id: string }>>;
   submitLabel: string;
+  // 登録済みの写真が残っているあいだは、写真を足せないようにする（撮り直すときは全部外してから）。
+  // PATCH の photos は丸ごと置き換えで、今の写真のパスを送れないため、上げる前に止める。
+  // TODO: PATCH が残す写真を ID（keepPhotoIds）で受け取れるようになったら外す
+  replacePhotosOnly?: boolean;
 }) {
   const [photos, setPhotos] = useState<(Photo | File)[]>(() =>
     (defaultValues?.photos ?? []).map((photo) => ({
@@ -175,6 +180,8 @@ export function FoundItemForm({
 
   const photoRequired =
     typeof categoryId !== "number" || isPhotoRequired(categoryId);
+  const photosLocked =
+    replacePhotosOnly && photos.some((photo) => !(photo instanceof File));
 
   return (
     <form onSubmit={submit} className={styles.form} noValidate>
@@ -184,12 +191,15 @@ export function FoundItemForm({
           setPhotos(next);
           setFieldErrors((previous) => ({ ...previous, photos: undefined }));
         }}
-        max={MAX_PHOTOS}
+        // 足せないときは、今の枚数を上限にして「写真を追加」を出さない
+        max={photosLocked ? photos.length : MAX_PHOTOS}
         required={photoRequired}
         requiredHint={
-          photoRequired
-            ? undefined
-            : "証明書・カード類は個人情報が写るので、写真は任意です"
+          photosLocked
+            ? "今の写真を残したまま、写真を足すことはできません。撮り直すときは、今の写真をすべて外してください"
+            : photoRequired
+              ? undefined
+              : "証明書・カード類は個人情報が写るので、写真は任意です"
         }
         uploading={uploading}
         disabled={busy}
