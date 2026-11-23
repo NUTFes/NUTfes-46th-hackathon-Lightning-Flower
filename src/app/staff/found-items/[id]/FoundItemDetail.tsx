@@ -58,6 +58,8 @@ export function FoundItemDetail({ id }: { id: string }) {
   const [editing, setEditing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
+  // 増やすと詳細を取り直す（削除が 409 になったときなど、状態が変わっていたとき）
+  const [reloadCount, setReloadCount] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -75,7 +77,7 @@ export function FoundItemDetail({ id }: { id: string }) {
         });
       });
     return () => controller.abort();
-  }, [id]);
+  }, [id, reloadCount]);
 
   // カテゴリは編集するときだけ使うので、編集を始めたときに取る
   function startEditing() {
@@ -180,9 +182,14 @@ export function FoundItemDetail({ id }: { id: string }) {
       await fetchApi<void>(`/api/found-items/${encodeURIComponent(item.id)}`, {
         method: "DELETE",
       });
-      router.push("/staff");
+      // 「戻る」で削除した拾得物のページ（404）に戻らないよう、履歴を置き換える
+      router.replace("/staff");
       return { ok: true };
     } catch (error) {
+      // 一覧などで状態が変わっていた。詳細を取り直して、今のステータスとボタンにする
+      if (error instanceof FetchApiError && error.status === 409) {
+        setReloadCount((count) => count + 1);
+      }
       return { ok: false, error: errorMessageOf(error) };
     }
   }
@@ -266,7 +273,7 @@ export function FoundItemDetail({ id }: { id: string }) {
       {item.canEdit ? (
         <Stack gap="3">
           <Button colorPalette="blue" w="full" onClick={startEditing}>
-            自分の登録を編集する
+            編集する
           </Button>
           {canDelete && (
             <ConfirmDialog
