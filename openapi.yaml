@@ -161,6 +161,53 @@ components:
         - silver
         - clear
         - other
+    FoundItemCreateBody:
+      type: object
+      properties:
+        categoryId:
+          type: integer
+          minimum: 1
+          maximum: 32767
+        color:
+          $ref: "#/components/schemas/ItemColor"
+        brand:
+          type:
+            - string
+            - "null"
+          minLength: 1
+        foundPlace:
+          type: string
+          minLength: 1
+        foundAt:
+          type: string
+          format: date-time
+        isValuable:
+          type: boolean
+        memo:
+          type:
+            - string
+            - "null"
+          minLength: 1
+        photos:
+          type: array
+          items:
+            type: object
+            properties:
+              path:
+                type: string
+                minLength: 1
+              thumbPath:
+                type: string
+                minLength: 1
+            required:
+              - path
+              - thumbPath
+          maxItems: 10
+      required:
+        - categoryId
+        - color
+        - foundPlace
+        - photos
     LostReport:
       type: object
       properties:
@@ -596,6 +643,52 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+    post:
+      summary: 拾得物の登録（member / admin）
+      description: 拾得物を 1 件登録する。photos は原則必須だが、「証明書・カード・定期券類」のみ空配列可
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FoundItemCreateBody"
+      responses:
+        "201":
+          description: 登録した拾得物
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FoundItem"
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: カテゴリが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /api/found-items/{id}:
     get:
       summary: 拾得物の詳細（member / admin）
@@ -697,6 +790,7 @@ paths:
                     required:
                       - path
                       - thumbPath
+                  maxItems: 10
       responses:
         "200":
           description: 更新後の拾得物
