@@ -455,6 +455,40 @@ components:
             - role
             - email
             - consented
+    PhotoUploadUrls:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PhotoUploadUrl"
+      required:
+        - items
+    PhotoUploadUrl:
+      type: object
+      properties:
+        path:
+          type: string
+        uploadUrl:
+          type: string
+        thumbPath:
+          type: string
+        thumbUploadUrl:
+          type: string
+      required:
+        - path
+        - uploadUrl
+        - thumbPath
+        - thumbUploadUrl
+    PhotoUploadUrlsBody:
+      type: object
+      properties:
+        count:
+          type: integer
+          minimum: 1
+          maximum: 5
+      required:
+        - count
     FoundItemList:
       type: object
       properties:
@@ -694,6 +728,15 @@ components:
           minLength: 1
       required:
         - reason
+    LostReportCandidates:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/FoundItem"
+      required:
+        - items
   parameters: {}
 paths:
   /api/health:
@@ -740,6 +783,49 @@ paths:
                 $ref: "#/components/schemas/Me"
         "401":
           description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/photos/upload-urls:
+    post:
+      summary: 写真の署名付きアップロード URL を発行する（member / admin）
+      description: count 枚ぶんの、元の画像とサムネイルのアップロード先（path・thumbPath）と署名付きアップロード URL
+        を返す。画面は uploadUrl・thumbUploadUrl に画像を PUT し（Content-Type は
+        image/jpeg・image/png・image/webp、1MiB まで）、path・thumbPath を POST
+        /api/found-items の photos に渡す。URL の有効期限は 2 時間。すでにあるファイルは上書きできない
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PhotoUploadUrlsBody"
+      responses:
+        "200":
+          description: 発行したアップロード先と URL（count 件）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PhotoUploadUrls"
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
           content:
             application/json:
               schema:
@@ -1904,6 +1990,55 @@ paths:
                 $ref: "#/components/schemas/Error"
         "409":
           description: 現在のステータスでは操作できない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/lost-reports/{id}/candidates:
+    get:
+      summary: 照合の候補一覧（admin）
+      description: 申請と同じカテゴリで status が received の拾得物を、拾得日時（foundAt）が申請の lostAt
+        に近い順で返す。論理削除したものは除く
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        "200":
+          description: 照合候補の拾得物一覧
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LostReportCandidates"
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 見つからない（削除済みを含む）
           content:
             application/json:
               schema:

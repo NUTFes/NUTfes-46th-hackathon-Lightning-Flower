@@ -23,6 +23,7 @@ import {
   LostReportIdParams,
   LostReportPatchBody,
   LostReportPickupBody,
+  LostReportCandidates,
 } from "@/lib/schemas/lost-report";
 import { MatchCreateBody, MatchParams } from "@/lib/schemas/match";
 import { Me } from "@/lib/schemas/me";
@@ -36,6 +37,7 @@ import {
   MessageList,
   MessageListQuery,
 } from "@/lib/schemas/message";
+import { PhotoUploadUrls, PhotoUploadUrlsBody } from "@/lib/schemas/photo";
 
 // API を足したら、ここにスキーマとパスを登録する。`make openapi` で openapi.yaml を出力する。
 export const registry = new OpenAPIRegistry();
@@ -115,6 +117,29 @@ registry.registerPath({
       content: { "application/json": { schema: Me } },
     },
     ...unauthorizedResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/photos/upload-urls",
+  summary: "写真の署名付きアップロード URL を発行する（member / admin）",
+  description:
+    "count 枚ぶんの、元の画像とサムネイルのアップロード先（path・thumbPath）と署名付きアップロード URL を返す。画面は uploadUrl・thumbUploadUrl に画像を PUT し（Content-Type は image/jpeg・image/png・image/webp、1MiB まで）、path・thumbPath を POST /api/found-items の photos に渡す。URL の有効期限は 2 時間。すでにあるファイルは上書きできない",
+  request: {
+    body: {
+      content: { "application/json": { schema: PhotoUploadUrlsBody } },
+    },
+  },
+  responses: {
+    200: {
+      description: "発行したアップロード先と URL（count 件）",
+      content: { "application/json": { schema: PhotoUploadUrls } },
+    },
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
     ...serverErrorResponse,
   },
 });
@@ -586,6 +611,26 @@ registry.registerPath({
     ...forbiddenResponse,
     ...guestLostReportNotFoundResponse,
     ...conflictResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/lost-reports/{id}/candidates",
+  summary: "照合の候補一覧（admin）",
+  description:
+    "申請と同じカテゴリで status が received の拾得物を、拾得日時（foundAt）が申請の lostAt に近い順で返す。論理削除したものは除く",
+  request: { params: LostReportIdParams },
+  responses: {
+    200: {
+      description: "照合候補の拾得物一覧",
+      content: { "application/json": { schema: LostReportCandidates } },
+    },
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...notFoundResponse,
     ...serverErrorResponse,
   },
 });

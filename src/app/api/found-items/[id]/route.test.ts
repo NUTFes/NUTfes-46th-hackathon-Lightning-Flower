@@ -167,21 +167,16 @@ describe("PATCH /api/found-items/[id]", () => {
     await expect(res.json()).resolves.toMatchObject({ color: "blue" });
   });
 
-  it("正常：photos を差し替えて 200 を返す", async () => {
+  // photos の差し替えのトランザクション。usedPhotos はほかの拾得物が使っている写真の行
+  function mockPhotoTransaction(usedPhotos: { id: string }[]) {
     const mockInsertValues = vi.fn().mockResolvedValue(undefined);
-    mockFindFirstFoundItem
-      .mockResolvedValueOnce({
-        id: VALID_ID,
-        status: "received",
-        color: "black",
-        registeredByEmail: "member@example.com",
-      })
-      .mockResolvedValueOnce({
-        id: VALID_ID,
-        status: "received",
-        color: "black",
-        registeredByEmail: "member@example.com",
-      });
+    const mockDeleteWhere = vi.fn().mockResolvedValue(undefined);
+    mockFindFirstFoundItem.mockResolvedValue({
+      id: VALID_ID,
+      status: "received",
+      color: "black",
+      registeredByEmail: "member@example.com",
+    });
     mockTransaction.mockImplementation(async (cb) => {
       await cb({
         update: () => ({
@@ -189,16 +184,26 @@ describe("PATCH /api/found-items/[id]", () => {
             where: vi.fn().mockResolvedValue(undefined),
           }),
         }),
+        select: () => ({
+          from: () => ({
+            where: () => ({
+              limit: vi.fn().mockResolvedValue(usedPhotos),
+            }),
+          }),
+        }),
         delete: () => ({
-          where: vi.fn().mockResolvedValue(undefined),
+          where: mockDeleteWhere,
         }),
         insert: () => ({
           values: mockInsertValues,
         }),
       });
     });
+    return { mockInsertValues, mockDeleteWhere };
+  }
 
-    const req = new Request(`http://localhost/api/found-items/${VALID_ID}`, {
+  const photosRequest = () =>
+    new Request(`http://localhost/api/found-items/${VALID_ID}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -210,7 +215,11 @@ describe("PATCH /api/found-items/[id]", () => {
         ],
       }),
     });
-    const res = await PATCH(req, makeContext());
+
+  it("正常：photos を差し替えて 200 を返す", async () => {
+    const { mockInsertValues } = mockPhotoTransaction([]);
+
+    const res = await PATCH(photosRequest(), makeContext());
 
     expect(res.status).toBe(200);
     expect(mockInsertValues).toHaveBeenCalledWith([
@@ -221,6 +230,18 @@ describe("PATCH /api/found-items/[id]", () => {
         sortOrder: 0,
       },
     ]);
+  });
+
+  it("入力：ほかの拾得物が使っている写真のパスなら 400 で、写真を変えない", async () => {
+    const { mockInsertValues, mockDeleteWhere } = mockPhotoTransaction([
+      { id: "33333333-3333-4333-8333-333333333333" },
+    ]);
+
+    const res = await PATCH(photosRequest(), makeContext());
+
+    expect(res.status).toBe(400);
+    expect(mockDeleteWhere).not.toHaveBeenCalled();
+    expect(mockInsertValues).not.toHaveBeenCalled();
   });
 });
 
