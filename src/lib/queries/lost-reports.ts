@@ -1,6 +1,9 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNull, not, or } from "drizzle-orm";
 import type { Db, Tx, WithOf } from "@/db";
+import { containsPattern } from "@/db/like";
 import { lostReports, matches, messages } from "@/db/schema";
+import { awaitingReplyWhere } from "@/lib/queries/awaiting-reply";
+import type { LostReportListQuery } from "@/lib/schemas/lost-report";
 
 // 遺失物申請を LostReport / LostReportForAdmin にするために、一緒に取る関連の行
 // （db.query.lostReports の with に渡す）。取った行の型が src/lib/serializers/lost-report.ts の
@@ -63,4 +66,38 @@ export function findLostReport(db: Db | Tx, id: string) {
     where: eq(lostReports.id, id),
     with: lostReportWith,
   });
+}
+
+// 「申-00118」や「118」から数値部分を取り出す（該当しなければ null）
+function parseLostReportNumber(q: string): number | null {
+  const match = q.match(/^(?:申-?)?0*(\d+)$/);
+  if (!match) return null;
+  const num = Number(match[1]);
+  return Number.isSafeInteger(num) && num >= 1 && num <= 2_147_483_647
+    ? num
+    : null;
+}
+
+// GET /api/lost-reports の絞り込み条件（admin）
+export function lostReportFilters(query: LostReportListQuery) {
+  const number = query.q ? parseLostReportNumber(query.q) : null;
+
+  return and(
+    query.q
+      ? or(
+          number != null ? eq(lostReports.number, number) : undefined,
+          ilike(lostReports.note, containsPattern(query.q)),
+          ilike(lostReports.lostPlace, containsPattern(query.q)),
+        )
+      : undefined,
+    query.status ? inArray(lostReports.status, query.status) : undefined,
+    query.categoryId != null
+      ? eq(lostReports.categoryId, query.categoryId)
+      : undefined,
+    query.awaitingReply != null
+      ? query.awaitingReply
+        ? awaitingReplyWhere
+        : not(awaitingReplyWhere)
+      : undefined,
+  );
 }

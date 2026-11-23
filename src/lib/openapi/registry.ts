@@ -23,6 +23,7 @@ import {
   LostReportList,
   LostReportIdParams,
   LostReportPatchBody,
+  LostReportListQuery,
   LostReportPickupBody,
   LostReportCandidates,
 } from "@/lib/schemas/lost-report";
@@ -402,6 +403,24 @@ registry.registerPath({
     ...forbiddenResponse,
     ...notFoundResponse,
     ...conflictResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/lost-reports",
+  summary: "遺失物申請の一覧・検索（admin）",
+  description: "createdAt（受付日時）の新しい順",
+  request: { query: LostReportListQuery },
+  responses: {
+    200: {
+      description: "遺失物申請の一覧と、条件に合う全件の数",
+      content: { "application/json": { schema: LostReportForAdminList } },
+    },
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
     ...serverErrorResponse,
   },
 });

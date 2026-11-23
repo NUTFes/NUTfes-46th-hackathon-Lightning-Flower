@@ -1531,6 +1531,93 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /api/lost-reports:
+    get:
+      summary: 遺失物申請の一覧・検索（admin）
+      description: createdAt（受付日時）の新しい順
+      parameters:
+        - schema:
+            type: integer
+            minimum: 1
+            default: 1
+          required: false
+          name: page
+          in: query
+        - schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          required: false
+          name: limit
+          in: query
+        - schema:
+            type: string
+            description: 番号・場所・備考の部分一致（番号は 申-00118 や 118 でも探せる）
+          required: false
+          description: 番号・場所・備考の部分一致（番号は 申-00118 や 118 でも探せる）
+          name: q
+          in: query
+        - schema:
+            type: string
+            description: カンマ区切りで複数（searching / maybe_found / awaiting_handover / resolved /
+              transferred_to_police / disposed / cancelled）
+            example: searching,maybe_found
+          required: false
+          description: カンマ区切りで複数（searching / maybe_found / awaiting_handover / resolved /
+            transferred_to_police / disposed / cancelled）
+          name: status
+          in: query
+        - schema:
+            type: integer
+            minimum: 1
+            maximum: 32767
+          required: false
+          name: categoryId
+          in: query
+        - schema:
+            type: string
+            enum:
+              - "true"
+              - "false"
+            description: true なら返信待ち（最新のメッセージが guest のもので、終わっていない）の申請だけ、false
+              なら返信待ちでないものだけ（メッセージのない申請も含む）
+          required: false
+          description: true なら返信待ち（最新のメッセージが guest のもので、終わっていない）の申請だけ、false
+            なら返信待ちでないものだけ（メッセージのない申請も含む）
+          name: awaitingReply
+          in: query
+      responses:
+        "200":
+          description: 遺失物申請の一覧と、条件に合う全件の数
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LostReportForAdminList"
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /api/lost-reports/{id}/messages:
     get:
       summary: チャットのメッセージの取得（guest は自分の申請だけ / admin）

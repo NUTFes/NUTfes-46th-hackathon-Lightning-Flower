@@ -1,13 +1,18 @@
+import { LOST_STATUSES } from "@/db/enums";
 import { FoundItem } from "./found-item";
 import {
+  BooleanQuery,
   CancelReason,
   CategoryRef,
+  csvEnum,
   DateTime,
   ItemColor,
   LostStatus,
+  PageQuery,
   paginated,
   PickupMethod,
-  PageQuery,
+  SearchQuery,
+  SmallIdQuery,
 } from "./common";
 import { z } from "./zod";
 
@@ -129,3 +134,26 @@ export const LostReportCandidates = z
   .openapi("LostReportCandidates");
 
 export type LostReportCandidates = z.infer<typeof LostReportCandidates>;
+
+// GET /api/lost-reports のクエリパラメータ（admin）
+export const LostReportListQuery = PageQuery.extend({
+  q: SearchQuery.optional().openapi({
+    description:
+      "番号・場所・備考の部分一致（番号は 申-00118 や 118 でも探せる）",
+  }),
+  status: csvEnum(LOST_STATUSES)
+    .optional()
+    .openapi({
+      type: "string",
+      description: `カンマ区切りで複数（${LOST_STATUSES.join(" / ")}）`,
+      example: "searching,maybe_found",
+    }),
+  categoryId: SmallIdQuery.optional(),
+  awaitingReply: BooleanQuery.optional().openapi({
+    description:
+      "true なら返信待ち（最新のメッセージが guest のもので、終わっていない）の申請だけ、false なら返信待ちでないものだけ（メッセージのない申請も含む）",
+  }),
+});
+
+export type LostReportListQuery = z.infer<typeof LostReportListQuery>;
+export type LostReportForAdminList = z.infer<typeof LostReportForAdminList>;
