@@ -17,12 +17,14 @@ const STATUS_MESSAGES: Record<number, string> = {
   409: "今の状態ではこの操作はできません。ページを読み込み直してください。",
 };
 
-// GET /api/... を呼んで JSON を返す。Cookie や Cloudflare Access のヘッダーはブラウザが付ける
+// /api/... を呼んで JSON を返す（204 No Content なら undefined）。
+// Cookie や Cloudflare Access のヘッダーはブラウザが付ける
 export async function fetchApi<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
   const response = await fetch(path, init);
+  if (response.status === 204) return undefined as T;
   if (response.ok) return (await response.json()) as T;
 
   const body = (await response
