@@ -31,7 +31,8 @@ type Key = keyof FoundItemInput;
 
 // 拾得物の登録・編集フォーム（M02 の新規、M04 の自分の分の編集、A03 の全件の編集）。
 // 送るときは、新しく足した写真を uploadPhoto で先に Storage に上げ、そのパスを action に渡す。
-// 成功したあとの画面の移動は、action の中で redirect() する（startTransition の中から呼ぶので Next が処理する）
+// 新規で成功したあとの画面の移動は、action の中で router.push() する。
+// 移り終わるまでボタンを押せないままにする（await のあとの push は transition に入らず、pending が先に終わるため）
 export function FoundItemForm({
   mode,
   categories,
@@ -41,7 +42,7 @@ export function FoundItemForm({
   submitLabel,
 }: {
   mode: "create" | "edit";
-  // GET /api/categories と同じもの（サーバーで取って渡す）
+  // GET /api/categories で取ったもの
   categories: Category[];
   defaultValues?: Partial<FoundItem>;
   uploadPhoto: (file: File) => Promise<ActionResult<FoundItemPhotoInput>>;
@@ -75,11 +76,13 @@ export function FoundItemForm({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
+  // 新規の登録が済み、完了画面へ移っているところ。もう一度押して二重に登録しないようにする
+  const [submitted, setSubmitted] = useState(false);
   const [pending, startTransition] = useTransition();
   // 上げ終わった写真。保存に失敗して送り直すときに、同じ写真をもう一度上げないように使い回す
   // TODO: 外した写真や、保存しなかったときに Storage に残る写真を消す仕組み（API 担当と相談）
   const uploadedRef = useRef(new Map<File, FoundItemPhotoInput>());
-  const busy = pending || uploading;
+  const busy = pending || uploading || submitted;
 
   // 保存済みの場所がエリアの一覧にないとき（エリアを差し替えた後など）も選べるようにする
   const placeOptions: string[] = [...PLACE_AREAS];
@@ -164,8 +167,9 @@ export function FoundItemForm({
       }
       const result = await action(parsed.data);
       if (result.ok) {
-        // 新規は action が完了画面へ redirect する。編集は同じ画面に残るので知らせる
+        // 新規は action が完了画面へ移る。編集は同じ画面に残るので知らせる
         if (mode === "edit") setSaved(true);
+        else setSubmitted(true);
         return;
       }
       setError(result.error);
