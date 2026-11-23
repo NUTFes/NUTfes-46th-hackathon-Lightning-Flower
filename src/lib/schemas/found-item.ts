@@ -114,7 +114,7 @@ export const FoundItemIdParams = z.object({
 
 export const PatchFoundItemBody = z.object({
   categoryId: SmallIdQuery.optional(),
-  features: z.string().trim().min(1).optional(),
+  color: ItemColor.optional(),
   brand: z.string().trim().min(1).nullable().optional(),
   foundPlace: z.string().trim().min(1).optional(),
   foundAt: DateTime.optional(),

@@ -21,7 +21,7 @@ vi.mock("@/lib/serializers/found-item", () => ({
   toFoundItem: vi.fn((row) => ({
     id: row.id,
     status: row.status,
-    features: row.features,
+    color: row.color,
   })),
 }));
 
@@ -60,7 +60,7 @@ describe("GET /api/found-items/[id]", () => {
     mockFindFirstFoundItem.mockResolvedValue({
       id: VALID_ID,
       status: "received",
-      features: "黒い傘",
+      color: "black",
       registeredByEmail: "member@example.com",
     });
 
@@ -93,14 +93,14 @@ describe("PATCH /api/found-items/[id]", () => {
     mockFindFirstFoundItem.mockResolvedValue({
       id: VALID_ID,
       status: "received",
-      features: "黒い傘",
+      color: "black",
       registeredByEmail: "other@example.com",
     });
 
     const req = new Request(`http://localhost/api/found-items/${VALID_ID}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ features: "青い傘" }),
+      body: JSON.stringify({ color: "blue" }),
     });
     const res = await PATCH(req, makeContext());
 
@@ -111,7 +111,7 @@ describe("PATCH /api/found-items/[id]", () => {
     mockFindFirstFoundItem.mockResolvedValue({
       id: VALID_ID,
       status: "received",
-      features: "黒い傘",
+      color: "black",
       registeredByEmail: "member@example.com",
     });
     mockFindFirstCategory.mockResolvedValue(undefined);
@@ -131,13 +131,13 @@ describe("PATCH /api/found-items/[id]", () => {
       .mockResolvedValueOnce({
         id: VALID_ID,
         status: "received",
-        features: "黒い傘",
+        color: "black",
         registeredByEmail: "member@example.com",
       })
       .mockResolvedValueOnce({
         id: VALID_ID,
         status: "received",
-        features: "青い傘",
+        color: "blue",
         registeredByEmail: "member@example.com",
       });
     mockTransaction.mockImplementation(async (cb) => {
@@ -159,12 +159,12 @@ describe("PATCH /api/found-items/[id]", () => {
     const req = new Request(`http://localhost/api/found-items/${VALID_ID}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ features: "青い傘" }),
+      body: JSON.stringify({ color: "blue" }),
     });
     const res = await PATCH(req, makeContext());
 
     expect(res.status).toBe(200);
-    await expect(res.json()).resolves.toMatchObject({ features: "青い傘" });
+    await expect(res.json()).resolves.toMatchObject({ color: "blue" });
   });
 });
 

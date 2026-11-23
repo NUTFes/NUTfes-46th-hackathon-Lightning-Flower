@@ -77,7 +77,7 @@ export const PATCH = apiHandler(async (request, ctx: RouteContext) => {
 
   const updateValues: Partial<typeof foundItems.$inferInsert> = {};
   if (body.categoryId !== undefined) updateValues.categoryId = body.categoryId;
-  if (body.features !== undefined) updateValues.features = body.features;
+  if (body.color !== undefined) updateValues.color = body.color;
   if (body.brand !== undefined) updateValues.brand = body.brand;
   if (body.foundPlace !== undefined) updateValues.foundPlace = body.foundPlace;
   if (body.foundAt !== undefined) updateValues.foundAt = new Date(body.foundAt);
