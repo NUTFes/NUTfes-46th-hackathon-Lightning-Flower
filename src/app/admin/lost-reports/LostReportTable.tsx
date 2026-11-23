@@ -1,6 +1,6 @@
 "use client";
 
-import { Link } from "@chakra-ui/react";
+import { Link, Stack, Text } from "@chakra-ui/react";
 import NextLink from "next/link";
 import type { ReactNode } from "react";
 import styles from "@/components/AdminTables.module.css";
@@ -13,43 +13,52 @@ import type { LostReportForAdmin } from "@/lib/schemas/lost-report";
 
 const columns: DataTableColumn<LostReportForAdmin>[] = [
   {
-    key: "number",
-    header: "管理番号",
-    width: "7rem",
+    key: "receipt",
+    header: "受付 / 申請番号",
+    width: "176px",
     render: (report) => (
-      <span className={styles.number}>{report.displayNumber}</span>
+      <Stack gap="0">
+        <span className={styles.number}>{report.displayNumber}</span>
+        <Text fontSize="xs" color="fg.muted" whiteSpace="nowrap">
+          {formatItemDate(report.createdAt)}
+        </Text>
+      </Stack>
     ),
   },
   {
-    key: "createdAt",
-    header: "受付日時",
+    key: "details",
+    header: "申請内容",
     render: (report) => (
-      <span className={styles.nowrap}>{formatItemDate(report.createdAt)}</span>
+      <Stack gap="0" overflowWrap="anywhere">
+        <span className={styles.stack}>
+          <strong>{report.category.name}</strong>
+          <ColorLabel color={report.color} />
+          {report.brand}
+        </span>
+        <Text fontSize="xs" color="fg.muted">
+          {report.lostPlace}
+          {report.note && ` ／ ${report.note}`}
+        </Text>
+        {report.activeMatch && (
+          <Link
+            asChild
+            fontSize="xs"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <NextLink
+              href={`/admin/found-items/${report.activeMatch.foundItemId}`}
+            >
+              紐づく拾得物：{report.activeMatch.displayNumber}
+            </NextLink>
+          </Link>
+        )}
+      </Stack>
     ),
-  },
-  {
-    key: "category",
-    header: "カテゴリ",
-    render: (report) => report.category.name,
-  },
-  {
-    key: "color",
-    header: "色",
-    render: (report) => <ColorLabel color={report.color} />,
-  },
-  {
-    key: "brand",
-    header: "ブランド",
-    render: (report) => report.brand ?? <span className={styles.muted}>—</span>,
-  },
-  {
-    key: "lostPlace",
-    header: "なくした場所",
-    render: (report) => report.lostPlace,
   },
   {
     key: "status",
     header: "ステータス",
+    width: "156px",
     render: (report) => (
       <span className={styles.stack}>
         <StatusBadge kind="lost" status={report.status} />
@@ -58,22 +67,29 @@ const columns: DataTableColumn<LostReportForAdmin>[] = [
     ),
   },
   {
-    key: "match",
-    header: "紐づく拾得物",
-    render: (report) =>
-      report.activeMatch ? (
-        <Link asChild onClick={(event) => event.stopPropagation()}>
-          <NextLink
-            href={`/admin/found-items/${report.activeMatch.foundItemId}`}
-          >
-            {report.activeMatch.displayNumber}
-          </NextLink>
-        </Link>
-      ) : (
-        <span className={styles.muted}>—</span>
-      ),
+    key: "action",
+    header: "操作",
+    width: "128px",
+    render: (report) => (
+      <Link
+        asChild
+        color="blue.700"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <NextLink
+          href={reportHref(report)}
+          aria-label={`${report.displayNumber}を照合する`}
+        >
+          照合する
+        </NextLink>
+      </Link>
+    ),
   },
 ];
+
+function reportHref(report: LostReportForAdmin) {
+  return `/admin/lost-reports/${report.id}`;
+}
 
 // 遺失物申請の一覧の表（A04）。行を押すと照合画面（A05）を開く
 export function LostReportTable({
@@ -94,7 +110,7 @@ export function LostReportTable({
       columns={columns}
       rows={rows}
       getRowId={(report) => report.id}
-      rowHref={(report) => `/admin/lost-reports/${report.id}`}
+      rowHref={reportHref}
       selectable={selectable}
       selectedIds={selectedIds}
       onSelectionChange={onSelectionChange}
