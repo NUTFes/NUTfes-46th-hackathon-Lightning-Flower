@@ -3,6 +3,7 @@ import { CategoryList } from "@/lib/schemas/category";
 import { ErrorResponse } from "@/lib/schemas/error";
 import {
   FoundItem,
+  FoundItemCreateBody,
   FoundItemIdParams,
   FoundItemList,
   FoundItemListQuery,
@@ -50,6 +51,7 @@ const serverErrorResponse = {
 
 // 複数の API で返すデータの形（まだパスで使っていないものも、FE が型を見られるように登録しておく）
 registry.register("FoundItem", FoundItem);
+registry.register("FoundItemCreateBody", FoundItemCreateBody);
 registry.register("LostReport", LostReport);
 registry.register("LostReportForAdmin", LostReportForAdmin);
 registry.register("LostReportList", LostReportList);
@@ -113,6 +115,33 @@ registry.registerPath({
     ...badRequestResponse,
     ...unauthorizedResponse,
     ...forbiddenResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/found-items",
+  summary: "拾得物の登録（member / admin）",
+  description:
+    "拾得物を 1 件登録する。photos は原則必須だが、「証明書・カード・定期券類」のみ空配列可",
+  request: {
+    body: {
+      required: true,
+      content: {
+        "application/json": { schema: FoundItemCreateBody },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: "登録した拾得物",
+      content: { "application/json": { schema: FoundItem } },
+    },
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    404: { description: "カテゴリが見つからない", content: errorContent },
     ...serverErrorResponse,
   },
 });
