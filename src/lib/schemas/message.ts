@@ -61,7 +61,7 @@ export const ChatThread = z
     color: ItemColor,
     status: LostStatus,
     lastMessageAt: DateTime,
-    awaitingReply: z.boolean(), // 最新のメッセージが guest のもの
+    awaitingReply: z.boolean(), // 最新のメッセージが guest で、申請が終わっていない（src/lib/queries/awaiting-reply.ts）
   })
   .openapi("ChatThread");
 

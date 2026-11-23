@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { ITEM_COLORS } from "@/db/enums";
 import {
   CreateLostReportBody,
+  LostReportCancelBody,
   LostReportIdParams,
   LostReportPatchBody,
+  LostReportPickupBody,
   MyLostReportListQuery,
 } from "./lost-report";
 
@@ -107,5 +109,42 @@ describe("LostReportPatchBody", () => {
     expect(() => LostReportPatchBody.parse({ color: "" })).toThrow();
     expect(() => LostReportPatchBody.parse({ categoryId: 0 })).toThrow();
     expect(() => LostReportPatchBody.parse({ categoryId: 99999 })).toThrow();
+  });
+});
+
+describe("LostReportPickupBody", () => {
+  it("today・later は note がなくても通す", () => {
+    expect(LostReportPickupBody.parse({ method: "today" })).toEqual({
+      method: "today",
+    });
+    expect(LostReportPickupBody.parse({ method: "later", note: null })).toEqual(
+      { method: "later", note: null },
+    );
+  });
+
+  it("note の前後の空白を除く", () => {
+    expect(
+      LostReportPickupBody.parse({ method: "other", note: " 明日の朝 " }),
+    ).toEqual({ method: "other", note: "明日の朝" });
+  });
+
+  it("other で note がない・null・空白だけならエラーにする", () => {
+    for (const note of [undefined, null, " "]) {
+      expect(
+        LostReportPickupBody.safeParse({ method: "other", note }).success,
+      ).toBe(false);
+    }
+  });
+});
+
+describe("LostReportCancelBody", () => {
+  it("reason だけで通す（note は任意）", () => {
+    expect(LostReportCancelBody.parse({ reason: "no_longer_needed" })).toEqual({
+      reason: "no_longer_needed",
+    });
+  });
+
+  it("決めた値でない reason はエラーにする", () => {
+    expect(LostReportCancelBody.safeParse({ reason: "x" }).success).toBe(false);
   });
 });

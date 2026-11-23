@@ -1,4 +1,5 @@
 import { LOST_STATUSES } from "@/db/enums";
+import { FoundItem } from "./found-item";
 import {
   BooleanQuery,
   CancelReason,
@@ -50,7 +51,7 @@ export const LostReportForAdmin = LostReport.extend({
   activeMatch: z
     .object({ foundItemId: z.uuid(), displayNumber: z.string() })
     .nullable(),
-  awaitingReply: z.boolean(), // 最新のメッセージが guest のもの
+  awaitingReply: z.boolean(), // 最新のメッセージが guest で、申請が終わっていない（src/lib/queries/awaiting-reply.ts）
 }).openapi("LostReportForAdmin");
 
 export const LostReportList = paginated(LostReport).openapi("LostReportList");
@@ -102,6 +103,38 @@ export const LostReportPatchBody = z
 
 export type LostReportPatchBody = z.infer<typeof LostReportPatchBody>;
 
+// PUT /api/lost-reports/{id}/pickup の本文。other（自由記述）のときは note が必須
+export const LostReportPickupBody = z
+  .object({
+    method: PickupMethod,
+    note: z.string().trim().min(1).nullable().optional(),
+  })
+  .refine((data) => data.method !== "other" || data.note != null, {
+    message: "「その他」のときは、受け取り方法を書いてください",
+    path: ["note"],
+  })
+  .openapi("LostReportPickupBody");
+
+export type LostReportPickupBody = z.infer<typeof LostReportPickupBody>;
+
+// POST /api/lost-reports/{id}/cancel の本文
+export const LostReportCancelBody = z
+  .object({
+    reason: CancelReason,
+    note: z.string().trim().min(1).nullable().optional(),
+  })
+  .openapi("LostReportCancelBody");
+
+export type LostReportCancelBody = z.infer<typeof LostReportCancelBody>;
+
+export const LostReportCandidates = z
+  .object({
+    items: z.array(FoundItem),
+  })
+  .openapi("LostReportCandidates");
+
+export type LostReportCandidates = z.infer<typeof LostReportCandidates>;
+
 // GET /api/lost-reports のクエリパラメータ（admin）
 export const LostReportListQuery = PageQuery.extend({
   q: SearchQuery.optional().openapi({
@@ -118,7 +151,7 @@ export const LostReportListQuery = PageQuery.extend({
   categoryId: SmallIdQuery.optional(),
   awaitingReply: BooleanQuery.optional().openapi({
     description:
-      "true なら返信待ちの申請だけ、false なら返信待ちでないものだけ（メッセージのない申請も含む）",
+      "true なら返信待ち（最新のメッセージが guest のもので、終わっていない）の申請だけ、false なら返信待ちでないものだけ（メッセージのない申請も含む）",
   }),
 });
 

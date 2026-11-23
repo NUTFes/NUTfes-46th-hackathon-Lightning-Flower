@@ -51,4 +51,13 @@ describe("lostReportFilters", () => {
     expect(sql).toContain('"category_id" = $3');
     expect(params).toEqual(["searching", "maybe_found", 6]);
   });
+
+  it("awaitingReply は共通の返信待ちの条件を使い、false はその否定にする", () => {
+    const yes = toWhere({ awaitingReply: "true" }).sql;
+    const no = toWhere({ awaitingReply: "false" }).sql;
+    expect(yes).toContain("distinct on");
+    expect(yes).not.toContain("where not (");
+    const where = (sql: string) => sql.slice(sql.indexOf(" where ") + 7);
+    expect(where(no)).toBe(`not ${where(yes)}`);
+  });
 });

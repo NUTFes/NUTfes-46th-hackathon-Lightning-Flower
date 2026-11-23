@@ -27,3 +27,34 @@ export async function signPhotoUrls(paths: string[]): Promise<PhotoUrlOf> {
   // ファイルがないなどで URL を作れなかった写真は "" にする（画面では表示しない）
   return (path) => urls.get(path) ?? "";
 }
+
+export type PhotoUpload = {
+  path: string;
+  uploadUrl: string;
+  thumbPath: string;
+  thumbUploadUrl: string;
+};
+
+// 写真 1 枚ぶん（元の画像とサムネイル）の、アップロード先のパスと署名付きアップロード URL を作る。
+// パスはサーバーで決める（推測できない uuid。拾得物の登録の isSafePhotoPath を通る形）。
+// アップロード先のパスは URL に固定され、upsert を付けないので、すでにあるファイルは上書きできない
+export async function createPhotoUpload(): Promise<PhotoUpload> {
+  const id = crypto.randomUUID();
+  const path = `found/${id}`;
+  const thumbPath = `found/${id}_thumb`;
+
+  const bucket = createSupabaseAdminClient().storage.from(PHOTO_BUCKET);
+  const [photo, thumb] = await Promise.all([
+    bucket.createSignedUploadUrl(path),
+    bucket.createSignedUploadUrl(thumbPath),
+  ]);
+  if (photo.error) throw photo.error;
+  if (thumb.error) throw thumb.error;
+
+  return {
+    path,
+    uploadUrl: photo.data.signedUrl,
+    thumbPath,
+    thumbUploadUrl: thumb.data.signedUrl,
+  };
+}

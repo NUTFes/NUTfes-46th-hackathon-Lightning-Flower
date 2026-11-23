@@ -31,5 +31,5 @@ export async function requireAdmin(request: Request): Promise<Staff> {
 export async function requireGuest(request: Request): Promise<Guest> {
   const actor = await requireActor(request);
   if (actor.role !== "guest") throw forbidden();
-  return { id: actor.id, email: actor.email };
+  return { id: actor.id, email: actor.email, name: actor.name };
 }

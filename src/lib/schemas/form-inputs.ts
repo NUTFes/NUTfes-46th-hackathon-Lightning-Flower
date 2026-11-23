@@ -19,7 +19,7 @@ const SmallId = z
   .min(1, "カテゴリを選んでください")
   .max(32767);
 
-// common.ts の DateTime と同じ形（オフセット付きの ISO 8601）
+// common.ts の DateTime と同じ形（オフセット付きの ISO 8601）。範囲（2000〜2099 年、handedAt は今まで）は API で確かめる
 const DateTime = z.iso.datetime({
   offset: true,
   error: "日時を入力してください",

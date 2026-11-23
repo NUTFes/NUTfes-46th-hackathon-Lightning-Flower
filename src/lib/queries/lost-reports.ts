@@ -1,7 +1,8 @@
-import { and, desc, eq, ilike, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNull, not, or } from "drizzle-orm";
 import type { Db, Tx, WithOf } from "@/db";
 import { containsPattern } from "@/db/like";
 import { lostReports, matches, messages } from "@/db/schema";
+import { awaitingReplyWhere } from "@/lib/queries/awaiting-reply";
 import type { LostReportListQuery } from "@/lib/schemas/lost-report";
 
 // 遺失物申請を LostReport / LostReportForAdmin にするために、一緒に取る関連の行
@@ -46,6 +47,27 @@ export function findLostReportForAdmin(db: Db | Tx, id: string) {
   });
 }
 
+// guest 本人の申請があるか（guest の状態を変える API で、404 と 409 を分けるのに使う）。
+// ほかの人の申請は、あることも見せないように「ない」として扱う
+export function findGuestLostReportId(
+  db: Db | Tx,
+  id: string,
+  guestId: string,
+) {
+  return db.query.lostReports.findFirst({
+    where: and(eq(lostReports.id, id), eq(lostReports.guestId, guestId)),
+    columns: { id: true },
+  });
+}
+
+// guest に返す形の行（toLostReport に渡す）。guest の状態を変える API が、更新したあとの申請を返すのに使う
+export function findLostReport(db: Db | Tx, id: string) {
+  return db.query.lostReports.findFirst({
+    where: eq(lostReports.id, id),
+    with: lostReportWith,
+  });
+}
+
 // 「申-00118」や「118」から数値部分を取り出す（該当しなければ null）
 function parseLostReportNumber(q: string): number | null {
   const match = q.match(/^(?:申-?)?0*(\d+)$/);
@@ -59,15 +81,6 @@ function parseLostReportNumber(q: string): number | null {
 // GET /api/lost-reports の絞り込み条件（admin）
 export function lostReportFilters(query: LostReportListQuery) {
   const number = query.q ? parseLostReportNumber(query.q) : null;
-
-  // 最新のメッセージの sender_role が guest かどうか
-  const latestSenderIsGuest = sql<boolean>`(
-    select ${messages.senderRole}
-    from ${messages}
-    where ${messages.lostReportId} = ${lostReports.id}
-    order by ${messages.createdAt} desc
-    limit 1
-  ) = 'guest'`;
 
   return and(
     query.q
@@ -83,8 +96,8 @@ export function lostReportFilters(query: LostReportListQuery) {
       : undefined,
     query.awaitingReply != null
       ? query.awaitingReply
-        ? latestSenderIsGuest
-        : sql`coalesce(${latestSenderIsGuest}, false) is false`
+        ? awaitingReplyWhere
+        : not(awaitingReplyWhere)
       : undefined,
   );
 }

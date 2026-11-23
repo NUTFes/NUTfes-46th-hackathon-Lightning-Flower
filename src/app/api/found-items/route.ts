@@ -1,11 +1,15 @@
-import { count, desc, eq, inArray, or } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { categories, foundItemPhotos, foundItems } from "@/db/schema";
 import { requireStaff } from "@/lib/api/auth";
 import { badRequest, notFound } from "@/lib/api/errors";
 import { apiHandler } from "@/lib/api/handler";
 import { parseBody, parseQuery } from "@/lib/api/parse";
-import { foundItemFilters, foundItemListWith } from "@/lib/queries/found-items";
+import {
+  foundItemFilters,
+  foundItemListWith,
+  isPhotoPathUsed,
+} from "@/lib/queries/found-items";
 import { toOffset } from "@/lib/schemas/common";
 import {
   FoundItemCreateBody,
@@ -84,24 +88,9 @@ export const POST = apiHandler(async (request) => {
 
     const isValuable = body.isValuable ?? category.isValuableDefault;
 
-    if (body.photos.length > 0) {
-      const paths = Array.from(
-        new Set(body.photos.flatMap((p) => [p.path, p.thumbPath])),
-      );
-      const existingPhotos = await tx
-        .select({ id: foundItemPhotos.id })
-        .from(foundItemPhotos)
-        .where(
-          or(
-            inArray(foundItemPhotos.storagePath, paths),
-            inArray(foundItemPhotos.thumbPath, paths),
-          ),
-        )
-        .limit(1);
-
-      if (existingPhotos.length > 0) {
-        throw badRequest("すでに使用されている写真パスは指定できません");
-      }
+    const paths = body.photos.flatMap((p) => [p.path, p.thumbPath]);
+    if (await isPhotoPathUsed(tx, paths)) {
+      throw badRequest("すでに使用されている写真パスは指定できません");
     }
 
     try {

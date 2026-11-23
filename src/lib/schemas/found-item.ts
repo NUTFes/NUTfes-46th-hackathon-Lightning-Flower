@@ -217,3 +217,57 @@ export const PatchFoundItemBody = z.object({
 export type FoundItemPhotoInput = z.infer<typeof FoundItemPhotoInput>;
 export type FoundItemIdParams = z.infer<typeof FoundItemIdParams>;
 export type PatchFoundItemBody = z.infer<typeof PatchFoundItemBody>;
+
+// --- 状態を変える API の入力（#14） ------------------------------------------
+
+// POST /api/found-items/{id}/handover の本文
+// 受け渡しの日時は、今より先にしない（時計のずれは 1 日まで許す）
+const HandedAt = DateTime.refine(
+  (value) => new Date(value).getTime() <= Date.now() + 24 * 60 * 60 * 1000,
+  { message: "handedAt は今までの日時にしてください" },
+);
+
+export const HandoverBody = z
+  .object({
+    handedAt: HandedAt,
+    receiverName: NonEmptySafeText,
+  })
+  .openapi("HandoverBody");
+
+// 手で変えられるステータス。紐づけがないときの「受理」と「警察へ移管」「処分」の行き来だけで、
+// 照合中・受け渡し待ち・解決済みには、紐づけ・受け取り方法・受け渡しの API でしか変わらない
+export const MANUAL_FOUND_STATUSES = [
+  "received",
+  "transferred_to_police",
+  "disposed",
+] as const satisfies readonly (typeof FOUND_STATUSES)[number][];
+
+// PATCH /api/found-items/{id}/status の本文。手で変えられない値は 400 にする（bulk-status とそろえる）
+export const FoundItemStatusBody = z
+  .object({ status: z.enum(MANUAL_FOUND_STATUSES) })
+  .openapi("FoundItemStatusBody");
+
+// POST /api/found-items/bulk-status の本文
+export const BulkStatusBody = z
+  .object({
+    foundItemIds: z
+      .array(z.uuid())
+      .min(1)
+      .max(500)
+      .refine((ids) => new Set(ids).size === ids.length, {
+        message: "同じ拾得物を重複して指定できません",
+      }),
+    status: z.enum(["transferred_to_police", "disposed"]),
+    // 預り書の番号など
+    note: NonEmptySafeText.nullable().optional(),
+  })
+  .openapi("BulkStatusBody");
+
+export const BulkStatusResult = z
+  .object({ updated: z.number().int() })
+  .openapi("BulkStatusResult");
+
+export type HandoverBody = z.infer<typeof HandoverBody>;
+export type FoundItemStatusBody = z.infer<typeof FoundItemStatusBody>;
+export type BulkStatusBody = z.infer<typeof BulkStatusBody>;
+export type BulkStatusResult = z.infer<typeof BulkStatusResult>;

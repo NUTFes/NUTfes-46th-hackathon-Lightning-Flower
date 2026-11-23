@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FOUND_STATUSES } from "@/db/enums";
 import {
+  DateTime,
   BooleanQuery,
   csvEnum,
   DateTimeQuery,
@@ -168,5 +169,20 @@ describe("FoundItemListQuery", () => {
     expect(
       FoundItemListQuery.safeParse({ foundFrom: "2026-11-21" }).success,
     ).toBe(false);
+  });
+});
+
+describe("DateTime", () => {
+  it("2000 年から 2099 年までの日時を受ける", () => {
+    expect(DateTime.safeParse("2000-01-01T00:00:00Z").success).toBe(true);
+    expect(DateTime.safeParse("2099-12-31T23:59:59+09:00").success).toBe(true);
+  });
+
+  it.each([
+    "0000-01-01T00:00:00Z",
+    "1999-12-31T23:59:59Z",
+    "2100-01-01T00:00:00Z",
+  ])("範囲外の %s は通さない（DB に送ると 500 になる年を止める）", (value) => {
+    expect(DateTime.safeParse(value).success).toBe(false);
   });
 });
