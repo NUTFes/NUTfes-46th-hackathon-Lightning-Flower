@@ -1,6 +1,6 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull, notExists } from "drizzle-orm";
 import { getDb } from "@/db";
-import { categories, foundItemPhotos, foundItems } from "@/db/schema";
+import { categories, foundItemPhotos, foundItems, matches } from "@/db/schema";
 import { requireStaff } from "@/lib/api/auth";
 import { badRequest, forbidden, notFound } from "@/lib/api/errors";
 import { apiHandler } from "@/lib/api/handler";
@@ -139,16 +139,37 @@ export const DELETE = apiHandler(async (request, ctx: RouteContext) => {
   //
   // lockActiveMatch（申請 → 拾得物の順のロック）は使わない。received の拾得物には有効な紐づけがなく
   // （紐づけは拾得物を matching にする）、この API は申請の行に触らず、拾得物の 1 行を 1 文で更新する
-  // だけなので、ほかの API とロックの順が逆になることはない（docs/api-guide.md の手順 3 の例外の bulk-status と同じ）
-  const [row] = await getDb()
+  // だけなので、ほかの API とロックの順が逆になることはない（docs/api-guide.md の手順 3 の例外の bulk-status と同じ）。
+  //
+  // bulk-status と同じく、状態の列と食い違って、受理なのに有効な紐づけが残っているものも削除しない
+  // （削除すると、申請が削除した拾得物に紐づいたまま残る）。NOT EXISTS は文の始まりの時点で見るが、
+  // 同時に入る紐づけは拾得物を matching にするので、そちらは status の見直しで 0 行になる
+  const db = getDb();
+  const [row] = await db
     .update(foundItems)
     .set({ deletedAt: new Date() })
-    .where(and(activeFoundItemById(id), eq(foundItems.status, "received")))
+    .where(
+      and(
+        activeFoundItemById(id),
+        eq(foundItems.status, "received"),
+        notExists(
+          db
+            .select({ id: matches.id })
+            .from(matches)
+            .where(
+              and(
+                eq(matches.foundItemId, foundItems.id),
+                isNull(matches.releasedAt),
+              ),
+            ),
+        ),
+      ),
+    )
     .returning({ id: foundItems.id });
   if (!row) {
     throw await notFoundOrConflict(
-      findFoundItemId(getDb(), id),
-      "保管中（received）以外の拾得物は削除できません",
+      findFoundItemId(db, id),
+      "保管中（received）で、申請と紐づいていない拾得物だけ削除できます",
       "拾得物が見つかりません",
     );
   }

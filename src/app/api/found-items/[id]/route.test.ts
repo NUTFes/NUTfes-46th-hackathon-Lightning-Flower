@@ -1,5 +1,5 @@
 import type { SQL } from "drizzle-orm";
-import { PgDialect } from "drizzle-orm/pg-core";
+import { PgDialect, QueryBuilder } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DELETE, GET, PATCH } from "./route";
 
@@ -38,6 +38,9 @@ vi.mock("@/db", () => ({
       },
     },
     update: (...args: unknown[]) => mockUpdate(...args),
+    // 削除の WHERE の副問い合わせ（NOT EXISTS）を SQL に組み立てられるよう、本物の QueryBuilder を使う
+    select: (fields: Parameters<QueryBuilder["select"]>[0]) =>
+      new QueryBuilder().select(fields),
     transaction: (...args: unknown[]) => mockTransaction(...args),
   }),
 }));
@@ -312,7 +315,7 @@ describe("DELETE /api/found-items/[id]", () => {
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 
-  it("正常：received の自分の登録を論理削除して 204 を返す。UPDATE の WHERE に received を入れる", async () => {
+  it("正常：received の自分の登録を論理削除して 204 を返す。UPDATE の WHERE に received と、有効な紐づけがないことを入れる", async () => {
     mockFindFirstFoundItem.mockResolvedValue({
       id: VALID_ID,
       status: "received",
@@ -329,6 +332,8 @@ describe("DELETE /api/found-items/[id]", () => {
     );
     expect(where.sql).toContain('"deleted_at" is null');
     expect(where.sql).toContain('"status" = $');
+    expect(where.sql).toContain('not exists (select "id" from "matches"');
+    expect(where.sql).toContain('"matches"."released_at" is null');
     expect(where.params).toEqual([VALID_ID, "received"]);
   });
 
@@ -346,7 +351,8 @@ describe("DELETE /api/found-items/[id]", () => {
     await expect(res.json()).resolves.toMatchObject({
       error: {
         code: "CONFLICT",
-        message: "保管中（received）以外の拾得物は削除できません",
+        message:
+          "保管中（received）で、申請と紐づいていない拾得物だけ削除できます",
       },
     });
   });
