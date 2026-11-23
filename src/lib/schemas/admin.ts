@@ -8,8 +8,6 @@ export const AdminDashboard = z
     lostReportCount: nonNegativeInt,
     awaitingReplyCount: nonNegativeInt,
     resolvedCount: nonNegativeInt,
-    foundItemsLastHour: nonNegativeInt,
-    lostReportsLastHour: nonNegativeInt,
   })
   .openapi("AdminDashboard");
 

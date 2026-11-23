@@ -57,7 +57,7 @@ describe("GET /api/admin/dashboard", () => {
     });
   });
 
-  it("admin でダッシュボードの 6 項目を返す", async () => {
+  it("admin でダッシュボードの 4 項目を返す", async () => {
     requireAdminMock.mockResolvedValueOnce({ role: "admin" });
 
     // route.ts の Promise.all の呼び出し順に合わせたモック戻り値
@@ -65,8 +65,6 @@ describe("GET /api/admin/dashboard", () => {
       [{ foundItemCount: 12 }],
       [{ lostReportCount: 5 }],
       [{ resolvedCount: 4 }],
-      [{ foundItemsLastHour: 3 }],
-      [{ lostReportsLastHour: 1 }],
       [{ awaitingReplyCount: 2 }],
     ];
     let idx = 0;
@@ -108,8 +106,6 @@ describe("GET /api/admin/dashboard", () => {
       lostReportCount: 5,
       awaitingReplyCount: 2,
       resolvedCount: 4,
-      foundItemsLastHour: 3,
-      lostReportsLastHour: 1,
     });
   });
 });

@@ -392,19 +392,11 @@ components:
         resolvedCount:
           type: integer
           minimum: 0
-        foundItemsLastHour:
-          type: integer
-          minimum: 0
-        lostReportsLastHour:
-          type: integer
-          minimum: 0
       required:
         - foundItemCount
         - lostReportCount
         - awaitingReplyCount
         - resolvedCount
-        - foundItemsLastHour
-        - lostReportsLastHour
     HealthOk:
       type: object
       properties:
