@@ -33,8 +33,18 @@ export const CategoryRef = Category.pick({ id: true, name: true });
 // --- クエリ文字列 ------------------------------------------------------------
 
 // 一覧の ?page=1&limit=20
+// page の上限は 100000。OFFSET（(page - 1) * limit、limit は 100 まで）を 9999900 までにして、
+// 2^31 を超えないようにする（上限がないと、とても大きい page で OFFSET が bigint を超えて 500 になるため）
+export const PAGE_MAX = 100000;
+
 export const PageQuery = z.object({
-  page: z.coerce.number().int().min(1).default(1),
+  // 上限を先に確かめて止める（1e17 などで、int の範囲の英語の文言が一緒に出ないように）
+  page: z.coerce
+    .number()
+    .max(PAGE_MAX, { message: `${PAGE_MAX} までにしてください`, abort: true })
+    .int()
+    .min(1)
+    .default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 

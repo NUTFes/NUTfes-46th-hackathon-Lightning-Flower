@@ -45,4 +45,12 @@ describe("GET /api/chats", () => {
     getActor.mockResolvedValue({ role: "admin", email: "admin@example.com" });
     expect((await GET(request("?limit=101"), undefined)).status).toBe(400);
   });
+
+  it("page が 100000 を超えれば 400（DB に送らない）", async () => {
+    getActor.mockResolvedValue({ role: "admin", email: "admin@example.com" });
+    expect((await GET(request("?page=100001"), undefined)).status).toBe(400);
+    expect((await GET(request("?page=1e17&limit=100"), undefined)).status).toBe(
+      400,
+    );
+  });
 });

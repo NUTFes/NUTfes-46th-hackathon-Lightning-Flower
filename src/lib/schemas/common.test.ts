@@ -5,6 +5,7 @@ import {
   BooleanQuery,
   csvEnum,
   DateTimeQuery,
+  PAGE_MAX,
   PageQuery,
   SearchQuery,
   SmallIdQuery,
@@ -33,6 +34,19 @@ describe("PageQuery", () => {
     expect(PageQuery.safeParse({ limit: "0" }).success).toBe(false);
     expect(PageQuery.safeParse({ limit: "101" }).success).toBe(false);
     expect(PageQuery.safeParse({ page: "1.5" }).success).toBe(false);
+  });
+
+  it("page は 100000 まで（OFFSET が 2^31 を超えないように）", () => {
+    expect(PageQuery.parse({ page: String(PAGE_MAX) }).page).toBe(PAGE_MAX);
+    expect(PageQuery.safeParse({ page: String(PAGE_MAX + 1) }).success).toBe(
+      false,
+    );
+    // 1e17 でも、上限の文言だけを返す（int の範囲の文言を一緒に出さない）
+    const huge = PageQuery.safeParse({ page: "1e17" });
+    expect(huge.error?.issues.map((issue) => issue.message)).toEqual([
+      `${PAGE_MAX} までにしてください`,
+    ]);
+    expect(toOffset({ page: PAGE_MAX, limit: 100 })).toBeLessThan(2 ** 31);
   });
 
   it("toOffset で OFFSET にする", () => {
