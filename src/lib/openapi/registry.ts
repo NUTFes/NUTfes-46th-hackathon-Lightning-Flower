@@ -33,6 +33,7 @@ import {
   MessageList,
   MessageListQuery,
 } from "@/lib/schemas/message";
+import { PhotoUploadUrls, PhotoUploadUrlsBody } from "@/lib/schemas/photo";
 
 // API を足したら、ここにスキーマとパスを登録する。`make openapi` で openapi.yaml を出力する。
 export const registry = new OpenAPIRegistry();
@@ -112,6 +113,29 @@ registry.registerPath({
       content: { "application/json": { schema: Me } },
     },
     ...unauthorizedResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/photos/upload-urls",
+  summary: "写真の署名付きアップロード URL を発行する（member / admin）",
+  description:
+    "count 枚ぶんの、元の画像とサムネイルのアップロード先（path・thumbPath）と署名付きアップロード URL を返す。画面は uploadUrl・thumbUploadUrl に画像を PUT し（Content-Type は image/jpeg・image/png・image/webp、1MiB まで）、path・thumbPath を POST /api/found-items の photos に渡す。URL の有効期限は 2 時間。すでにあるファイルは上書きできない",
+  request: {
+    body: {
+      content: { "application/json": { schema: PhotoUploadUrlsBody } },
+    },
+  },
+  responses: {
+    200: {
+      description: "発行したアップロード先と URL（count 件）",
+      content: { "application/json": { schema: PhotoUploadUrls } },
+    },
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
     ...serverErrorResponse,
   },
 });
