@@ -191,8 +191,8 @@ export const messages = pgTable(
     body: text("body").notNull(),
     createdAt: createdAt(),
   },
-  // ポーリングは「created_at が前回より後」で取る。created_at はトランザクションの開始時刻なので、
-  // 同時に書かれたメッセージが、前回取った最新より前の時刻で後から見えることがある。
+  // ポーリングは「created_at が前回より後」で取る。API は created_at に clock_timestamp() を入れるが、
+  // 入れてからコミットするまでの間に、前回取った最新より前の時刻で後から見えることがある。
   // 取りこぼさないように、前回より少し前（数秒）から取り直し、画面側で id で重複を除く
   (t) => [
     index("messages_lost_report_created_idx").on(t.lostReportId, t.createdAt),
