@@ -67,20 +67,20 @@ describe("apiHandler", () => {
 
   it("入力チェックの失敗は 400 VALIDATION_ERROR にし、どの項目かを書く", async () => {
     const handler = apiHandler(async (request: Request) => {
-      await parseBody(request, z.object({ features: z.string().min(1) }));
+      await parseBody(request, z.object({ foundPlace: z.string().min(1) }));
       return Response.json({});
     });
     const res = await call(
       handler,
       new Request("http://localhost/api/test", {
         method: "POST",
-        body: JSON.stringify({ features: "" }),
+        body: JSON.stringify({ foundPlace: "" }),
       }),
     );
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error.code).toBe("VALIDATION_ERROR");
-    expect(body.error.message).toContain("features");
+    expect(body.error.message).toContain("foundPlace");
   });
 
   it("本文が JSON でなければ 400 にする", async () => {

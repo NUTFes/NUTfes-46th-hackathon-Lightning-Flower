@@ -1,6 +1,7 @@
 import {
   CANCEL_REASONS,
   FOUND_STATUSES,
+  ITEM_COLORS,
   LOST_STATUSES,
   PICKUP_METHODS,
 } from "@/db/enums";
@@ -14,6 +15,7 @@ export const FoundStatus = z.enum(FOUND_STATUSES).openapi("FoundStatus");
 export const LostStatus = z.enum(LOST_STATUSES).openapi("LostStatus");
 export const PickupMethod = z.enum(PICKUP_METHODS).openapi("PickupMethod");
 export const CancelReason = z.enum(CANCEL_REASONS).openapi("CancelReason");
+export const ItemColor = z.enum(ITEM_COLORS).openapi("ItemColor");
 
 // 日時は ISO 8601 の文字列（例 2026-09-19T04:35:00.000Z）
 export const DateTime = z.iso.datetime({ offset: true });
