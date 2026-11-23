@@ -1,8 +1,8 @@
-import { ScreenPlaceholder } from "@/components/ScreenPlaceholder";
+import { MatchingScreen } from "./MatchingScreen";
 
 export default async function Page({
   params,
 }: PageProps<"/admin/lost-reports/[id]">) {
   const { id } = await params;
-  return <ScreenPlaceholder code="A05" title={`照合画面（id: ${id}）`} />;
+  return <MatchingScreen key={id} id={id} />;
 }
