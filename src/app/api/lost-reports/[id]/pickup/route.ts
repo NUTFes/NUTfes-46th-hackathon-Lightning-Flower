@@ -47,7 +47,7 @@ export const PUT = apiHandler(
       if (!report) {
         throw await notFoundOrConflict(
           findGuestLostReportId(tx, id, guest.id),
-          "この申請は、まだ本部の確認が済んでいないので、受け取り方法を選べません",
+          "受け取り方法は、本部の確認が済んだ「見つかったかも」の申請でだけ選べます（もう選んだ申請・終わった申請では選べません）",
           "申請が見つかりません",
         );
       }
