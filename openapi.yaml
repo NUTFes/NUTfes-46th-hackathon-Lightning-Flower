@@ -161,6 +161,53 @@ components:
         - silver
         - clear
         - other
+    FoundItemCreateBody:
+      type: object
+      properties:
+        categoryId:
+          type: integer
+          minimum: 1
+          maximum: 32767
+        color:
+          $ref: "#/components/schemas/ItemColor"
+        brand:
+          type:
+            - string
+            - "null"
+          minLength: 1
+        foundPlace:
+          type: string
+          minLength: 1
+        foundAt:
+          type: string
+          format: date-time
+        isValuable:
+          type: boolean
+        memo:
+          type:
+            - string
+            - "null"
+          minLength: 1
+        photos:
+          type: array
+          items:
+            type: object
+            properties:
+              path:
+                type: string
+                minLength: 1
+              thumbPath:
+                type: string
+                minLength: 1
+            required:
+              - path
+              - thumbPath
+          maxItems: 10
+      required:
+        - categoryId
+        - color
+        - foundPlace
+        - photos
     LostReport:
       type: object
       properties:
@@ -420,6 +467,31 @@ components:
       required:
         - items
         - total
+    LostReportPatchBody:
+      type: object
+      properties:
+        categoryId:
+          type: integer
+          minimum: 1
+          maximum: 32767
+        color:
+          $ref: "#/components/schemas/ItemColor"
+        brand:
+          type:
+            - string
+            - "null"
+          minLength: 1
+        lostPlace:
+          type: string
+          minLength: 1
+        lostAt:
+          type: string
+          format: date-time
+        note:
+          type:
+            - string
+            - "null"
+          minLength: 1
     MessageList:
       type: object
       properties:
@@ -710,6 +782,52 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+    post:
+      summary: 拾得物の登録（member / admin）
+      description: 拾得物を 1 件登録する。photos は原則必須だが、「証明書・カード・定期券類」のみ空配列可
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FoundItemCreateBody"
+      responses:
+        "201":
+          description: 登録した拾得物
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FoundItem"
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: カテゴリが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /api/found-items/{id}:
     get:
       summary: 拾得物の詳細（member / admin）
@@ -811,6 +929,7 @@ paths:
                     required:
                       - path
                       - thumbPath
+                  maxItems: 10
       responses:
         "200":
           description: 更新後の拾得物
@@ -861,6 +980,114 @@ paths:
       responses:
         "204":
           description: 削除完了（ボディなし）
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 見つからない（削除済みを含む）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: 現在のステータスでは操作できない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/lost-reports/{id}:
+    get:
+      summary: 遺失物申請の詳細・申請状況（guest は自分の申請だけ / admin）
+      description: 他人の申請は 404。admin にだけ guest・activeMatch・awaitingReply を返す
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        "200":
+          description: 遺失物申請の詳細（admin の場合は LostReportForAdmin）
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/LostReport"
+                  - $ref: "#/components/schemas/LostReportForAdmin"
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 見つからない（削除済みを含む）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      summary: 遺失物申請の入力情報の変更（guest は自分の申請だけ）
+      description: searching（探し中）のときだけ変更できる。それ以外は 409
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LostReportPatchBody"
+      responses:
+        "200":
+          description: 更新後の遺失物申請
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LostReport"
         "400":
           description: 入力が正しくない
           content:

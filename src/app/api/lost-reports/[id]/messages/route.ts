@@ -7,8 +7,8 @@ import { conflict, forbidden, notFound } from "@/lib/api/errors";
 import { apiHandler } from "@/lib/api/handler";
 import { parseBody, parseParams, parseQuery } from "@/lib/api/parse";
 import type { Actor } from "@/lib/auth/actor";
+import { LostReportIdParams } from "@/lib/schemas/lost-report";
 import {
-  LostReportIdParams,
   MessageCreate,
   MessageListQuery,
   type Message,

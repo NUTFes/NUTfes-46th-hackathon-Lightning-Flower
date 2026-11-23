@@ -3,6 +3,7 @@ import { CategoryList } from "@/lib/schemas/category";
 import { ErrorResponse } from "@/lib/schemas/error";
 import {
   FoundItem,
+  FoundItemCreateBody,
   FoundItemIdParams,
   FoundItemList,
   FoundItemListQuery,
@@ -14,12 +15,13 @@ import {
   LostReportForAdmin,
   LostReportForAdminList,
   LostReportList,
+  LostReportIdParams,
+  LostReportPatchBody,
 } from "@/lib/schemas/lost-report";
 import { Me } from "@/lib/schemas/me";
 import {
   ChatThreadList,
   ChatThreadListQuery,
-  LostReportIdParams,
   Message,
   MessageBroadcast,
   MessageBroadcastResult,
@@ -61,6 +63,7 @@ const serverErrorResponse = {
 
 // 複数の API で返すデータの形（まだパスで使っていないものも、FE が型を見られるように登録しておく）
 registry.register("FoundItem", FoundItem);
+registry.register("FoundItemCreateBody", FoundItemCreateBody);
 registry.register("LostReport", LostReport);
 registry.register("LostReportForAdmin", LostReportForAdmin);
 registry.register("LostReportList", LostReportList);
@@ -129,6 +132,33 @@ registry.registerPath({
 });
 
 registry.registerPath({
+  method: "post",
+  path: "/api/found-items",
+  summary: "拾得物の登録（member / admin）",
+  description:
+    "拾得物を 1 件登録する。photos は原則必須だが、「証明書・カード・定期券類」のみ空配列可",
+  request: {
+    body: {
+      required: true,
+      content: {
+        "application/json": { schema: FoundItemCreateBody },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: "登録した拾得物",
+      content: { "application/json": { schema: FoundItem } },
+    },
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    404: { description: "カテゴリが見つからない", content: errorContent },
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
   method: "get",
   path: "/api/found-items/{id}",
   summary: "拾得物の詳細（member / admin）",
@@ -183,6 +213,55 @@ registry.registerPath({
   responses: {
     204: {
       description: "削除完了（ボディなし）",
+    },
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...notFoundResponse,
+    ...conflictResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/lost-reports/{id}",
+  summary: "遺失物申請の詳細・申請状況（guest は自分の申請だけ / admin）",
+  description:
+    "他人の申請は 404。admin にだけ guest・activeMatch・awaitingReply を返す",
+  request: { params: LostReportIdParams },
+  responses: {
+    200: {
+      description: "遺失物申請の詳細（admin の場合は LostReportForAdmin）",
+      content: {
+        "application/json": {
+          schema: LostReport.or(LostReportForAdmin),
+        },
+      },
+    },
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...notFoundResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "patch",
+  path: "/api/lost-reports/{id}",
+  summary: "遺失物申請の入力情報の変更（guest は自分の申請だけ）",
+  description: "searching（探し中）のときだけ変更できる。それ以外は 409",
+  request: {
+    params: LostReportIdParams,
+    body: {
+      content: { "application/json": { schema: LostReportPatchBody } },
+    },
+  },
+  responses: {
+    200: {
+      description: "更新後の遺失物申請",
+      content: { "application/json": { schema: LostReport } },
     },
     ...badRequestResponse,
     ...unauthorizedResponse,

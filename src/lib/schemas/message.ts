@@ -43,9 +43,6 @@ export const MessageCreate = z
   .object({ body: MessageBody })
   .openapi("MessageCreate");
 
-// URL の [id]
-export const LostReportIdParams = z.object({ id: z.uuid() });
-
 // GET /api/chats の 1 件（admin）
 export const ChatThread = z
   .object({
