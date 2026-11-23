@@ -19,7 +19,18 @@ import {
   LostReportPatchBody,
   LostReportListQuery,
 } from "@/lib/schemas/lost-report";
+import { MatchCreateBody, MatchParams } from "@/lib/schemas/match";
 import { Me } from "@/lib/schemas/me";
+import {
+  ChatThreadList,
+  ChatThreadListQuery,
+  Message,
+  MessageBroadcast,
+  MessageBroadcastResult,
+  MessageCreate,
+  MessageList,
+  MessageListQuery,
+} from "@/lib/schemas/message";
 
 // API を足したら、ここにスキーマとパスを登録する。`make openapi` で openapi.yaml を出力する。
 export const registry = new OpenAPIRegistry();
@@ -177,6 +188,7 @@ registry.registerPath({
   request: {
     params: FoundItemIdParams,
     body: {
+      required: true,
       content: { "application/json": { schema: PatchFoundItemBody } },
     },
   },
@@ -246,6 +258,7 @@ registry.registerPath({
   request: {
     params: LostReportIdParams,
     body: {
+      required: true,
       content: { "application/json": { schema: LostReportPatchBody } },
     },
   },
@@ -262,6 +275,7 @@ registry.registerPath({
     ...serverErrorResponse,
   },
 });
+
 registry.registerPath({
   method: "get",
   path: "/api/lost-reports",
@@ -276,6 +290,172 @@ registry.registerPath({
     ...badRequestResponse,
     ...unauthorizedResponse,
     ...forbiddenResponse,
+    ...serverErrorResponse,
+  },
+});
+
+// --- チャット（#15） ---------------------------------------------------------
+
+// チャットの API の 404（guest がほかの人の申請を指したときも 404 にするので、説明を分ける）
+const chatNotFoundResponse = {
+  404: {
+    description: "申請がない（guest がほかの人の申請を指したときも）",
+    content: errorContent,
+  },
+};
+
+registry.registerPath({
+  method: "get",
+  path: "/api/lost-reports/{id}/messages",
+  summary: "チャットのメッセージの取得（guest は自分の申請だけ / admin）",
+  description:
+    "古い順。画面を開いている間、30 秒ごとに after 付きで呼ぶ。取りこぼさないように、前回の最新より少し前を after に渡し、画面側で id で重複を除く",
+  request: { params: LostReportIdParams, query: MessageListQuery },
+  responses: {
+    200: {
+      description: "メッセージの一覧",
+      content: { "application/json": { schema: MessageList } },
+    },
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...chatNotFoundResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/lost-reports/{id}/messages",
+  summary: "チャットのメッセージの送信（guest は自分の申請だけ / admin）",
+  description:
+    "本文は前後の空白を除いて 1〜1000 文字。guest は、admin から 1 通以上届いていて、終わっていない（resolved・transferred_to_police・disposed・cancelled でない）申請にだけ送れる。admin は終わった申請にも送れる",
+  request: {
+    params: LostReportIdParams,
+    body: { content: { "application/json": { schema: MessageCreate } } },
+  },
+  responses: {
+    201: {
+      description: "入れたメッセージ",
+      content: { "application/json": { schema: Message } },
+    },
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...chatNotFoundResponse,
+    409: {
+      description:
+        "guest が送れない（admin からまだ届いていない・終わった申請）",
+      content: errorContent,
+    },
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/chats",
+  summary: "チャットのスレッドの一覧（admin）",
+  description:
+    "メッセージが 1 通以上ある申請を、lastMessageAt の新しい順に返す（?page=1&limit=20 で区切り、total は条件に合う全件の数）。返信待ち＝最新のメッセージが guest のもの",
+  request: { query: ChatThreadListQuery },
+  responses: {
+    200: {
+      description: "スレッドの一覧と、条件に合う全件の数",
+      content: { "application/json": { schema: ChatThreadList } },
+    },
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/messages/broadcast",
+  summary: "チャットの一斉送信（admin）",
+  description:
+    "lostReportIds か status のどちらか一方で宛先を指定し、それぞれの申請に admin のメッセージを 1 通ずつ入れる。ない申請の ID は飛ばす",
+  request: {
+    body: { content: { "application/json": { schema: MessageBroadcast } } },
+  },
+  responses: {
+    200: {
+      description: "入れたメッセージの数",
+      content: { "application/json": { schema: MessageBroadcastResult } },
+    },
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...serverErrorResponse,
+  },
+});
+
+// 紐づけ・解除・本人確認は、どれも更新したあとの申請を返す
+const updatedLostReportResponse = {
+  200: {
+    description: "更新したあとの申請",
+    content: { "application/json": { schema: LostReportForAdmin } },
+  },
+};
+
+registry.registerPath({
+  method: "post",
+  path: "/api/lost-reports/{id}/matches",
+  summary: "申請を拾得物と紐づける（admin）",
+  description:
+    "申請が searching、拾得物が received のときだけ（それ以外は 409）。申請を maybe_found、拾得物を matching にする",
+  request: {
+    params: LostReportIdParams,
+    body: {
+      required: true,
+      content: { "application/json": { schema: MatchCreateBody } },
+    },
+  },
+  responses: {
+    ...updatedLostReportResponse,
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...notFoundResponse,
+    ...conflictResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "delete",
+  path: "/api/lost-reports/{id}/matches/{foundItemId}",
+  summary: "紐づけを解除する（admin。本人確認で違ったとき）",
+  description:
+    "申請が maybe_found で、この拾得物と有効な紐づけがあるときだけ（それ以外は 409）。紐づけに releasedAt を入れ、申請を searching（本人確認も消す）、拾得物を received に戻す",
+  request: { params: MatchParams },
+  responses: {
+    ...updatedLostReportResponse,
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...notFoundResponse,
+    ...conflictResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/lost-reports/{id}/verify",
+  summary: "本人確認 OK にする（admin）",
+  description:
+    "申請が maybe_found で、有効な紐づけがあり、まだ本人確認をしていないときだけ（それ以外は 409）。verified を true にする。ステータスは変えない",
+  request: { params: LostReportIdParams },
+  responses: {
+    ...updatedLostReportResponse,
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...notFoundResponse,
+    ...conflictResponse,
     ...serverErrorResponse,
   },
 });

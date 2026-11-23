@@ -7,7 +7,10 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
 
-type Db = PostgresJsDatabase<typeof schema>;
+export type Db = PostgresJsDatabase<typeof schema>;
+
+// db.transaction(async (tx) => ...) の tx
+export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 type Tables = ExtractTablesWithRelations<typeof schema>;
 

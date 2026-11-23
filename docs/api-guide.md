@@ -17,20 +17,21 @@ API は Next.js の Route Handlers（`src/app/api/`）で書く。パスと入�
 
 ## 共通の部品
 
-| 場所                             | 中身                                                                                                                                                                                       |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/lib/api/handler.ts`         | `apiHandler`（エラーを共通の形の応答にし、`Cache-Control: private, no-store` を付ける）                                                                                                    |
-| `src/lib/api/auth.ts`            | `requireActor`・`requireStaff`・`requireAdmin`・`requireGuest`                                                                                                                             |
-| `src/lib/api/parse.ts`           | `parseBody`・`parseQuery`・`parseParams`（入力の検証。失敗は 400。クエリの空の値は指定なし）                                                                                               |
-| `src/lib/api/errors.ts`          | `badRequest`・`unauthorized`・`forbidden`・`notFound`・`conflict`                                                                                                                          |
-| `src/lib/schemas/common.ts`      | enum（`FoundStatus` など）、`DateTime`、`CategoryRef`、一覧の `PageQuery`・`paginated()`・`toOffset()`、クエリの `csvEnum`・`BooleanQuery`・`SearchQuery`・`SmallIdQuery`・`DateTimeQuery` |
-| `src/lib/schemas/found-item.ts`  | `FoundItem`・`FoundItemList`・`FoundItemListQuery`                                                                                                                                         |
-| `src/lib/schemas/lost-report.ts` | `LostReport`（guest にも返す）・`LostReportForAdmin`（admin 用の項目を足したもの）と、それぞれの一覧                                                                                       |
-| `src/lib/serializers/`           | DB の行を JSON にする `toFoundItem`・`toLostReport`・`toLostReportForAdmin`（`displayNumber`・`canEdit`・`activeMatch` など）                                                              |
-| `src/lib/queries/`               | 上の関数に渡す行を取るための `with`（`foundItemWith`・`lostReportForAdminWith` など。取った行の型が serializer の引数の型になる）と、拾得物の絞り込みの条件                                |
-| `src/lib/storage/photos.ts`      | 写真の署名付き URL をまとめて作る `signPhotoUrls`                                                                                                                                          |
-| `src/db/like.ts`                 | 部分一致の検索で、入力の `%` `_` をエスケープする `containsPattern`                                                                                                                        |
-| `src/db/enums.ts`                | enum の値（DB と zod の両方で使う）                                                                                                                                                        |
+| 場所                             | 中身                                                                                                                                                                                                                                                                                                                                          |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/lib/api/handler.ts`         | `apiHandler`（エラーを共通の形の応答にし、`Cache-Control: private, no-store` を付ける）                                                                                                                                                                                                                                                       |
+| `src/lib/api/auth.ts`            | `requireActor`・`requireStaff`・`requireAdmin`・`requireGuest`                                                                                                                                                                                                                                                                                |
+| `src/lib/api/parse.ts`           | `parseBody`・`parseQuery`・`parseParams`（入力の検証。失敗は 400。クエリの空の値は指定なし）                                                                                                                                                                                                                                                  |
+| `src/lib/api/errors.ts`          | `badRequest`・`unauthorized`・`forbidden`・`notFound`・`conflict`                                                                                                                                                                                                                                                                             |
+| `src/lib/api/transition.ts`      | `notFoundOrConflict`（状態を変える UPDATE が 0 行だったとき、行がなければ 404、あれば 409 にする）・`conflictOnUniqueViolation`（INSERT の UNIQUE 違反を 409 にする）                                                                                                                                                                         |
+| `src/lib/schemas/common.ts`      | enum（`FoundStatus` など）、`DateTime`、`CategoryRef`、一覧の `PageQuery`・`paginated()`・`toOffset()`、クエリの `csvEnum`・`BooleanQuery`・`SearchQuery`・`SmallIdQuery`・`DateTimeQuery`                                                                                                                                                    |
+| `src/lib/schemas/found-item.ts`  | `FoundItem`・`FoundItemList`・`FoundItemListQuery`                                                                                                                                                                                                                                                                                            |
+| `src/lib/schemas/lost-report.ts` | `LostReport`（guest にも返す）・`LostReportForAdmin`（admin 用の項目を足したもの）と、それぞれの一覧                                                                                                                                                                                                                                          |
+| `src/lib/serializers/`           | DB の行を JSON にする `toFoundItem`・`toLostReport`・`toLostReportForAdmin`（`displayNumber`・`canEdit`・`activeMatch` など）                                                                                                                                                                                                                 |
+| `src/lib/queries/`               | 上の関数に渡す行を取るための `with`（`foundItemWith`・`lostReportForAdminWith` など。取った行の型が serializer の引数の型になる）と、拾得物の絞り込みの条件（削除していない 1 件は `activeFoundItemById`）。状態を変える API で使う、行があるかの `findLostReportId`・`findFoundItemId` と、更新したあとの申請を取る `findLostReportForAdmin` |
+| `src/lib/storage/photos.ts`      | 写真の署名付き URL をまとめて作る `signPhotoUrls`                                                                                                                                                                                                                                                                                             |
+| `src/db/like.ts`                 | 部分一致の検索で、入力の `%` `_` をエスケープする `containsPattern`                                                                                                                                                                                                                                                                           |
+| `src/db/enums.ts`                | enum の値（DB と zod の両方で使う）                                                                                                                                                                                                                                                                                                           |
 
 拾得物を返す API は、`foundItemWith` で取って `toFoundItem` に渡せば、一覧・詳細・登録のどれでも同じ形になる。一覧では `foundItemListWith`（写真は 1 枚目だけ）で取り、`photoPathsOf(rows, "thumb")` でサムネイルだけを署名する。
 
@@ -48,9 +49,24 @@ API は Next.js の Route Handlers（`src/app/api/`）で書く。パスと入�
 - 拾得物は論理削除なので、取るときは `isNull(foundItems.deletedAt)` を条件に入れる。削除できるのは、受理（`received`）で有効な紐づけがないときだけ（それ以外は 409）。そのため、削除した拾得物が申請の `activeMatch` に残ることはない
 - 検索の文字列は `SearchQuery` で受ける（前後の空白を除き、空なら指定なし）
 - refine を付けたスキーマには `.pick()` / `.omit()` が使えない。拾得物の一覧のクエリを減らして使うときは、`withFoundRangeCheck(FoundItemListQueryBase.omit({ ... }))` のように、refine の前の形から作る
-- メッセージは 1 つのトランザクションで 1 通だけ入れる（`created_at` は `now()` でトランザクションの開始の時刻になるので、2 通入れると「最新」が決まらない）
-- 状態を変える処理は、1 つのトランザクションで、`UPDATE` の `WHERE` に今の状態を入れる。更新できなければ `conflict()`（409）
+- メッセージは 1 つのトランザクションで 1 通だけ入れ、`created_at` には `clock_timestamp()` を入れる（既定の `now()` はトランザクションの開始の時刻なので、ロックを待ったあとに入れると先に入ったメッセージより前の時刻になり、ポーリングで取りこぼしたり「最新」が入れ替わったりする）。「最新」は `created_at` の新しい順・`id` の順で決める
+- 状態を変える処理は、1 つのトランザクションで、`UPDATE` の `WHERE` に今の状態を入れる。更新できなければ `conflict()`（409）。書き方は下の「状態を変える API」
 - スキーマ（`src/lib/schemas/`）の `z` は `./zod` から import する（`.openapi()` が使えるようにするため）
+
+## 状態を変える API
+
+`POST /api/lost-reports/{id}/matches`（`src/app/api/lost-reports/[id]/matches/route.ts`）をまねる。
+
+1. `getDb().transaction(async (tx) => { ... })` の中で、`tx.update(...).set(...).where(and(eq(id), eq(status, 今の状態))).returning({ id })` で更新する
+2. 返った行がなければ、`throw await notFoundOrConflict(find〇〇Id(tx, id), "…ではないので、…できません", "…が見つかりません")`。行がなければ 404、あれば 409 になり、トランザクションは取り消される（先に更新した行も戻る）
+3. 申請と拾得物の両方を更新するときは、**申請 → 拾得物の順**に更新する（行のロックの順をどの API でも同じにして、デッドロックを避ける）。拾得物から始める API（拾得物の削除、拾得物だけのステータスの変更 `PATCH status`・一括変更 `bulk-status` など。紐づいた申請を変えないときも）は、先に `matches` から有効な紐づけの `lost_report_id` を取り、その申請を先に `UPDATE` か `SELECT … FOR UPDATE` してから拾得物を更新する。申請をロックしたあとで、紐づけがまだ有効かを確かめ直す
+4. 紐づけ（`matches`）を変える処理は、紐づけだけを変えずに、**必ず申請の行も先に `UPDATE`（か `SELECT … FOR UPDATE`）する**（下の「同時に操作したとき」の前提）
+5. `INSERT` が UNIQUE 制約に当たりうるとき（状態の列と行が食い違っていたときなど）は、`.catch(conflictOnUniqueViolation("…"))` で 409 にする
+6. 更新したあとの行を同じトランザクションの中で取り、共通の形にして返す。申請を変える admin の API は、`findLostReportForAdmin(tx, id)` で取って `toLostReportForAdmin` で返す（画面が返り値でそのまま表示を更新できる）
+
+同時に操作したとき：後の `UPDATE` は前のトランザクションの終わりを待ち、変わったあとの行で `WHERE` を見直すので、0 行になって 409 になる。ただし見直されるのは**更新しようとしている行の列だけ**で、`EXISTS` などの副問い合わせは、文が始まったときのまま評価される（READ COMMITTED）。本人確認（`POST /verify`）は `EXISTS` で紐づけを見ているが、紐づけを変える処理が申請の行も更新する（手順 4）ので、申請の `status` の条件で 0 行になる。
+
+拾得物を削除するときは、受理（`received`）で有効な紐づけがないときだけにする（「決まりごと」のとおり）。照合中の拾得物を削除したくなったら、先に紐づけを解除する。
 
 ## OpenAPI
 
