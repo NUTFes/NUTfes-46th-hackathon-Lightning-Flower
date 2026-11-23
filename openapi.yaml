@@ -596,4 +596,191 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /api/found-items/{id}:
+    get:
+      summary: 拾得物の詳細（member / admin）
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        "200":
+          description: 拾得物の詳細
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FoundItem"
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 見つからない（削除済みを含む）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      summary: 拾得物の編集（member は自分の登録だけ / admin）
+      description: photos を送ったら丸ごと置き換える。ステータス変更はしない
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                categoryId:
+                  type: integer
+                  minimum: 1
+                  maximum: 32767
+                color:
+                  $ref: "#/components/schemas/ItemColor"
+                brand:
+                  type:
+                    - string
+                    - "null"
+                  minLength: 1
+                foundPlace:
+                  type: string
+                  minLength: 1
+                foundAt:
+                  type: string
+                  format: date-time
+                isValuable:
+                  type: boolean
+                memo:
+                  type:
+                    - string
+                    - "null"
+                  minLength: 1
+                photos:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      path:
+                        type: string
+                        minLength: 1
+                      thumbPath:
+                        type: string
+                        minLength: 1
+                    required:
+                      - path
+                      - thumbPath
+      responses:
+        "200":
+          description: 更新後の拾得物
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FoundItem"
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 見つからない（削除済みを含む）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      summary: 拾得物の論理削除（member は自分の登録だけ / admin）
+      description: status が received のときだけ削除できる
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        "204":
+          description: 削除完了（ボディなし）
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 見つからない（削除済みを含む）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: 現在のステータスでは操作できない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 webhooks: {}
