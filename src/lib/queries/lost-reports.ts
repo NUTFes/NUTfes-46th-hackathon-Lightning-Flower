@@ -1,4 +1,4 @@
-import { desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import type { Db, Tx, WithOf } from "@/db";
 import { lostReports, matches, messages } from "@/db/schema";
 
@@ -41,5 +41,26 @@ export function findLostReportForAdmin(db: Db | Tx, id: string) {
   return db.query.lostReports.findFirst({
     where: eq(lostReports.id, id),
     with: lostReportForAdminWith,
+  });
+}
+
+// guest 本人の申請があるか（guest の状態を変える API で、404 と 409 を分けるのに使う）。
+// ほかの人の申請は、あることも見せないように「ない」として扱う
+export function findGuestLostReportId(
+  db: Db | Tx,
+  id: string,
+  guestId: string,
+) {
+  return db.query.lostReports.findFirst({
+    where: and(eq(lostReports.id, id), eq(lostReports.guestId, guestId)),
+    columns: { id: true },
+  });
+}
+
+// guest に返す形の行（toLostReport に渡す）。guest の状態を変える API が、更新したあとの申請を返すのに使う
+export function findLostReport(db: Db | Tx, id: string) {
+  return db.query.lostReports.findFirst({
+    where: eq(lostReports.id, id),
+    with: lostReportWith,
   });
 }

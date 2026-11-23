@@ -651,6 +651,30 @@ components:
           format: uuid
       required:
         - foundItemId
+    LostReportPickupBody:
+      type: object
+      properties:
+        method:
+          $ref: "#/components/schemas/PickupMethod"
+        note:
+          type:
+            - string
+            - "null"
+          minLength: 1
+      required:
+        - method
+    LostReportCancelBody:
+      type: object
+      properties:
+        reason:
+          $ref: "#/components/schemas/CancelReason"
+        note:
+          type:
+            - string
+            - "null"
+          minLength: 1
+      required:
+        - reason
   parameters: {}
 paths:
   /api/health:
@@ -1596,6 +1620,128 @@ paths:
                 $ref: "#/components/schemas/Error"
         "404":
           description: 見つからない（削除済みを含む）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: 現在のステータスでは操作できない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/lost-reports/{id}/pickup:
+    put:
+      summary: 受け取り方法を選ぶ（guest は自分の申請だけ）
+      description: 申請が maybe_found で、admin が本人確認 OK にしたあと（verified が true）だけ（それ以外は
+        409）。method が other のときは note が必須。申請と紐づいた拾得物を awaiting_handover にする
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LostReportPickupBody"
+      responses:
+        "200":
+          description: 更新したあとの申請
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LostReport"
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 申請がない（ほかの人の申請を指したときも）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: 現在のステータスでは操作できない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/lost-reports/{id}/cancel:
+    post:
+      summary: 申請を取り消す（guest は自分の申請だけ）
+      description: 申請が searching・maybe_found・awaiting_handover のときだけ（それ以外は 409）。申請を
+        cancelled にし、本人確認を消す。有効な紐づけがあれば releasedAt を入れて解除し、拾得物を received に戻す
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LostReportCancelBody"
+      responses:
+        "200":
+          description: 更新したあとの申請
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LostReport"
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 申請がない（ほかの人の申請を指したときも）
           content:
             application/json:
               schema:

@@ -62,7 +62,7 @@ API は Next.js の Route Handlers（`src/app/api/`）で書く。パスと入�
 3. 申請と拾得物の両方を更新するときは、**申請 → 拾得物の順**に更新する（行のロックの順をどの API でも同じにして、デッドロックを避ける）。拾得物から始める API（拾得物の削除、拾得物だけのステータスの変更 `PATCH status`・一括変更 `bulk-status` など。紐づいた申請を変えないときも）は、先に `matches` から有効な紐づけの `lost_report_id` を取り、その申請を先に `UPDATE` か `SELECT … FOR UPDATE` してから拾得物を更新する。申請をロックしたあとで、紐づけがまだ有効かを確かめ直す
 4. 紐づけ（`matches`）を変える処理は、紐づけだけを変えずに、**必ず申請の行も先に `UPDATE`（か `SELECT … FOR UPDATE`）する**（下の「同時に操作したとき」の前提）
 5. `INSERT` が UNIQUE 制約に当たりうるとき（状態の列と行が食い違っていたときなど）は、`.catch(conflictOnUniqueViolation("…"))` で 409 にする
-6. 更新したあとの行を同じトランザクションの中で取り、共通の形にして返す。申請を変える admin の API は、`findLostReportForAdmin(tx, id)` で取って `toLostReportForAdmin` で返す（画面が返り値でそのまま表示を更新できる）
+6. 更新したあとの行を同じトランザクションの中で取り、共通の形にして返す。申請を変える admin の API は、`findLostReportForAdmin(tx, id)` で取って `toLostReportForAdmin` で返す（画面が返り値でそのまま表示を更新できる）。guest の API（`PUT /pickup`・`POST /cancel`）は `findLostReport(tx, id)` で取って `toLostReport` で返す。guest の API は `UPDATE` の `WHERE` に `guestId` も入れ、0 行のときは `findGuestLostReportId(tx, id, guestId)` を渡して、ほかの人の申請は 404 にする
 
 同時に操作したとき：後の `UPDATE` は前のトランザクションの終わりを待ち、変わったあとの行で `WHERE` を見直すので、0 行になって 409 になる。ただし見直されるのは**更新しようとしている行の列だけ**で、`EXISTS` などの副問い合わせは、文が始まったときのまま評価される（READ COMMITTED）。本人確認（`POST /verify`）は `EXISTS` で紐づけを見ているが、紐づけを変える処理が申請の行も更新する（手順 4）ので、申請の `status` の条件で 0 行になる。
 
