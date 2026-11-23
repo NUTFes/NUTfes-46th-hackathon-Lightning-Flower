@@ -1,11 +1,17 @@
+import { LOST_STATUSES } from "@/db/enums";
 import {
+  BooleanQuery,
   CancelReason,
   CategoryRef,
+  csvEnum,
   DateTime,
   ItemColor,
   LostStatus,
+  PageQuery,
   paginated,
   PickupMethod,
+  SearchQuery,
+  SmallIdQuery,
 } from "./common";
 import { z } from "./zod";
 
@@ -54,3 +60,14 @@ export const LostReportForAdminList = paginated(LostReportForAdmin).openapi(
 
 export type LostReport = z.infer<typeof LostReport>;
 export type LostReportForAdmin = z.infer<typeof LostReportForAdmin>;
+
+// GET /api/lost-reports のクエリパラメータ（admin）
+export const LostReportListQuery = PageQuery.extend({
+  q: SearchQuery.optional(),
+  status: csvEnum(LOST_STATUSES).optional(),
+  categoryId: SmallIdQuery.optional(),
+  awaitingReply: BooleanQuery.optional(),
+});
+
+export type LostReportListQuery = z.infer<typeof LostReportListQuery>;
+export type LostReportForAdminList = z.infer<typeof LostReportForAdminList>;

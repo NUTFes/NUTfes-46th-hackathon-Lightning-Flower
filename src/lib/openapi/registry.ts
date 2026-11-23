@@ -12,6 +12,7 @@ import {
   LostReportForAdmin,
   LostReportForAdminList,
   LostReportList,
+  LostReportListQuery,
 } from "@/lib/schemas/lost-report";
 import { Me } from "@/lib/schemas/me";
 
@@ -98,6 +99,23 @@ registry.registerPath({
     200: {
       description: "拾得物の一覧と、条件に合う全件の数",
       content: { "application/json": { schema: FoundItemList } },
+    },
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...serverErrorResponse,
+  },
+});
+registry.registerPath({
+  method: "get",
+  path: "/api/lost-reports",
+  summary: "遺失物申請の一覧・検索（admin）",
+  description: "createdAt（受付日時）の新しい順",
+  request: { query: LostReportListQuery },
+  responses: {
+    200: {
+      description: "遺失物申請の一覧と、条件に合う全件の数",
+      content: { "application/json": { schema: LostReportForAdminList } },
     },
     ...badRequestResponse,
     ...unauthorizedResponse,
