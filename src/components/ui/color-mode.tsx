@@ -9,9 +9,16 @@ import { LuMoon, LuSun } from "react-icons/lu";
 
 export type ColorModeProviderProps = ThemeProviderProps;
 
+// 画面の色は bg="white" などの直書きが多く、ダークモードでは読めなくなる。
+// 色を semantic token（bg.panel・fg など）に置き換えるまで、OS の設定にかかわらずライトに固定する
 export function ColorModeProvider(props: ColorModeProviderProps) {
   return (
-    <ThemeProvider attribute="class" disableTransitionOnChange {...props} />
+    <ThemeProvider
+      attribute="class"
+      disableTransitionOnChange
+      forcedTheme="light"
+      {...props}
+    />
   );
 }
 
