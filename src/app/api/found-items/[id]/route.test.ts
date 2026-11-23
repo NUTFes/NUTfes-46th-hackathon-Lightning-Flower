@@ -1,3 +1,5 @@
+import type { SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DELETE, GET, PATCH } from "./route";
 
@@ -246,19 +248,88 @@ describe("PATCH /api/found-items/[id]", () => {
 });
 
 describe("DELETE /api/found-items/[id]", () => {
-  it("権限：他人の登録を member が削除しようとすると 403 を返す", async () => {
+  // 削除の UPDATE。returned は RETURNING で返る行（0 行なら []）。WHERE に渡された条件を返す
+  function mockDeleteUpdate(returned: { id: string }[]) {
+    const mockWhere = vi.fn(() => ({
+      returning: vi.fn().mockResolvedValue(returned),
+    }));
+    const mockSet = vi.fn(() => ({ where: mockWhere }));
+    mockUpdate.mockReturnValue({ set: mockSet });
+    return { mockSet, mockWhere };
+  }
+
+  const deleteRequest = (id = VALID_ID) =>
+    new Request(`http://localhost/api/found-items/${id}`, {
+      method: "DELETE",
+    });
+
+  it("入力の誤り：UUID 形式でなければ 400 を返し、更新しない", async () => {
+    const res = await DELETE(
+      deleteRequest("not-a-uuid"),
+      makeContext("not-a-uuid"),
+    );
+
+    expect(res.status).toBe(400);
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("権限：他人の登録を member が削除しようとすると 403 を返し、更新しない", async () => {
     mockFindFirstFoundItem.mockResolvedValue({
       id: VALID_ID,
       status: "received",
       registeredByEmail: "other@example.com",
     });
 
-    const req = new Request(`http://localhost/api/found-items/${VALID_ID}`, {
-      method: "DELETE",
-    });
-    const res = await DELETE(req, makeContext());
+    const res = await DELETE(deleteRequest(), makeContext());
 
     expect(res.status).toBe(403);
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("権限：admin は他人の登録も削除できる", async () => {
+    mockRequireStaff.mockResolvedValue({
+      role: "admin",
+      email: "admin@example.com",
+    });
+    mockFindFirstFoundItem.mockResolvedValue({
+      id: VALID_ID,
+      status: "received",
+      registeredByEmail: "other@example.com",
+    });
+    mockDeleteUpdate([{ id: VALID_ID }]);
+
+    const res = await DELETE(deleteRequest(), makeContext());
+
+    expect(res.status).toBe(204);
+  });
+
+  it("見つからない／削除済み：404 を返し、更新しない", async () => {
+    mockFindFirstFoundItem.mockResolvedValue(undefined);
+
+    const res = await DELETE(deleteRequest(), makeContext());
+
+    expect(res.status).toBe(404);
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("正常：received の自分の登録を論理削除して 204 を返す。UPDATE の WHERE に received を入れる", async () => {
+    mockFindFirstFoundItem.mockResolvedValue({
+      id: VALID_ID,
+      status: "received",
+      registeredByEmail: "member@example.com",
+    });
+    const { mockSet, mockWhere } = mockDeleteUpdate([{ id: VALID_ID }]);
+
+    const res = await DELETE(deleteRequest(), makeContext());
+
+    expect(res.status).toBe(204);
+    expect(mockSet).toHaveBeenCalledWith({ deletedAt: expect.any(Date) });
+    const where = new PgDialect().sqlToQuery(
+      (mockWhere.mock.calls[0] as unknown as [SQL])[0],
+    );
+    expect(where.sql).toContain('"deleted_at" is null');
+    expect(where.sql).toContain('"status" = $');
+    expect(where.params).toEqual([VALID_ID, "received"]);
   });
 
   it("ステータス：received 以外は 409 を返す", async () => {
@@ -267,32 +338,47 @@ describe("DELETE /api/found-items/[id]", () => {
       status: "matching",
       registeredByEmail: "member@example.com",
     });
+    mockDeleteUpdate([]);
 
-    const req = new Request(`http://localhost/api/found-items/${VALID_ID}`, {
-      method: "DELETE",
+    const res = await DELETE(deleteRequest(), makeContext());
+
+    expect(res.status).toBe(409);
+    await expect(res.json()).resolves.toMatchObject({
+      error: {
+        code: "CONFLICT",
+        message: "保管中（received）以外の拾得物は削除できません",
+      },
     });
-    const res = await DELETE(req, makeContext());
+  });
+
+  it("同時の操作（#49）：読んだときは received でも、UPDATE までに紐づけなどで状態が変わって 0 行なら 409 を返す", async () => {
+    // 1 回目は権限を確かめるための読み取り（received）、2 回目は 0 行のあとの行があるかの確かめ
+    mockFindFirstFoundItem
+      .mockResolvedValueOnce({
+        id: VALID_ID,
+        status: "received",
+        registeredByEmail: "member@example.com",
+      })
+      .mockResolvedValueOnce({ id: VALID_ID });
+    mockDeleteUpdate([]);
+
+    const res = await DELETE(deleteRequest(), makeContext());
 
     expect(res.status).toBe(409);
   });
 
-  it("正常：received の自分の登録を論理削除して 204 を返す", async () => {
-    mockFindFirstFoundItem.mockResolvedValue({
-      id: VALID_ID,
-      status: "received",
-      registeredByEmail: "member@example.com",
-    });
-    mockUpdate.mockReturnValue({
-      set: () => ({
-        where: vi.fn().mockResolvedValue(undefined),
-      }),
-    });
+  it("同時の操作：読んだあと、UPDATE までにほかの人が削除して 0 行なら 404 を返す", async () => {
+    mockFindFirstFoundItem
+      .mockResolvedValueOnce({
+        id: VALID_ID,
+        status: "received",
+        registeredByEmail: "member@example.com",
+      })
+      .mockResolvedValueOnce(undefined);
+    mockDeleteUpdate([]);
 
-    const req = new Request(`http://localhost/api/found-items/${VALID_ID}`, {
-      method: "DELETE",
-    });
-    const res = await DELETE(req, makeContext());
+    const res = await DELETE(deleteRequest(), makeContext());
 
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(404);
   });
 });
