@@ -18,7 +18,8 @@ export const GET = apiHandler(async (request) => {
   const { awaitingReply } = parseQuery(request, ChatThreadListQuery);
 
   const db = getDb();
-  // 申請ごとの最新のメッセージ（1 つのトランザクションで同じ申請に 2 通入れないので、created_at で決まる）
+  // 申請ごとの最新のメッセージ。同じ時刻のときも 1 通に決まるように id でも並べる
+  // （lostReportForAdminWith の messages と同じ並べ方）
   const latest = db
     .selectDistinctOn([messages.lostReportId], {
       lostReportId: messages.lostReportId,
@@ -26,7 +27,7 @@ export const GET = apiHandler(async (request) => {
       createdAt: messages.createdAt,
     })
     .from(messages)
-    .orderBy(messages.lostReportId, desc(messages.createdAt))
+    .orderBy(messages.lostReportId, desc(messages.createdAt), desc(messages.id))
     .as("latest");
 
   const rows = await db
