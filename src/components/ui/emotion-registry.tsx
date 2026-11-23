@@ -3,7 +3,7 @@
 import createCache from "@emotion/cache";
 import { CacheProvider } from "@emotion/react";
 import { useServerInsertedHTML } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 
 // Chakra UI（Emotion）のスタイルを、サーバーでは <head> に入れる（Chakra UI の Next.js App Router のガイドの EmotionRegistry）。
 // これがないと、Emotion がサーバーで <style data-emotion="css-global …"> を body の中に書き、
@@ -14,11 +14,16 @@ export function EmotionRegistry({ children }: { children: ReactNode }) {
     // サーバーで <style> を要素の隣に書かず、cache.inserted に貯める（下の useServerInsertedHTML で出す）
     cache.compat = true;
     const prevInsert = cache.insert;
-    let inserted: string[] = [];
+    // <Global>（selector が空）と、ふつうのスタイルを分けて貯める
+    let inserted: { name: string; isGlobal: boolean }[] = [];
     cache.insert = (...args) => {
-      const serialized = args[1];
-      if (cache.inserted[serialized.name] === undefined) {
-        inserted.push(serialized.name);
+      const [selector, serialized] = args;
+      // 貯めたものを出すのはサーバーだけ（クライアントでは flush しないので貯めない）
+      if (
+        typeof window === "undefined" &&
+        cache.inserted[serialized.name] === undefined
+      ) {
+        inserted.push({ name: serialized.name, isGlobal: !selector });
       }
       return prevInsert(...args);
     };
@@ -31,19 +36,34 @@ export function EmotionRegistry({ children }: { children: ReactNode }) {
   });
 
   useServerInsertedHTML(() => {
-    const names = flush();
-    if (names.length === 0) return null;
-    let styles = "";
-    for (const name of names) {
+    const entries = flush();
+    if (entries.length === 0) return null;
+    const rulesOf = (name: string) => {
       const rules = cache.inserted[name];
-      if (typeof rules === "string") styles += rules;
-    }
+      return typeof rules === "string" ? rules : "";
+    };
+    // <Global> は 1 つずつ data-emotion="css-global <名前>" で出す。クライアントの <Global> が
+    // このタグを見つけて使い回すので、同じ CSS がもう一度入らない
+    const globals = entries.filter((entry) => entry.isGlobal);
+    const names = entries
+      .filter((entry) => !entry.isGlobal)
+      .map((entry) => entry.name);
     return (
-      <style
-        key={cache.key}
-        data-emotion={`${cache.key} ${names.join(" ")}`}
-        dangerouslySetInnerHTML={{ __html: styles }}
-      />
+      <Fragment>
+        {globals.map(({ name }) => (
+          <style
+            key={name}
+            data-emotion={`${cache.key}-global ${name}`}
+            dangerouslySetInnerHTML={{ __html: rulesOf(name) }}
+          />
+        ))}
+        {names.length > 0 && (
+          <style
+            data-emotion={`${cache.key} ${names.join(" ")}`}
+            dangerouslySetInnerHTML={{ __html: names.map(rulesOf).join("") }}
+          />
+        )}
+      </Fragment>
     );
   });
 

@@ -11,6 +11,7 @@ export type ColorModeProviderProps = ThemeProviderProps;
 
 // 画面の色は bg="white" などの直書きが多く、ダークモードでは読めなくなる。
 // 色を semantic token（bg.panel・fg など）に置き換えるまで、OS の設定にかかわらずライトに固定する
+// （固定しているあいだは、下の ColorModeButton を押しても色は変わらない）
 export function ColorModeProvider(props: ColorModeProviderProps) {
   return (
     <ThemeProvider
