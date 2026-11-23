@@ -22,7 +22,8 @@ export const lostReportForAdminWith = {
   },
   messages: {
     columns: { senderRole: true },
-    orderBy: [desc(messages.createdAt)],
+    // 同じ時刻のときも、GET /api/chats と同じ 1 通を選ぶように id でも並べる
+    orderBy: [desc(messages.createdAt), desc(messages.id)],
     limit: 1,
   },
 } satisfies WithOf<"lostReports">;
