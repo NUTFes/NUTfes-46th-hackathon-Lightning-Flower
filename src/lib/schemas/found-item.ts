@@ -217,3 +217,44 @@ export const PatchFoundItemBody = z.object({
 export type FoundItemPhotoInput = z.infer<typeof FoundItemPhotoInput>;
 export type FoundItemIdParams = z.infer<typeof FoundItemIdParams>;
 export type PatchFoundItemBody = z.infer<typeof PatchFoundItemBody>;
+
+// --- 状態を変える API の入力（#14） ------------------------------------------
+
+// POST /api/found-items/{id}/handover の本文
+export const HandoverBody = z
+  .object({
+    handedAt: DateTime,
+    receiverName: NonEmptySafeText,
+  })
+  .openapi("HandoverBody");
+
+// PATCH /api/found-items/{id}/status の本文。値は FoundStatus のどれでも受け、
+// 手で変えられない値（matching・awaiting_handover・resolved）は route で 409 にする
+export const FoundItemStatusBody = z
+  .object({ status: FoundStatus })
+  .openapi("FoundItemStatusBody");
+
+// POST /api/found-items/bulk-status の本文
+export const BulkStatusBody = z
+  .object({
+    foundItemIds: z
+      .array(z.uuid())
+      .min(1)
+      .max(500)
+      .refine((ids) => new Set(ids).size === ids.length, {
+        message: "同じ拾得物を重複して指定できません",
+      }),
+    status: z.enum(["transferred_to_police", "disposed"]),
+    // 預り書の番号など
+    note: NonEmptySafeText.nullable().optional(),
+  })
+  .openapi("BulkStatusBody");
+
+export const BulkStatusResult = z
+  .object({ updated: z.number().int() })
+  .openapi("BulkStatusResult");
+
+export type HandoverBody = z.infer<typeof HandoverBody>;
+export type FoundItemStatusBody = z.infer<typeof FoundItemStatusBody>;
+export type BulkStatusBody = z.infer<typeof BulkStatusBody>;
+export type BulkStatusResult = z.infer<typeof BulkStatusResult>;

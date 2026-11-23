@@ -12,7 +12,14 @@ import {
 } from "drizzle-orm";
 import type { Db, Tx, WithOf } from "@/db";
 import { containsPattern } from "@/db/like";
-import { foundItemPhotos, foundItems, handovers, matches } from "@/db/schema";
+import {
+  foundItemPhotos,
+  foundItems,
+  handovers,
+  lostReports,
+  matches,
+} from "@/db/schema";
+import { conflict } from "@/lib/api/errors";
 import type { Staff } from "@/lib/auth/staff";
 import type { FoundItemListQuery } from "@/lib/schemas/found-item";
 
@@ -84,5 +91,52 @@ export function findFoundItemId(db: Db | Tx, id: string) {
   return db.query.foundItems.findFirst({
     where: activeFoundItemById(id),
     columns: { id: true },
+  });
+}
+
+// 更新したあとの拾得物を、FoundItem にする形で取る（状態を変える API が返すのに使う）
+export function findFoundItem(db: Db | Tx, id: string) {
+  return db.query.foundItems.findFirst({
+    where: activeFoundItemById(id),
+    with: foundItemWith,
+  });
+}
+
+// 拾得物から始める、状態を変える API の最初の手順（docs/api-guide.md の「状態を変える API」の 3）。
+// 有効な紐づけがあれば、その申請の行を先にロックし（申請 → 拾得物の順）、紐づけがまだ有効かを確かめ直して、
+// 申請の ID を返す。紐づけがなければ null を返す。
+//
+// null のとき、呼ぶ側は拾得物の UPDATE の WHERE に「受理（received）」を入れる。紐づけは拾得物を
+// received → matching に UPDATE するので、このあとで紐づけが入っても、拾得物の UPDATE が 0 行になって 409 になる
+export async function lockActiveMatch(
+  tx: Tx,
+  foundItemId: string,
+): Promise<string | null> {
+  const match = await findActiveMatch(tx, foundItemId);
+  if (!match) return null;
+
+  await tx
+    .select({ id: lostReports.id })
+    .from(lostReports)
+    .where(eq(lostReports.id, match.lostReportId))
+    .for("update");
+
+  // ロックを待つ間に解除されていたら、紐づけを取り直す。別の申請と紐づき直していると、
+  // その申請はロックしていないので、やり直してもらう
+  const current = await findActiveMatch(tx, foundItemId);
+  if (!current) return null;
+  if (current.lostReportId !== match.lostReportId) {
+    throw conflict("紐づけが変わりました。画面を読み込み直してください");
+  }
+  return current.lostReportId;
+}
+
+function findActiveMatch(tx: Tx, foundItemId: string) {
+  return tx.query.matches.findFirst({
+    where: and(
+      eq(matches.foundItemId, foundItemId),
+      isNull(matches.releasedAt),
+    ),
+    columns: { lostReportId: true },
   });
 }

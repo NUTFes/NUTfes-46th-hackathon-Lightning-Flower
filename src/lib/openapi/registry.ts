@@ -2,11 +2,15 @@ import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import { CategoryList } from "@/lib/schemas/category";
 import { ErrorResponse } from "@/lib/schemas/error";
 import {
+  BulkStatusBody,
+  BulkStatusResult,
   FoundItem,
   FoundItemCreateBody,
   FoundItemIdParams,
   FoundItemList,
   FoundItemListQuery,
+  FoundItemStatusBody,
+  HandoverBody,
   PatchFoundItemBody,
 } from "@/lib/schemas/found-item";
 import { HealthError, HealthOk } from "@/lib/schemas/health";
@@ -215,6 +219,87 @@ registry.registerPath({
   responses: {
     204: {
       description: "削除完了（ボディなし）",
+    },
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...notFoundResponse,
+    ...conflictResponse,
+    ...serverErrorResponse,
+  },
+});
+
+const updatedFoundItemResponse = {
+  200: {
+    description: "更新したあとの拾得物",
+    content: { "application/json": { schema: FoundItem } },
+  },
+};
+
+registry.registerPath({
+  method: "post",
+  path: "/api/found-items/{id}/handover",
+  summary: "受け渡しを記録して解決済みにする（admin）",
+  description:
+    "拾得物が received / matching / awaiting_handover のときだけ（それ以外は 409）。handovers に記録し、拾得物を resolved にする。有効な紐づけの申請があれば（maybe_found でも awaiting_handover でも）それも resolved にする。紐づけがなければ直接返却（lostReportId なし）",
+  request: {
+    params: FoundItemIdParams,
+    body: {
+      required: true,
+      content: { "application/json": { schema: HandoverBody } },
+    },
+  },
+  responses: {
+    ...updatedFoundItemResponse,
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...notFoundResponse,
+    ...conflictResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "patch",
+  path: "/api/found-items/{id}/status",
+  summary: "ステータスを手で変える（admin）",
+  description:
+    "紐づけがないときの received と transferred_to_police・disposed の行き来だけ（それ以外は 409）。移管・処分にしたら disposedAt を入れ、received に戻したら disposedAt・disposalNote を消す",
+  request: {
+    params: FoundItemIdParams,
+    body: {
+      required: true,
+      content: { "application/json": { schema: FoundItemStatusBody } },
+    },
+  },
+  responses: {
+    ...updatedFoundItemResponse,
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...notFoundResponse,
+    ...conflictResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/found-items/bulk-status",
+  summary: "期間終了の一括変更（admin）",
+  description:
+    "仮の決め方：対象は received で有効な紐づけがない拾得物だけ。1 件でも対象外があれば何も変えない（ない・削除済みは 404、状態が違うか紐づけがあれば 409）。disposedAt と disposalNote（= note）を入れる。申請は変えない",
+  request: {
+    body: {
+      required: true,
+      content: { "application/json": { schema: BulkStatusBody } },
+    },
+  },
+  responses: {
+    200: {
+      description: "変えた件数",
+      content: { "application/json": { schema: BulkStatusResult } },
     },
     ...badRequestResponse,
     ...unauthorizedResponse,
