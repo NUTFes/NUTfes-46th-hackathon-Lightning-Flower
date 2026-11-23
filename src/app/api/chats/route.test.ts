@@ -40,4 +40,9 @@ describe("GET /api/chats", () => {
       400,
     );
   });
+
+  it("limit が 1〜100 でなければ 400", async () => {
+    getActor.mockResolvedValue({ role: "admin", email: "admin@example.com" });
+    expect((await GET(request("?limit=101"), undefined)).status).toBe(400);
+  });
 });

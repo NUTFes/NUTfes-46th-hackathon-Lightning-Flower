@@ -53,8 +53,10 @@ describe("ChatThreadListQuery", () => {
   it("awaitingReply は true / false だけ", () => {
     expect(ChatThreadListQuery.parse({ awaitingReply: "true" })).toEqual({
       awaitingReply: true,
+      page: 1,
+      limit: 20,
     });
-    expect(ChatThreadListQuery.parse({})).toEqual({});
+    expect(ChatThreadListQuery.parse({})).toEqual({ page: 1, limit: 20 });
     expect(ChatThreadListQuery.safeParse({ awaitingReply: "1" }).success).toBe(
       false,
     );

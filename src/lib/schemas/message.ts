@@ -6,6 +6,8 @@ import {
   DateTimeQuery,
   ItemColor,
   LostStatus,
+  PageQuery,
+  paginated,
 } from "./common";
 import { z } from "./zod";
 
@@ -57,11 +59,9 @@ export const ChatThread = z
   })
   .openapi("ChatThread");
 
-export const ChatThreadList = z
-  .object({ items: z.array(ChatThread) })
-  .openapi("ChatThreadList");
+export const ChatThreadList = paginated(ChatThread).openapi("ChatThreadList");
 
-export const ChatThreadListQuery = z.object({
+export const ChatThreadListQuery = PageQuery.extend({
   awaitingReply: BooleanQuery.optional().openapi({
     type: "string",
     enum: ["true", "false"],

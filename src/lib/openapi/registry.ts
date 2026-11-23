@@ -335,11 +335,11 @@ registry.registerPath({
   path: "/api/chats",
   summary: "チャットのスレッドの一覧（admin）",
   description:
-    "メッセージが 1 通以上ある申請を、lastMessageAt の新しい順に返す。返信待ち＝最新のメッセージが guest のもの",
+    "メッセージが 1 通以上ある申請を、lastMessageAt の新しい順に返す（?page=1&limit=20 で区切り、total は条件に合う全件の数）。返信待ち＝最新のメッセージが guest のもの",
   request: { query: ChatThreadListQuery },
   responses: {
     200: {
-      description: "スレッドの一覧",
+      description: "スレッドの一覧と、条件に合う全件の数",
       content: { "application/json": { schema: ChatThreadList } },
     },
     ...badRequestResponse,
