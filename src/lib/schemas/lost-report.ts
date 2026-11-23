@@ -45,7 +45,7 @@ export const LostReportForAdmin = LostReport.extend({
   activeMatch: z
     .object({ foundItemId: z.uuid(), displayNumber: z.string() })
     .nullable(),
-  awaitingReply: z.boolean(), // 最新のメッセージが guest のもの
+  awaitingReply: z.boolean(), // 最新のメッセージが guest で、申請が終わっていない（src/lib/queries/awaiting-reply.ts）
 }).openapi("LostReportForAdmin");
 
 export const LostReportList = paginated(LostReport).openapi("LostReportList");

@@ -1,8 +1,9 @@
-import { and, count, eq, isNull, sql } from "drizzle-orm";
+import { and, count, eq, isNull } from "drizzle-orm";
 import { getDb } from "@/db";
-import { foundItems, lostReports, messages } from "@/db/schema";
+import { foundItems, lostReports } from "@/db/schema";
 import { requireAdmin } from "@/lib/api/auth";
 import { apiHandler } from "@/lib/api/handler";
+import { awaitingReplyWhere } from "@/lib/queries/awaiting-reply";
 import type { AdminDashboard } from "@/lib/schemas/admin";
 
 export const GET = apiHandler(async (request) => {
@@ -10,20 +11,6 @@ export const GET = apiHandler(async (request) => {
 
   const db = getDb();
   const activeFoundItems = isNull(foundItems.deletedAt);
-
-  // 各 lost_report_id の最新メッセージの sender_role を取得（同刻の場合は id でタイブレーク）
-  const latestMessages = db
-    .selectDistinctOn([messages.lostReportId], {
-      lostReportId: messages.lostReportId,
-      senderRole: messages.senderRole,
-    })
-    .from(messages)
-    .orderBy(
-      messages.lostReportId,
-      sql`${messages.createdAt} DESC`,
-      sql`${messages.id} DESC`,
-    )
-    .as("latest_messages");
 
   const [
     [{ foundItemCount }],
@@ -40,10 +27,11 @@ export const GET = apiHandler(async (request) => {
       .select({ resolvedCount: count() })
       .from(foundItems)
       .where(and(activeFoundItems, eq(foundItems.status, "resolved"))),
+    // 返信待ちの決め方は GET /api/chats・toLostReportForAdmin と同じ（awaiting-reply.ts）
     db
       .select({ awaitingReplyCount: count() })
-      .from(latestMessages)
-      .where(eq(latestMessages.senderRole, "guest")),
+      .from(lostReports)
+      .where(awaitingReplyWhere),
   ]);
 
   return Response.json({

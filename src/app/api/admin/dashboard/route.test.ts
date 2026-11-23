@@ -84,13 +84,6 @@ describe("GET /api/admin/dashboard", () => {
       select: vi.fn(() => ({
         from: vi.fn(() => createSelectChain()),
       })),
-      selectDistinctOn: vi.fn(() => ({
-        from: vi.fn(() => ({
-          orderBy: vi.fn(() => ({
-            as: vi.fn(() => "latest_messages_subquery"),
-          })),
-        })),
-      })),
     };
 
     getDbMock.mockReturnValue(db);

@@ -1,9 +1,10 @@
-import { count, desc, eq } from "drizzle-orm";
+import { count, desc, eq, not } from "drizzle-orm";
 import { getDb } from "@/db";
 import { categories, lostReports, messages } from "@/db/schema";
 import { requireAdmin } from "@/lib/api/auth";
 import { apiHandler } from "@/lib/api/handler";
 import { parseQuery } from "@/lib/api/parse";
+import { awaitingReplyWhere } from "@/lib/queries/awaiting-reply";
 import {
   ChatThreadListQuery,
   type ChatThreadList,
@@ -13,7 +14,7 @@ import { toChatThread } from "@/lib/serializers/message";
 
 // チャットのスレッドの一覧（admin）。画面：A01・A06
 // メッセージが 1 通以上ある申請を、最新のメッセージの新しい順に返す（?page=1&limit=20 で区切る）。
-// 返信待ち＝最新のメッセージが guest のもの（toLostReportForAdmin の awaitingReply と同じ）
+// 返信待ち＝最新のメッセージが guest で、申請が終わっていないもの（awaiting-reply.ts。toLostReportForAdmin と同じ）
 export const GET = apiHandler(async (request) => {
   await requireAdmin(request);
   const query = parseQuery(request, ChatThreadListQuery);
@@ -34,7 +35,9 @@ export const GET = apiHandler(async (request) => {
   const where =
     query.awaitingReply === undefined
       ? undefined
-      : eq(latest.senderRole, query.awaitingReply ? "guest" : "admin");
+      : query.awaitingReply
+        ? awaitingReplyWhere
+        : not(awaitingReplyWhere);
 
   // 一覧と件数を同じ条件で
   const [rows, [{ total }]] = await Promise.all([
@@ -55,7 +58,11 @@ export const GET = apiHandler(async (request) => {
       .orderBy(desc(latest.createdAt), desc(lostReports.number))
       .limit(query.limit)
       .offset(toOffset(query)),
-    db.select({ total: count() }).from(latest).where(where),
+    db
+      .select({ total: count() })
+      .from(latest)
+      .innerJoin(lostReports, eq(lostReports.id, latest.lostReportId))
+      .where(where),
   ]);
 
   return Response.json({

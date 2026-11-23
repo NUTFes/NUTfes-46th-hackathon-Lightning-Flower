@@ -1279,7 +1279,8 @@ paths:
     get:
       summary: チャットのスレッドの一覧（admin）
       description: メッセージが 1 通以上ある申請を、lastMessageAt の新しい順に返す（?page=1&limit=20
-        で区切り、total は条件に合う全件の数）。返信待ち＝最新のメッセージが guest のもの
+        で区切り、total は条件に合う全件の数）。返信待ち＝最新のメッセージが guest
+        で、申請が終わっていない（resolved・transferred_to_police・disposed・cancelled でない）もの
       parameters:
         - schema:
             type: integer
