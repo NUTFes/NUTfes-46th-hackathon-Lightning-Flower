@@ -22,7 +22,7 @@ import { fieldErrorsOf, type FieldErrors } from "./form-errors";
 type Key = keyof LostReportInput;
 
 // 遺失物申請のフォーム（G03 の新規、G04・G05 から開く「入力情報の変更」）。
-// 成功したあとの画面の移動は、action の中で redirect() する
+// 成功したあとの画面の移動は、action の中で redirect() する（startTransition の中から呼ぶので Next が処理する）
 export function LostReportForm({
   mode,
   categories,

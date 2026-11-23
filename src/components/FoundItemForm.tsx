@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Switch } from "@chakra-ui/react";
-import { type SubmitEvent, useState, useTransition } from "react";
+import { type SubmitEvent, useRef, useState, useTransition } from "react";
 import { ITEM_COLORS } from "@/db/enums";
 import type { ActionResult } from "@/lib/action-result";
 import {
@@ -31,7 +31,7 @@ type Key = keyof FoundItemInput;
 
 // 拾得物の登録・編集フォーム（M02 の新規、M04 の自分の分の編集、A03 の全件の編集）。
 // 送るときは、新しく足した写真を uploadPhoto で先に Storage に上げ、そのパスを action に渡す。
-// 成功したあとの画面の移動は、action の中で redirect() する
+// 成功したあとの画面の移動は、action の中で redirect() する（startTransition の中から呼ぶので Next が処理する）
 export function FoundItemForm({
   mode,
   categories,
@@ -76,6 +76,9 @@ export function FoundItemForm({
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [pending, startTransition] = useTransition();
+  // 上げ終わった写真。保存に失敗して送り直すときに、同じ写真をもう一度上げないように使い回す
+  // TODO: 外した写真や、保存しなかったときに Storage に残る写真を消す仕組み（API 担当と相談）
+  const uploadedRef = useRef(new Map<File, FoundItemPhotoInput>());
   const busy = pending || uploading;
 
   // 保存済みの場所がエリアの一覧にないとき（エリアを差し替えた後など）も選べるようにする
@@ -132,11 +135,17 @@ export function FoundItemForm({
       const uploaded: FoundItemPhotoInput[] = [];
       try {
         for (const file of files) {
+          const cached = uploadedRef.current.get(file);
+          if (cached) {
+            uploaded.push(cached);
+            continue;
+          }
           const result = await uploadPhoto(file);
           if (!result.ok) {
             setFieldErrors({ photos: result.error });
             return;
           }
+          uploadedRef.current.set(file, result.data);
           uploaded.push(result.data);
         }
       } catch {

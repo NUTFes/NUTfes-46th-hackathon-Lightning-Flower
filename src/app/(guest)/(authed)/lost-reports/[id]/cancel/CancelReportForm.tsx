@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@chakra-ui/react";
+import { useRouter } from "next/navigation";
 import { type SubmitEvent, useState } from "react";
 import { ChoiceCardGroup } from "@/components/ChoiceCardGroup";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -18,7 +19,9 @@ const OPTIONS = CANCEL_REASONS.map((reason) => ({
 }));
 
 // 遺失物申請の取り消し（G08）。取り消すと戻せないので、送る前に確認を挟む。
-// 成功したあとの画面の移動は、action の中で redirect() する
+// action は ConfirmDialog から呼ぶので、redirect() せずに { ok: true } を返す
+// （redirect すると await がエラーで終わり、移動の前にダイアログに失敗の文が出てしまう）。
+// 成功したら、ここで申請状況（G05）へ移る
 export function CancelReportForm({
   reportId,
   action,
@@ -30,6 +33,7 @@ export function CancelReportForm({
   const [note, setNote] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   function buildInput() {
     return CancelReportInput.safeParse({
@@ -54,7 +58,9 @@ export function CancelReportForm({
   async function submit(): Promise<ActionResult> {
     const parsed = buildInput();
     if (!parsed.success) return { ok: false, error: "入力を確かめてください" };
-    return action(parsed.data);
+    const result = await action(parsed.data);
+    if (result.ok) router.push(`/lost-reports/${reportId}`);
+    return result;
   }
 
   return (
