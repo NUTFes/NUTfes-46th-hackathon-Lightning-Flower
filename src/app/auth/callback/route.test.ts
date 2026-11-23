@@ -4,13 +4,17 @@ import { CONSENT_COOKIE } from "@/lib/auth/login";
 
 const mocks = vi.hoisted(() => ({
   exchangeCodeForSession: vi.fn(),
+  signOut: vi.fn(),
   cookieGet: vi.fn(),
   cookieDelete: vi.fn(),
   recordConsent: vi.fn(),
 }));
 vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServerClient: async () => ({
-    auth: { exchangeCodeForSession: mocks.exchangeCodeForSession },
+    auth: {
+      exchangeCodeForSession: mocks.exchangeCodeForSession,
+      signOut: mocks.signOut,
+    },
   }),
 }));
 vi.mock("next/headers", () => ({
@@ -37,6 +41,7 @@ beforeEach(() => {
     .mockResolvedValue({ data: { user }, error: null });
   mocks.cookieGet.mockReset().mockReturnValue(undefined);
   mocks.cookieDelete.mockReset();
+  mocks.signOut.mockReset().mockResolvedValue({ error: null });
   mocks.recordConsent.mockReset().mockResolvedValue(undefined);
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -48,6 +53,21 @@ describe("GET /auth/callback", () => {
     expect(res.headers.get("location")).toBe(
       "http://localhost:3000/lost-reports/new",
     );
+    expect(res.headers.get("cache-control")).toBe("private, no-store");
+  });
+
+  it("メールのないユーザーは、書いたセッションを消してトップに戻す", async () => {
+    mocks.exchangeCodeForSession.mockResolvedValue({
+      data: { user: { ...user, email: undefined } },
+      error: null,
+    });
+    mocks.cookieGet.mockReturnValue({ value: "1" });
+    const res = await call("code=abc");
+    expect(res.headers.get("location")).toBe(
+      "http://localhost:3000/?error=login",
+    );
+    expect(mocks.signOut).toHaveBeenCalledWith({ scope: "local" });
+    expect(mocks.recordConsent).not.toHaveBeenCalled();
   });
 
   it.each(["https://evil.example/", "//evil.example", "/\\evil.example"])(

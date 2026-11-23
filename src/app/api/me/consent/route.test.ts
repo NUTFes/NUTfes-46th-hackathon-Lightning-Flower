@@ -16,9 +16,13 @@ const guest = {
 };
 const db = { fake: "db" };
 
-function call(body?: string) {
+function call(body?: string, headers: Record<string, string> = {}) {
   return POST(
-    new Request("http://localhost/api/me/consent", { method: "POST", body }),
+    new Request("http://localhost/api/me/consent", {
+      method: "POST",
+      body,
+      headers,
+    }),
     undefined,
   );
 }
@@ -71,5 +75,29 @@ describe("POST /api/me/consent", () => {
     );
     const res = await call();
     expect(res.status).toBe(401);
+  });
+
+  it.each([
+    [{ "sec-fetch-site": "cross-site" }],
+    [{ "sec-fetch-site": "same-site" }],
+    [{ origin: "https://evil.example" }],
+  ])(
+    "ほかのサイトからの POST（%j）は 403 にし、記録しない",
+    async (headers) => {
+      vi.mocked(requireGuest).mockResolvedValue(guest);
+      const res = await call(undefined, headers);
+      expect(res.status).toBe(403);
+      expect(recordConsent).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    [{ "sec-fetch-site": "same-origin" }],
+    [{ origin: "http://localhost" }],
+  ])("このサイトの画面からの POST（%j）は記録する", async (headers) => {
+    vi.mocked(requireGuest).mockResolvedValue(guest);
+    const res = await call(undefined, headers);
+    expect(res.status).toBe(200);
+    expect(recordConsent).toHaveBeenCalled();
   });
 });

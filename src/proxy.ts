@@ -6,7 +6,7 @@ import { updateGuestSession } from "@/lib/supabase/proxy";
 // 画面と API の前に通る。クライアント側の画面遷移（RSC のリクエスト）も含め、すべてのリクエストがここを通る。
 //   - /staff（member）と /admin（admin）：Cloudflare Access の JWT を確かめる。
 //     失敗したら、401 / 403 の説明のページをここで返す（URL はそのまま）
-//   - それ以外（guest の画面・API）：guest（Supabase Auth）のセッションを更新する。
+//   - それ以外（guest の画面）：guest（Supabase Auth）のセッションを更新する。
 //     ログインが要る guest の画面（GUEST_AUTHED_PATHS）は、ログインしていなければトップ（/）へ戻す
 //
 // これは画面の入口の守り。データは API（src/app/api）から取り、API で requireStaff などで必ず確かめる。
@@ -19,7 +19,8 @@ export async function proxy(request: NextRequest) {
   return guestProxy(request);
 }
 
-// ログインが要る guest の画面（src/app/(guest)/(authed) の下）
+// ログインが要る guest の画面（src/app/(guest)/(authed) の下）。
+// (authed) の下に画面を足したら、ここと config.matcher の両方に足す
 const GUEST_AUTHED_PATHS = ["/home", "/lost-reports"];
 
 function isUnder(pathname: string, prefix: string) {
@@ -72,9 +73,17 @@ async function staffProxy(request: NextRequest) {
 }
 
 export const config = {
-  // 静的なファイル（_next/static・_next/image・public の画像など）のほかは、すべて通す
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    // 守る画面は、パスの末尾が .png などでも必ず通す（[id] には何でも入るため。
+    // 下の静的なファイルを外すパターンだけだと、/admin/found-items/x.png が素通りする）
+    "/staff/:path*",
+    "/admin/:path*",
+    "/home/:path*",
+    "/lost-reports/:path*",
+    // それ以外は、API と静的なファイル（_next/static・_next/image・public の画像など）のほかをすべて通す。
+    // API は Route Handler の getGuest() がセッションを更新する（Route Handler は Cookie を書ける）ので、
+    // ここで更新すると getClaims() が 2 回になる
+    "/((?!api/|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map|txt|woff2?)$).*)",
   ],
 };
 

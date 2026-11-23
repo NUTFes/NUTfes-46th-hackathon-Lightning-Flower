@@ -1,10 +1,11 @@
 import { cookies } from "next/headers";
-import { NextResponse, type NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import {
   CONSENT_COOKIE,
   CONSENT_COOKIE_MAX_AGE,
   isGuestProvider,
   loginErrorUrl,
+  redirectNoStore,
   requestOrigin,
 } from "@/lib/auth/login";
 import { safeNextPath } from "@/lib/auth/redirect";
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
   const origin = requestOrigin(request);
   const provider = searchParams.get("provider");
   if (!isGuestProvider(provider)) {
-    return NextResponse.redirect(loginErrorUrl(origin));
+    return redirectNoStore(loginErrorUrl(origin));
   }
 
   const callbackUrl = new URL("/auth/callback", origin);
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
   });
   if (error || !data.url) {
     console.error("OAuth のログインを始められませんでした:", error);
-    return NextResponse.redirect(loginErrorUrl(origin));
+    return redirectNoStore(loginErrorUrl(origin));
   }
 
   // 同意のチェックは、このサイトの画面から押したときだけ受け取る。
@@ -54,5 +55,5 @@ export async function GET(request: NextRequest) {
     cookieStore.delete({ name: CONSENT_COOKIE, path: "/auth" });
   }
 
-  return NextResponse.redirect(data.url);
+  return redirectNoStore(data.url);
 }

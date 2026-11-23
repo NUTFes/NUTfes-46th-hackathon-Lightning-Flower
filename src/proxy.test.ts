@@ -92,3 +92,39 @@ describe("proxy：staff の画面", () => {
     expect(res.headers.get("Cache-Control")).toBe("private, no-store");
   });
 });
+
+describe("proxy：matcher", () => {
+  async function matches(url: string) {
+    const { unstable_doesMiddlewareMatch } =
+      await import("next/experimental/testing/server");
+    const { config } = await import("./proxy");
+    return unstable_doesMiddlewareMatch({ config, url });
+  }
+
+  it.each([
+    "/staff",
+    "/admin",
+    "/admin/found-items/x.png",
+    "/staff/a.svg",
+    "/admin/chats/a.webp",
+    "/home",
+    "/lost-reports/x.png",
+    "/",
+    "/privacy",
+    "/auth/callback",
+  ])("%s では proxy が動く", async (url) => {
+    expect(await matches(url)).toBe(true);
+  });
+
+  it.each([
+    "/api/me",
+    "/api/lost-reports",
+    "/_next/static/chunks/main.js",
+    "/_next/image",
+    "/favicon.ico",
+    "/logo.svg",
+    "/fonts/a.woff2",
+  ])("%s では proxy が動かない", async (url) => {
+    expect(await matches(url)).toBe(false);
+  });
+});

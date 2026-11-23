@@ -1,9 +1,14 @@
 import { cookies } from "next/headers";
-import { NextResponse, type NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import { getDb } from "@/db";
 import { recordConsent } from "@/lib/auth/consent";
 import { nameFromMetadata } from "@/lib/auth/guest";
-import { CONSENT_COOKIE, loginErrorUrl, requestOrigin } from "@/lib/auth/login";
+import {
+  CONSENT_COOKIE,
+  loginErrorUrl,
+  redirectNoStore,
+  requestOrigin,
+} from "@/lib/auth/login";
 import { safeNextPath } from "@/lib/auth/redirect";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -14,13 +19,18 @@ export async function GET(request: NextRequest) {
   const origin = requestOrigin(request);
   const code = searchParams.get("code");
   // Google の画面で「キャンセル」したときは、code の代わりに error が付いて戻ってくる
-  if (!code) return NextResponse.redirect(loginErrorUrl(origin));
+  if (!code) return redirectNoStore(loginErrorUrl(origin));
 
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-  if (error || !data.user.email) {
+  if (error) {
     console.error("ログインのコードをセッションに替えられませんでした:", error);
-    return NextResponse.redirect(loginErrorUrl(origin));
+    return redirectNoStore(loginErrorUrl(origin));
+  }
+  if (!data.user.email) {
+    // メールのない guest は扱えない（getGuest もログインしていないとみなす）。書いたセッションの Cookie を消す
+    await supabase.auth.signOut({ scope: "local" });
+    return redirectNoStore(loginErrorUrl(origin));
   }
 
   const cookieStore = await cookies();
@@ -38,7 +48,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.redirect(
+  return redirectNoStore(
     new URL(safeNextPath(searchParams.get("next")), origin),
   );
 }

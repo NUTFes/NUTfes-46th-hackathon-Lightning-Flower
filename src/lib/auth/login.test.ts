@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { requestOrigin } from "./login";
+import { isSameOriginRequest, requestOrigin } from "./login";
 
 function request(headers: Record<string, string>) {
   return new Request("http://localhost:3000/auth/login", { headers });
@@ -41,5 +41,25 @@ describe("requestOrigin", () => {
     [{ host: "a.example", "x-forwarded-proto": "javascript" }],
   ])("形がおかしければ request.url のオリジンにする（%j）", (headers) => {
     expect(requestOrigin(request(headers))).toBe("http://localhost:3000");
+  });
+});
+
+describe("isSameOriginRequest", () => {
+  it.each([
+    [{ "sec-fetch-site": "same-origin" }, true],
+    [{ "sec-fetch-site": "same-site" }, false],
+    [{ "sec-fetch-site": "cross-site" }, false],
+    [{ "sec-fetch-site": "none" }, false],
+    // Sec-Fetch-Site があれば Origin より先に見る
+    [
+      { "sec-fetch-site": "cross-site", origin: "http://localhost:3000" },
+      false,
+    ],
+    [{ origin: "http://localhost:3000" }, true],
+    [{ origin: "http://localhost:3000", host: "localhost:3001" }, false],
+    [{ origin: "https://evil.example" }, false],
+    [{}, true],
+  ])("%j → %s", (headers, expected) => {
+    expect(isSameOriginRequest(request(headers))).toBe(expected);
   });
 });
