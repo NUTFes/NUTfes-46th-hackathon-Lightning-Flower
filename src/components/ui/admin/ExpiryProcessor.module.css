@@ -1,0 +1,78 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--chakra-radii-l2);
+  background: var(--chakra-colors-bg-subtle);
+}
+
+.selectedCount {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.toolbarActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.statusSelect {
+  width: 10rem;
+}
+
+.success {
+  padding: 8px 12px;
+  border-radius: var(--chakra-radii-l2);
+  background: var(--chakra-colors-green-subtle);
+  color: var(--chakra-colors-green-fg);
+  font-size: 0.875rem;
+}
+
+.error {
+  padding: 8px 12px;
+  border-radius: var(--chakra-radii-l2);
+  background: var(--chakra-colors-red-subtle);
+  color: var(--chakra-colors-red-fg);
+  font-size: 0.875rem;
+}
+
+/* --- BroadcastMessageDialog --- */
+
+.broadcast {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.sent {
+  color: var(--chakra-colors-green-fg);
+  font-size: 0.875rem;
+}
+
+.dialogBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.muted {
+  color: var(--chakra-colors-fg-muted);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.textarea {
+  min-height: 160px;
+  resize: vertical;
+}

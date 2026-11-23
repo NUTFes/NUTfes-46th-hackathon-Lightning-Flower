@@ -1,0 +1,49 @@
+.wrapper {
+  border: 1px solid var(--chakra-colors-border);
+  border-radius: var(--chakra-radii-l3);
+  background: var(--chakra-colors-bg);
+}
+
+.table {
+  min-width: 100%;
+}
+
+.headerCell {
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  color: var(--chakra-colors-fg-muted);
+  background: var(--chakra-colors-bg-subtle);
+}
+
+.checkCell {
+  width: 40px;
+  padding-inline: 12px;
+  background: inherit;
+}
+
+.cell {
+  vertical-align: middle;
+  font-size: 0.875rem;
+}
+
+.row[data-clickable] {
+  cursor: pointer;
+}
+
+.row[data-clickable]:focus-visible {
+  outline: 2px solid var(--chakra-colors-blue-focus-ring);
+  outline-offset: -2px;
+}
+
+.row[data-selected] {
+  background: var(--chakra-colors-blue-subtle);
+}
+
+.empty {
+  padding: 40px 16px;
+  text-align: center;
+  color: var(--chakra-colors-fg-muted);
+  border: 1px dashed var(--chakra-colors-border);
+  border-radius: var(--chakra-radii-l3);
+}

@@ -1,0 +1,178 @@
+/* ドメイン単位のフォームで共通の見た目。スマホ（幅 360px 前後）で 1 列に並べる前提 */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  padding-bottom: 24px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sectionTitle {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 380px) {
+  .row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.input {
+  font-size: 1rem; /* iOS で入力時に拡大されないように 16px 以上にする */
+}
+
+.textarea {
+  font-size: 1rem;
+  min-height: 96px;
+  resize: vertical;
+}
+
+.switchField {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--chakra-colors-border);
+  border-radius: var(--chakra-radii-l2);
+}
+
+.switchText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.switchLabel {
+  font-weight: 600;
+}
+
+.hint {
+  color: var(--chakra-colors-fg-muted);
+  font-size: 0.8125rem;
+}
+
+.error {
+  padding: 10px 12px;
+  border-radius: var(--chakra-radii-l2);
+  background: var(--chakra-colors-red-subtle);
+  color: var(--chakra-colors-red-fg);
+  font-size: 0.875rem;
+}
+
+.success {
+  padding: 10px 12px;
+  border-radius: var(--chakra-radii-l2);
+  background: var(--chakra-colors-green-subtle);
+  color: var(--chakra-colors-green-fg);
+  font-size: 0.875rem;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.submit {
+  width: 100%;
+  min-height: 48px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+/* --- 写真 --- */
+
+.photoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+}
+
+.photoItem {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: var(--chakra-radii-l2);
+  overflow: hidden;
+  background: var(--chakra-colors-bg-muted);
+}
+
+.photoItem img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photoRemove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+}
+
+.photoAdd {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 2px dashed var(--chakra-colors-border-emphasized);
+  border-radius: var(--chakra-radii-l2);
+  background: transparent;
+  color: var(--chakra-colors-fg-muted);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.photoAdd:hover:not(:disabled) {
+  background: var(--chakra-colors-bg-subtle);
+}
+
+.photoAdd:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.photoAddIcon {
+  font-size: 1.5rem;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* --- ログインの同意 --- */
+
+.consentBox {
+  padding: 14px;
+  border: 1px solid var(--chakra-colors-border);
+  border-radius: var(--chakra-radii-l2);
+  background: var(--chakra-colors-bg-subtle);
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+.providerButton {
+  width: 100%;
+  min-height: 48px;
+  font-weight: 700;
+}
