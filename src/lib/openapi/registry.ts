@@ -14,9 +14,11 @@ import {
   LostReport,
   LostReportForAdmin,
   LostReportForAdminList,
+  LostReportCancelBody,
   LostReportList,
   LostReportIdParams,
   LostReportPatchBody,
+  LostReportPickupBody,
   LostReportCandidates,
 } from "@/lib/schemas/lost-report";
 import { MatchCreateBody, MatchParams } from "@/lib/schemas/match";
@@ -276,26 +278,6 @@ registry.registerPath({
   },
 });
 
-registry.registerPath({
-  method: "get",
-  path: "/api/lost-reports/{id}/candidates",
-  summary: "照合の候補一覧（admin）",
-  description:
-    "申請と同じカテゴリで status が received の拾得物を、拾得日時（foundAt）が申請の lostAt に近い順で返す。論理削除したものは除く",
-  request: { params: LostReportIdParams },
-  responses: {
-    200: {
-      description: "照合候補の拾得物一覧",
-      content: { "application/json": { schema: LostReportCandidates } },
-    },
-    ...badRequestResponse,
-    ...unauthorizedResponse,
-    ...forbiddenResponse,
-    ...notFoundResponse,
-    ...serverErrorResponse,
-  },
-});
-
 // --- チャット（#15） ---------------------------------------------------------
 
 // チャットの API の 404（guest がほかの人の申請を指したときも 404 にするので、説明を分ける）
@@ -458,6 +440,88 @@ registry.registerPath({
     ...forbiddenResponse,
     ...notFoundResponse,
     ...conflictResponse,
+    ...serverErrorResponse,
+  },
+});
+
+// 受け取り方法・取り消しは guest の API。更新したあとの申請を guest に返す形で返す
+const updatedLostReportForGuestResponse = {
+  200: {
+    description: "更新したあとの申請",
+    content: { "application/json": { schema: LostReport } },
+  },
+};
+const guestLostReportNotFoundResponse = {
+  404: {
+    description: "申請がない（ほかの人の申請を指したときも）",
+    content: errorContent,
+  },
+};
+
+registry.registerPath({
+  method: "put",
+  path: "/api/lost-reports/{id}/pickup",
+  summary: "受け取り方法を選ぶ（guest は自分の申請だけ）",
+  description:
+    "申請が maybe_found で、admin が本人確認 OK にしたあと（verified が true）だけ（それ以外は 409）。method が other のときは note が必須。申請と紐づいた拾得物を awaiting_handover にする",
+  request: {
+    params: LostReportIdParams,
+    body: {
+      required: true,
+      content: { "application/json": { schema: LostReportPickupBody } },
+    },
+  },
+  responses: {
+    ...updatedLostReportForGuestResponse,
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...guestLostReportNotFoundResponse,
+    ...conflictResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/lost-reports/{id}/cancel",
+  summary: "申請を取り消す（guest は自分の申請だけ）",
+  description:
+    "申請が searching・maybe_found・awaiting_handover のときだけ（それ以外は 409）。申請を cancelled にし、本人確認を消す。有効な紐づけがあれば releasedAt を入れて解除し、拾得物を received に戻す",
+  request: {
+    params: LostReportIdParams,
+    body: {
+      required: true,
+      content: { "application/json": { schema: LostReportCancelBody } },
+    },
+  },
+  responses: {
+    ...updatedLostReportForGuestResponse,
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...guestLostReportNotFoundResponse,
+    ...conflictResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/lost-reports/{id}/candidates",
+  summary: "照合の候補一覧（admin）",
+  description:
+    "申請と同じカテゴリで status が received の拾得物を、拾得日時（foundAt）が申請の lostAt に近い順で返す。論理削除したものは除く",
+  request: { params: LostReportIdParams },
+  responses: {
+    200: {
+      description: "照合候補の拾得物一覧",
+      content: { "application/json": { schema: LostReportCandidates } },
+    },
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...notFoundResponse,
     ...serverErrorResponse,
   },
 });

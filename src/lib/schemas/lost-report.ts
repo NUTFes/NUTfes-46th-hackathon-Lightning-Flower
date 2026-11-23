@@ -98,6 +98,30 @@ export const LostReportPatchBody = z
 
 export type LostReportPatchBody = z.infer<typeof LostReportPatchBody>;
 
+// PUT /api/lost-reports/{id}/pickup の本文。other（自由記述）のときは note が必須
+export const LostReportPickupBody = z
+  .object({
+    method: PickupMethod,
+    note: z.string().trim().min(1).nullable().optional(),
+  })
+  .refine((data) => data.method !== "other" || data.note != null, {
+    message: "「その他」のときは、受け取り方法を書いてください",
+    path: ["note"],
+  })
+  .openapi("LostReportPickupBody");
+
+export type LostReportPickupBody = z.infer<typeof LostReportPickupBody>;
+
+// POST /api/lost-reports/{id}/cancel の本文
+export const LostReportCancelBody = z
+  .object({
+    reason: CancelReason,
+    note: z.string().trim().min(1).nullable().optional(),
+  })
+  .openapi("LostReportCancelBody");
+
+export type LostReportCancelBody = z.infer<typeof LostReportCancelBody>;
+
 export const LostReportCandidates = z
   .object({
     items: z.array(FoundItem),
