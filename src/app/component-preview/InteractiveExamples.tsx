@@ -198,7 +198,7 @@ export function ChatExample({ activeThread }: { activeThread: "1" | "2" }) {
             }
             sendAction={async (_reportId, body) => ({
               ok: true,
-              message: {
+              data: {
                 id: crypto.randomUUID(),
                 senderRole: viewer,
                 body,
