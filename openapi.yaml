@@ -1159,12 +1159,19 @@ paths:
           in: query
         - schema:
             type: string
+            description: 番号・場所・備考の部分一致（番号は 申-00118 や 118 でも探せる）
           required: false
+          description: 番号・場所・備考の部分一致（番号は 申-00118 や 118 でも探せる）
           name: q
           in: query
         - schema:
             type: string
+            description: カンマ区切りで複数（searching / maybe_found / awaiting_handover / resolved /
+              transferred_to_police / disposed / cancelled）
+            example: searching,maybe_found
           required: false
+          description: カンマ区切りで複数（searching / maybe_found / awaiting_handover / resolved /
+            transferred_to_police / disposed / cancelled）
           name: status
           in: query
         - schema:
@@ -1179,7 +1186,9 @@ paths:
             enum:
               - "true"
               - "false"
+            description: true なら返信待ちの申請だけ、false なら返信待ちでないものだけ（メッセージのない申請も含む）
           required: false
+          description: true なら返信待ちの申請だけ、false なら返信待ちでないものだけ（メッセージのない申請も含む）
           name: awaitingReply
           in: query
       responses:

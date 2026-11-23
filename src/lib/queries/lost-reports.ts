@@ -73,7 +73,6 @@ export function lostReportFilters(query: LostReportListQuery) {
     query.q
       ? or(
           number != null ? eq(lostReports.number, number) : undefined,
-          ilike(lostReports.brand, containsPattern(query.q)),
           ilike(lostReports.note, containsPattern(query.q)),
           ilike(lostReports.lostPlace, containsPattern(query.q)),
         )
