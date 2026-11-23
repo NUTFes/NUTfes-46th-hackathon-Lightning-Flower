@@ -15,6 +15,8 @@ import {
   LostReportForAdmin,
   LostReportForAdminList,
   LostReportList,
+  LostReportIdParams,
+  LostReportPatchBody,
 } from "@/lib/schemas/lost-report";
 import { AdminDashboard } from "@/lib/schemas/admin";
 import { Me } from "@/lib/schemas/me";
@@ -203,6 +205,55 @@ registry.registerPath({
   responses: {
     204: {
       description: "削除完了（ボディなし）",
+    },
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...notFoundResponse,
+    ...conflictResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/lost-reports/{id}",
+  summary: "遺失物申請の詳細・申請状況（guest は自分の申請だけ / admin）",
+  description:
+    "他人の申請は 404。admin にだけ guest・activeMatch・awaitingReply を返す",
+  request: { params: LostReportIdParams },
+  responses: {
+    200: {
+      description: "遺失物申請の詳細（admin の場合は LostReportForAdmin）",
+      content: {
+        "application/json": {
+          schema: LostReport.or(LostReportForAdmin),
+        },
+      },
+    },
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...notFoundResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "patch",
+  path: "/api/lost-reports/{id}",
+  summary: "遺失物申請の入力情報の変更（guest は自分の申請だけ）",
+  description: "searching（探し中）のときだけ変更できる。それ以外は 409",
+  request: {
+    params: LostReportIdParams,
+    body: {
+      content: { "application/json": { schema: LostReportPatchBody } },
+    },
+  },
+  responses: {
+    200: {
+      description: "更新後の遺失物申請",
+      content: { "application/json": { schema: LostReport } },
     },
     ...badRequestResponse,
     ...unauthorizedResponse,
