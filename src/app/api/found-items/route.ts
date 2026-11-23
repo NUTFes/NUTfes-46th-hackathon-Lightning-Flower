@@ -17,6 +17,12 @@ import { signPhotoUrls } from "@/lib/storage/photos";
 
 const PHOTO_OPTIONAL_CATEGORY = "証明書・カード・定期券類";
 
+function isUniqueViolation(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const err = error as { code?: unknown; cause?: { code?: unknown } };
+  return err.code === "23505" || err.cause?.code === "23505";
+}
+
 // 拾得物の一覧・検索（member / admin）。画面：M01・A02
 // API を書くときの見本（docs/api-guide.md）
 export const GET = apiHandler(async (request) => {
@@ -56,30 +62,32 @@ export const POST = apiHandler(async (request) => {
   // 2. 入力を確かめる（合わなければ 400）
   const body = await parseBody(request, FoundItemCreateBody);
 
-  // 3. カテゴリ確認と写真必須チェック
+  // 3. カテゴリ確認・写真必須チェック・登録を 1 トランザクションで実行
   const db = getDb();
-  const [category] = await db
-    .select()
-    .from(categories)
-    .where(eq(categories.id, body.categoryId));
-
-  if (!category) {
-    throw notFound("指定されたカテゴリが見つかりません");
-  }
-
-  if (category.name !== PHOTO_OPTIONAL_CATEGORY && body.photos.length === 0) {
-    throw badRequest(
-      `「${PHOTO_OPTIONAL_CATEGORY}」以外のカテゴリでは photos を 1 件以上指定してください`,
-    );
-  }
-
-  // 4. デフォルト値を補完して 1 つのトランザクションで登録
   const foundAt = body.foundAt ? new Date(body.foundAt) : new Date();
-  const isValuable = body.isValuable ?? category.isValuableDefault;
 
   const createdRow = await db.transaction(async (tx) => {
+    const [category] = await tx
+      .select()
+      .from(categories)
+      .where(eq(categories.id, body.categoryId));
+
+    if (!category) {
+      throw notFound("指定されたカテゴリが見つかりません");
+    }
+
+    if (category.name !== PHOTO_OPTIONAL_CATEGORY && body.photos.length === 0) {
+      throw badRequest(
+        `「${PHOTO_OPTIONAL_CATEGORY}」以外のカテゴリでは photos を 1 件以上指定してください`,
+      );
+    }
+
+    const isValuable = body.isValuable ?? category.isValuableDefault;
+
     if (body.photos.length > 0) {
-      const paths = body.photos.flatMap((p) => [p.path, p.thumbPath]);
+      const paths = Array.from(
+        new Set(body.photos.flatMap((p) => [p.path, p.thumbPath])),
+      );
       const existingPhotos = await tx
         .select({ id: foundItemPhotos.id })
         .from(foundItemPhotos)
@@ -96,50 +104,57 @@ export const POST = apiHandler(async (request) => {
       }
     }
 
-    const [inserted] = await tx
-      .insert(foundItems)
-      .values({
-        categoryId: category.id,
-        color: body.color,
-        brand: body.brand ?? null,
-        foundPlace: body.foundPlace,
-        foundAt,
-        isValuable,
-        memo: body.memo ?? null,
-        status: "received",
-        registeredByEmail: staff.email,
-      })
-      .returning();
+    try {
+      const [inserted] = await tx
+        .insert(foundItems)
+        .values({
+          categoryId: category.id,
+          color: body.color,
+          brand: body.brand ?? null,
+          foundPlace: body.foundPlace,
+          foundAt,
+          isValuable,
+          memo: body.memo ?? null,
+          status: "received",
+          registeredByEmail: staff.email,
+        })
+        .returning();
 
-    const insertedPhotos =
-      body.photos.length > 0
-        ? await tx
-            .insert(foundItemPhotos)
-            .values(
-              body.photos.map((photo, index) => ({
-                foundItemId: inserted.id,
-                storagePath: photo.path,
-                thumbPath: photo.thumbPath,
-                sortOrder: index,
-              })),
-            )
-            .returning({
-              id: foundItemPhotos.id,
-              storagePath: foundItemPhotos.storagePath,
-              thumbPath: foundItemPhotos.thumbPath,
-            })
-        : [];
+      const insertedPhotos =
+        body.photos.length > 0
+          ? await tx
+              .insert(foundItemPhotos)
+              .values(
+                body.photos.map((photo, index) => ({
+                  foundItemId: inserted.id,
+                  storagePath: photo.path,
+                  thumbPath: photo.thumbPath,
+                  sortOrder: index,
+                })),
+              )
+              .returning({
+                id: foundItemPhotos.id,
+                storagePath: foundItemPhotos.storagePath,
+                thumbPath: foundItemPhotos.thumbPath,
+              })
+          : [];
 
-    return {
-      ...inserted,
-      category: { id: category.id, name: category.name },
-      photos: insertedPhotos,
-      matches: [],
-      handovers: [],
-    };
+      return {
+        ...inserted,
+        category: { id: category.id, name: category.name },
+        photos: insertedPhotos,
+        matches: [],
+        handovers: [],
+      };
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw badRequest("すでに使用されている写真パスは指定できません");
+      }
+      throw error;
+    }
   });
 
-  // 5. 共通の形にして 201 で返す
+  // 4. 共通の形にして 201 で返す
   const photoUrlOf = await signPhotoUrls(photoPathsOf([createdRow], "all"));
   return Response.json(toFoundItem(createdRow, staff, photoUrlOf), {
     status: 201,

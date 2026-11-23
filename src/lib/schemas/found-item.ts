@@ -130,6 +130,8 @@ const NonEmptySafeText = z.string().trim().min(1).refine(hasNoNullByte, {
   message: "NUL 文字は含められません",
 });
 
+const SmallId = z.number().int().min(1).max(32767);
+
 export const FoundItemPhotoInput = z
   .object({
     path: z.string().trim().min(1).refine(isSafePhotoPath, {
@@ -146,7 +148,7 @@ export const FoundItemPhotoInput = z
 
 export const FoundItemCreateBody = z
   .object({
-    categoryId: SmallIdQuery,
+    categoryId: SmallId,
     color: ItemColor,
     brand: NonEmptySafeText.nullable().optional(),
     foundPlace: NonEmptySafeText,

@@ -59,9 +59,12 @@ describe("FoundItemCreateBody", () => {
     ).toBe(false);
   });
 
-  it("brand が空文字なら弾く", () => {
+  it("brand が空文字や空白だけなら弾く", () => {
     expect(
       FoundItemCreateBody.safeParse(validBody({ brand: "" })).success,
+    ).toBe(false);
+    expect(
+      FoundItemCreateBody.safeParse(validBody({ brand: "   " })).success,
     ).toBe(false);
   });
 
@@ -74,15 +77,27 @@ describe("FoundItemCreateBody", () => {
     ).toBe(false);
   });
 
-  it("categoryId が正の整数以外なら弾く", () => {
+  it("categoryId が範囲外（0, 32768, 負数, 小数）なら弾く", () => {
     expect(
       FoundItemCreateBody.safeParse(validBody({ categoryId: 0 })).success,
+    ).toBe(false);
+    expect(
+      FoundItemCreateBody.safeParse(validBody({ categoryId: 32768 })).success,
     ).toBe(false);
     expect(
       FoundItemCreateBody.safeParse(validBody({ categoryId: -1 })).success,
     ).toBe(false);
     expect(
       FoundItemCreateBody.safeParse(validBody({ categoryId: 1.5 })).success,
+    ).toBe(false);
+  });
+
+  it("categoryId が boolean や文字列なら弾く", () => {
+    expect(
+      FoundItemCreateBody.safeParse(validBody({ categoryId: true })).success,
+    ).toBe(false);
+    expect(
+      FoundItemCreateBody.safeParse(validBody({ categoryId: "6" })).success,
     ).toBe(false);
   });
 
@@ -93,7 +108,7 @@ describe("FoundItemCreateBody", () => {
     ).toBe(false);
   });
 
-  it("photos の path / thumbPath が空文字なら弾く", () => {
+  it("photos の path / thumbPath が空文字や同一パスなら弾く", () => {
     expect(
       FoundItemCreateBody.safeParse(
         validBody({ photos: [{ path: "", thumbPath: "found/a_thumb.jpg" }] }),
@@ -104,23 +119,37 @@ describe("FoundItemCreateBody", () => {
         validBody({ photos: [{ path: "found/a.jpg", thumbPath: "" }] }),
       ).success,
     ).toBe(false);
+    expect(
+      FoundItemCreateBody.safeParse(
+        validBody({
+          photos: [{ path: "found/same.jpg", thumbPath: "found/same.jpg" }],
+        }),
+      ).success,
+    ).toBe(false);
   });
 
-  it("photos が found/ 以外や .. を含むパスなら弾く", () => {
-    expect(
-      FoundItemCreateBody.safeParse(
-        validBody({
-          photos: [{ path: "other/a.jpg", thumbPath: "found/a_thumb.jpg" }],
-        }),
-      ).success,
-    ).toBe(false);
-    expect(
-      FoundItemCreateBody.safeParse(
-        validBody({
-          photos: [{ path: "found/../a.jpg", thumbPath: "found/a_thumb.jpg" }],
-        }),
-      ).success,
-    ).toBe(false);
+  it("photos が found/ 以外や .. / バックスラッシュ / 二重スラッシュを含むパスなら弾く", () => {
+    const badPaths = [
+      "other/a.jpg",
+      "found/../a.jpg",
+      "found/%2e%2e/a.jpg",
+      "found\\a.jpg",
+      "found//a.jpg",
+      "found/",
+    ];
+
+    for (const p of badPaths) {
+      expect(
+        FoundItemCreateBody.safeParse(
+          validBody({ photos: [{ path: p, thumbPath: "found/a_thumb.jpg" }] }),
+        ).success,
+      ).toBe(false);
+      expect(
+        FoundItemCreateBody.safeParse(
+          validBody({ photos: [{ path: "found/a.jpg", thumbPath: p }] }),
+        ).success,
+      ).toBe(false);
+    }
   });
 
   it("photos が 11 件以上や重複パスなら弾く", () => {
@@ -139,6 +168,17 @@ describe("FoundItemCreateBody", () => {
           photos: [
             { path: "found/a.jpg", thumbPath: "found/a_thumb.jpg" },
             { path: "found/a.jpg", thumbPath: "found/b_thumb.jpg" },
+          ],
+        }),
+      ).success,
+    ).toBe(false);
+
+    expect(
+      FoundItemCreateBody.safeParse(
+        validBody({
+          photos: [
+            { path: "found/a.jpg", thumbPath: "found/shared.jpg" },
+            { path: "found/shared.jpg", thumbPath: "found/b_thumb.jpg" },
           ],
         }),
       ).success,
