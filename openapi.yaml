@@ -520,6 +520,131 @@ components:
             - string
             - "null"
           minLength: 1
+    MessageList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Message"
+      required:
+        - items
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        senderRole:
+          $ref: "#/components/schemas/SenderRole"
+        body:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - senderRole
+        - body
+        - createdAt
+    SenderRole:
+      type: string
+      enum:
+        - admin
+        - guest
+    MessageCreate:
+      type: object
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 1000
+      required:
+        - body
+    ChatThreadList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChatThread"
+        total:
+          type: integer
+      required:
+        - items
+        - total
+    ChatThread:
+      type: object
+      properties:
+        lostReportId:
+          type: string
+          format: uuid
+        displayNumber:
+          type: string
+          example: 申-00118
+        category:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+          required:
+            - id
+            - name
+        color:
+          $ref: "#/components/schemas/ItemColor"
+        status:
+          $ref: "#/components/schemas/LostStatus"
+        lastMessageAt:
+          type: string
+          format: date-time
+        awaitingReply:
+          type: boolean
+      required:
+        - lostReportId
+        - displayNumber
+        - category
+        - color
+        - status
+        - lastMessageAt
+        - awaitingReply
+    MessageBroadcastResult:
+      type: object
+      properties:
+        sent:
+          type: integer
+      required:
+        - sent
+    MessageBroadcast:
+      type: object
+      properties:
+        lostReportIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+          maxItems: 1000
+          description: 宛先の申請の ID（status と一緒には使えない）
+        status:
+          allOf:
+            - $ref: "#/components/schemas/LostStatus"
+            - description: このステータスの申請すべてに送る（lostReportIds と一緒には使えない）
+        body:
+          type: string
+          minLength: 1
+          maxLength: 1000
+      required:
+        - body
+    MatchCreateBody:
+      type: object
+      properties:
+        foundItemId:
+          type: string
+          format: uuid
+      required:
+        - foundItemId
   parameters: {}
 paths:
   /api/health:
@@ -800,6 +925,7 @@ paths:
           name: id
           in: path
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -991,6 +1117,7 @@ paths:
           name: id
           in: path
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -1002,6 +1129,404 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LostReport"
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 見つからない（削除済みを含む）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: 現在のステータスでは操作できない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/lost-reports/{id}/messages:
+    get:
+      summary: チャットのメッセージの取得（guest は自分の申請だけ / admin）
+      description: 古い順。画面を開いている間、30 秒ごとに after 付きで呼ぶ。取りこぼさないように、前回の最新より少し前を after
+        に渡し、画面側で id で重複を除く
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+        - schema:
+            type: string
+            format: date-time
+            description: この日時より後のメッセージだけ（省略すると全件）。取りこぼさないように、前回の最新より少し前（数秒）を渡し、画面側で id
+              で重複を除く
+          required: false
+          description: この日時より後のメッセージだけ（省略すると全件）。取りこぼさないように、前回の最新より少し前（数秒）を渡し、画面側で id で重複を除く
+          name: after
+          in: query
+      responses:
+        "200":
+          description: メッセージの一覧
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageList"
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 申請がない（guest がほかの人の申請を指したときも）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      summary: チャットのメッセージの送信（guest は自分の申請だけ / admin）
+      description: 本文は前後の空白を除いて 1〜1000 文字。guest は、admin から 1
+        通以上届いていて、終わっていない（resolved・transferred_to_police・disposed・cancelled
+        でない）申請にだけ送れる。admin は終わった申請にも送れる
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageCreate"
+      responses:
+        "201":
+          description: 入れたメッセージ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 申請がない（guest がほかの人の申請を指したときも）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: guest が送れない（admin からまだ届いていない・終わった申請）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/chats:
+    get:
+      summary: チャットのスレッドの一覧（admin）
+      description: メッセージが 1 通以上ある申請を、lastMessageAt の新しい順に返す（?page=1&limit=20
+        で区切り、total は条件に合う全件の数）。返信待ち＝最新のメッセージが guest のもの
+      parameters:
+        - schema:
+            type: integer
+            minimum: 1
+            default: 1
+          required: false
+          name: page
+          in: query
+        - schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          required: false
+          name: limit
+          in: query
+        - schema:
+            type: string
+            enum:
+              - "true"
+              - "false"
+            description: true なら返信待ちのスレッドだけ、false なら返信待ちでないものだけ
+          required: false
+          description: true なら返信待ちのスレッドだけ、false なら返信待ちでないものだけ
+          name: awaitingReply
+          in: query
+      responses:
+        "200":
+          description: スレッドの一覧と、条件に合う全件の数
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatThreadList"
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/messages/broadcast:
+    post:
+      summary: チャットの一斉送信（admin）
+      description: lostReportIds か status のどちらか一方で宛先を指定し、それぞれの申請に admin のメッセージを 1
+        通ずつ入れる。ない申請の ID は飛ばす
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageBroadcast"
+      responses:
+        "200":
+          description: 入れたメッセージの数
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageBroadcastResult"
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/lost-reports/{id}/matches:
+    post:
+      summary: 申請を拾得物と紐づける（admin）
+      description: 申請が searching、拾得物が received のときだけ（それ以外は 409）。申請を maybe_found、拾得物を
+        matching にする
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MatchCreateBody"
+      responses:
+        "200":
+          description: 更新したあとの申請
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LostReportForAdmin"
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 見つからない（削除済みを含む）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: 現在のステータスでは操作できない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/lost-reports/{id}/matches/{foundItemId}:
+    delete:
+      summary: 紐づけを解除する（admin。本人確認で違ったとき）
+      description: 申請が maybe_found で、この拾得物と有効な紐づけがあるときだけ（それ以外は 409）。紐づけに releasedAt
+        を入れ、申請を searching（本人確認も消す）、拾得物を received に戻す
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+        - schema:
+            type: string
+            format: uuid
+          required: true
+          name: foundItemId
+          in: path
+      responses:
+        "200":
+          description: 更新したあとの申請
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LostReportForAdmin"
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 見つからない（削除済みを含む）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: 現在のステータスでは操作できない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/lost-reports/{id}/verify:
+    post:
+      summary: 本人確認 OK にする（admin）
+      description: 申請が maybe_found で、有効な紐づけがあり、まだ本人確認をしていないときだけ（それ以外は 409）。verified を
+        true にする。ステータスは変えない
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        "200":
+          description: 更新したあとの申請
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LostReportForAdmin"
         "400":
           description: 入力が正しくない
           content:

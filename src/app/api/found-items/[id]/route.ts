@@ -1,11 +1,11 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { categories, foundItemPhotos, foundItems } from "@/db/schema";
 import { requireStaff } from "@/lib/api/auth";
 import { badRequest, conflict, forbidden, notFound } from "@/lib/api/errors";
 import { apiHandler } from "@/lib/api/handler";
 import { parseBody, parseParams } from "@/lib/api/parse";
-import { foundItemWith } from "@/lib/queries/found-items";
+import { activeFoundItemById, foundItemWith } from "@/lib/queries/found-items";
 import {
   type FoundItem,
   FoundItemIdParams,
@@ -21,7 +21,7 @@ type RouteContext = {
 async function findActiveFoundItem(id: string) {
   const db = getDb();
   const row = await db.query.foundItems.findFirst({
-    where: and(eq(foundItems.id, id), isNull(foundItems.deletedAt)),
+    where: activeFoundItemById(id),
     with: foundItemWith,
   });
   if (!row) throw notFound("拾得物が見つかりません");
@@ -89,7 +89,7 @@ export const PATCH = apiHandler(async (request, ctx: RouteContext) => {
       await tx
         .update(foundItems)
         .set(updateValues)
-        .where(and(eq(foundItems.id, id), isNull(foundItems.deletedAt)));
+        .where(activeFoundItemById(id));
     }
 
     if (body.photos !== undefined) {
@@ -130,7 +130,7 @@ export const DELETE = apiHandler(async (request, ctx: RouteContext) => {
   await db
     .update(foundItems)
     .set({ deletedAt: new Date() })
-    .where(and(eq(foundItems.id, id), isNull(foundItems.deletedAt)));
+    .where(activeFoundItemById(id));
 
   return new Response(null, { status: 204 });
 });
