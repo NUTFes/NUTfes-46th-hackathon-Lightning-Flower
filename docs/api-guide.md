@@ -43,7 +43,7 @@ API は Next.js の Route Handlers（`src/app/api/`）で書く。パスと入�
 
 ## 決まりごと
 
-- 一覧は `?page=1&limit=20` で受け（`PageQuery` を `extend` する）、`{ items, total }` で返す。件数は一覧と同じ `where` で数える
+- 一覧は `?page=1&limit=20` で受け（`PageQuery` を `extend` する）、`{ items, total }` で返す。件数は一覧と同じ `where` で数える。`page` は `PAGE_MAX`（100000）、`limit` は `LIMIT_MAX`（100）まで（OFFSET が bigint を超えて 500 にならないように）。`PageQuery` を使わずに一覧を作るときも、同じ上限を付ける
 - 複数の値はカンマ区切りで受ける（`csvEnum`）。真偽値は `"true"` / `"false"`（`BooleanQuery`）
 - クエリの ID は `SmallIdQuery`（`smallint` の列）か `z.uuid()`、日時は `DateTimeQuery` で受ける（範囲外の数を DB に送ると 500 になるため）
 - 画面からクエリ付きで呼ぶときは、`URLSearchParams` で組み立てる。`+09:00` の `+` は、エンコードしないと空白として届く（`DateTimeQuery` は空白を `+` に戻すが、ほかの値は戻らない）
