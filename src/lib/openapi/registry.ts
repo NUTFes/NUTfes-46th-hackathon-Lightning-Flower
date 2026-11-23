@@ -123,6 +123,23 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
+  path: "/api/me/consent",
+  summary: "個人情報の取り扱いに同意する（guest）",
+  description:
+    "ログインしている guest の guests の行を作る（あれば agreedAt を入れる）。本文は受け取らない。2 回目以降も 200 で、最初に同意した日時を残す。ほかのサイト（Sec-Fetch-Site・Origin が違う）からは 403。Supabase Auth のユーザーが消されていれば 401",
+  responses: {
+    200: {
+      description: "同意したあとのログイン中の人（GET /api/me と同じ形）",
+      content: { "application/json": { schema: Me } },
+    },
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "post",
   path: "/api/photos/upload-urls",
   summary: "写真の署名付きアップロード URL を発行する（member / admin）",
   description:

@@ -793,6 +793,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /api/me/consent:
+    post:
+      summary: 個人情報の取り扱いに同意する（guest）
+      description: ログインしている guest の guests の行を作る（あれば agreedAt を入れる）。本文は受け取らない。2 回目以降も
+        200 で、最初に同意した日時を残す。ほかのサイト（Sec-Fetch-Site・Origin が違う）からは 403。Supabase
+        Auth のユーザーが消されていれば 401
+      responses:
+        "200":
+          description: 同意したあとのログイン中の人（GET /api/me と同じ形）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /api/photos/upload-urls:
     post:
       summary: 写真の署名付きアップロード URL を発行する（member / admin）
