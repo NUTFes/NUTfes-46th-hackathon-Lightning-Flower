@@ -11,7 +11,7 @@ import {
   findLostReportId,
 } from "@/lib/queries/lost-reports";
 import {
-  LostReportParams,
+  LostReportIdParams,
   type LostReportForAdmin,
 } from "@/lib/schemas/lost-report";
 import { toLostReportForAdmin } from "@/lib/serializers/lost-report";
@@ -21,7 +21,7 @@ import { toLostReportForAdmin } from "@/lib/serializers/lost-report";
 export const POST = apiHandler(
   async (request, ctx: RouteContext<"/api/lost-reports/[id]/verify">) => {
     await requireAdmin(request);
-    const { id } = parseParams(await ctx.params, LostReportParams);
+    const { id } = parseParams(await ctx.params, LostReportIdParams);
 
     const row = await getDb().transaction(async (tx) => {
       // 「見つかったかも」で、まだ本人確認をしていなくて、有効な紐づけ（拾得物が照合中で、削除していない）が

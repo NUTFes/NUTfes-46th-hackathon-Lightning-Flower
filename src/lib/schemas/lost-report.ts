@@ -49,7 +49,7 @@ export const LostReportForAdmin = LostReport.extend({
 }).openapi("LostReportForAdmin");
 
 // URL の [id]（/api/lost-reports/{id}/...）
-export const LostReportParams = z.object({ id: z.uuid() });
+export const LostReportIdParams = z.object({ id: z.uuid() });
 
 export const LostReportList = paginated(LostReport).openapi("LostReportList");
 export const LostReportForAdminList = paginated(LostReportForAdmin).openapi(

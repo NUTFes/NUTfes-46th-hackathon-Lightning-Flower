@@ -14,7 +14,7 @@ import {
   LostReportForAdmin,
   LostReportForAdminList,
   LostReportList,
-  LostReportParams,
+  LostReportIdParams,
 } from "@/lib/schemas/lost-report";
 import { MatchCreateBody, MatchParams } from "@/lib/schemas/match";
 import { Me } from "@/lib/schemas/me";
@@ -147,6 +147,7 @@ registry.registerPath({
   request: {
     params: FoundItemIdParams,
     body: {
+      required: true,
       content: { "application/json": { schema: PatchFoundItemBody } },
     },
   },
@@ -199,8 +200,11 @@ registry.registerPath({
   description:
     "申請が searching、拾得物が received のときだけ（それ以外は 409）。申請を maybe_found、拾得物を matching にする",
   request: {
-    params: LostReportParams,
-    body: { content: { "application/json": { schema: MatchCreateBody } } },
+    params: LostReportIdParams,
+    body: {
+      required: true,
+      content: { "application/json": { schema: MatchCreateBody } },
+    },
   },
   responses: {
     ...updatedLostReportResponse,
@@ -237,7 +241,7 @@ registry.registerPath({
   summary: "本人確認 OK にする（admin）",
   description:
     "申請が maybe_found で、有効な紐づけがあり、まだ本人確認をしていないときだけ（それ以外は 409）。verified を true にする。ステータスは変えない",
-  request: { params: LostReportParams },
+  request: { params: LostReportIdParams },
   responses: {
     ...updatedLostReportResponse,
     ...badRequestResponse,

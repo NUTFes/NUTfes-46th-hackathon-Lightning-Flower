@@ -72,11 +72,17 @@ export function foundItemFilters(query: FoundItemListQuery, viewer: Staff) {
   );
 }
 
+// ID の拾得物（論理削除したものは、ないものとする）。1 件を取る API は、どれもこの条件で取る
+// （GET・PATCH・DELETE /api/found-items/{id} と、状態を変える API の 404 の判定をそろえるため）
+export function activeFoundItemById(id: string) {
+  return and(eq(foundItems.id, id), isNull(foundItems.deletedAt));
+}
+
 // 拾得物があるか（論理削除したものは、ないものとする）。状態を変える API で、
 // 更新できなかったときに 404 と 409 を分けるのに使う
 export function findFoundItemId(db: Db | Tx, id: string) {
   return db.query.foundItems.findFirst({
-    where: and(eq(foundItems.id, id), isNull(foundItems.deletedAt)),
+    where: activeFoundItemById(id),
     columns: { id: true },
   });
 }

@@ -662,6 +662,7 @@ paths:
           name: id
           in: path
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -804,6 +805,7 @@ paths:
           name: id
           in: path
       requestBody:
+        required: true
         content:
           application/json:
             schema:

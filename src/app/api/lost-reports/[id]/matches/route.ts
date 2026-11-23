@@ -15,7 +15,7 @@ import {
   findLostReportId,
 } from "@/lib/queries/lost-reports";
 import {
-  LostReportParams,
+  LostReportIdParams,
   type LostReportForAdmin,
 } from "@/lib/schemas/lost-report";
 import { MatchCreateBody } from "@/lib/schemas/match";
@@ -29,7 +29,7 @@ export const POST = apiHandler(
     const staff = await requireAdmin(request);
 
     // 2. 入力を確かめる
-    const { id } = parseParams(await ctx.params, LostReportParams);
+    const { id } = parseParams(await ctx.params, LostReportIdParams);
     const { foundItemId } = await parseBody(request, MatchCreateBody);
 
     // 3. 1 つのトランザクションで、今の状態が期待どおりのときだけ更新する
