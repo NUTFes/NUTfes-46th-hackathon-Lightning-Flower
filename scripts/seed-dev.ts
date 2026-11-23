@@ -183,7 +183,8 @@ async function seed(myEmail: string) {
     await tx.insert(lostReports).values({
       guestId: GUEST_ID,
       categoryId: 9,
-      features: "白いタオル（模擬店のロゴ入り）",
+      color: "white",
+      note: "タオル（模擬店のロゴ入り）",
       lostPlace: "屋外ステージ",
       lostAt: at("14:30"),
     });

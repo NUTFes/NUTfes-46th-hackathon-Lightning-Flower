@@ -420,6 +420,14 @@ components:
       required:
         - items
         - total
+    MatchCreateBody:
+      type: object
+      properties:
+        foundItemId:
+          type: string
+          format: uuid
+      required:
+        - foundItemId
   parameters: {}
 paths:
   /api/health:
@@ -747,6 +755,182 @@ paths:
       responses:
         "204":
           description: 削除完了（ボディなし）
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 見つからない（削除済みを含む）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: 現在のステータスでは操作できない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/lost-reports/{id}/matches:
+    post:
+      summary: 申請を拾得物と紐づける（admin）
+      description: 申請が searching、拾得物が received のときだけ（それ以外は 409）。申請を maybe_found、拾得物を
+        matching にする
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MatchCreateBody"
+      responses:
+        "200":
+          description: 更新したあとの申請
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LostReportForAdmin"
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 見つからない（削除済みを含む）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: 現在のステータスでは操作できない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/lost-reports/{id}/matches/{foundItemId}:
+    delete:
+      summary: 紐づけを解除する（admin。本人確認で違ったとき）
+      description: 申請が maybe_found で、この拾得物と有効な紐づけがあるときだけ（それ以外は 409）。紐づけに releasedAt
+        を入れ、申請を searching（本人確認も消す）、拾得物を received に戻す
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+        - schema:
+            type: string
+            format: uuid
+          required: true
+          name: foundItemId
+          in: path
+      responses:
+        "200":
+          description: 更新したあとの申請
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LostReportForAdmin"
+        "400":
+          description: 入力が正しくない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 見つからない（削除済みを含む）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: 現在のステータスでは操作できない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/lost-reports/{id}/verify:
+    post:
+      summary: 本人確認 OK にする（admin）
+      description: 申請が maybe_found で、有効な紐づけがあり、まだ本人確認をしていないときだけ（それ以外は 409）。verified を
+        true にする。ステータスは変えない
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        "200":
+          description: 更新したあとの申請
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LostReportForAdmin"
         "400":
           description: 入力が正しくない
           content:

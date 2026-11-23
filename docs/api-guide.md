@@ -59,7 +59,7 @@ API は Next.js の Route Handlers（`src/app/api/`）で書く。パスと入�
 
 1. `getDb().transaction(async (tx) => { ... })` の中で、`tx.update(...).set(...).where(and(eq(id), eq(status, 今の状態))).returning({ id })` で更新する
 2. 返った行がなければ、`throw await notFoundOrConflict(find〇〇Id(tx, id), "…ではないので、…できません", "…が見つかりません")`。行がなければ 404、あれば 409 になり、トランザクションは取り消される（先に更新した行も戻る）
-3. 申請と拾得物の両方を更新するときは、**申請 → 拾得物の順**に更新する（行のロックの順をどの API でも同じにして、デッドロックを避ける）。拾得物から始める API（拾得物の削除・ステータスの変更など）は、先に `matches` から有効な紐づけの `lost_report_id` を取り、その申請を先に `UPDATE` か `SELECT … FOR UPDATE` してから拾得物を更新する。申請をロックしたあとで、紐づけがまだ有効かを確かめ直す
+3. 申請と拾得物の両方を更新するときは、**申請 → 拾得物の順**に更新する（行のロックの順をどの API でも同じにして、デッドロックを避ける）。拾得物から始める API（拾得物の削除、拾得物だけのステータスの変更 `PATCH status`・一括変更 `bulk-status` など。紐づいた申請を変えないときも）は、先に `matches` から有効な紐づけの `lost_report_id` を取り、その申請を先に `UPDATE` か `SELECT … FOR UPDATE` してから拾得物を更新する。申請をロックしたあとで、紐づけがまだ有効かを確かめ直す
 4. 紐づけ（`matches`）を変える処理は、紐づけだけを変えずに、**必ず申請の行も先に `UPDATE`（か `SELECT … FOR UPDATE`）する**（下の「同時に操作したとき」の前提）
 5. `INSERT` が UNIQUE 制約に当たりうるとき（状態の列と行が食い違っていたときなど）は、`.catch(conflictOnUniqueViolation("…"))` で 409 にする
 6. 更新したあとの行を同じトランザクションの中で取り、共通の形にして返す。申請を変える admin の API は、`findLostReportForAdmin(tx, id)` で取って `toLostReportForAdmin` で返す（画面が返り値でそのまま表示を更新できる）
