@@ -31,7 +31,7 @@ export async function fetchApi<T>(
   throw new FetchApiError(
     response.status,
     STATUS_MESSAGES[response.status] ??
-      body?.error.message ??
+      body?.error?.message ??
       "読み込めませんでした。時間をおいてもう一度お試しください。",
   );
 }
