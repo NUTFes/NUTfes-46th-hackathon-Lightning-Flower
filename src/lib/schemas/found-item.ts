@@ -108,3 +108,112 @@ export const FoundItemListQuery = withFoundRangeCheck(FoundItemListQueryBase);
 export type FoundItem = z.infer<typeof FoundItem>;
 export type FoundItemList = z.infer<typeof FoundItemList>;
 export type FoundItemListQuery = z.infer<typeof FoundItemListQuery>;
+
+function hasNoNullByte(value: string): boolean {
+  return !value.includes("\0");
+}
+
+function isSafePhotoPath(value: string): boolean {
+  if (!value.startsWith("found/") || value.length <= "found/".length) {
+    return false;
+  }
+  if (value.includes("..") || !hasNoNullByte(value)) {
+    return false;
+  }
+  if (/%2e/i.test(value) || value.includes("\\") || value.includes("//")) {
+    return false;
+  }
+  return true;
+}
+
+const NonEmptySafeText = z.string().trim().min(1).refine(hasNoNullByte, {
+  message: "NUL 文字は含められません",
+});
+
+const SmallId = z.number().int().min(1).max(32767);
+
+export const FoundItemPhotoInput = z
+  .object({
+    path: z.string().trim().min(1).refine(isSafePhotoPath, {
+      message: "path は found/ から始まる有効なパスを指定してください",
+    }),
+    thumbPath: z.string().trim().min(1).refine(isSafePhotoPath, {
+      message: "thumbPath は found/ から始まる有効なパスを指定してください",
+    }),
+  })
+  .refine((photo) => photo.path !== photo.thumbPath, {
+    message: "path と thumbPath は別のパスを指定してください",
+    path: ["thumbPath"],
+  });
+
+export const FoundItemCreateBody = z
+  .object({
+    categoryId: SmallId,
+    color: ItemColor,
+    brand: NonEmptySafeText.nullable().optional(),
+    foundPlace: NonEmptySafeText,
+    foundAt: DateTime.optional(),
+    isValuable: z.boolean().optional(),
+    memo: NonEmptySafeText.nullable().optional(),
+    photos: z
+      .array(FoundItemPhotoInput)
+      .max(10, "写真は最大 10 件まで登録できます")
+      .refine(
+        (photos) => {
+          const seen = new Set<string>();
+          for (const p of photos) {
+            if (seen.has(p.path) || seen.has(p.thumbPath)) {
+              return false;
+            }
+            seen.add(p.path);
+            seen.add(p.thumbPath);
+          }
+          return true;
+        },
+        {
+          message: "同じ写真パスを重複して指定できません",
+          path: ["photos"],
+        },
+      ),
+  })
+  .openapi("FoundItemCreateBody");
+
+export type FoundItemCreateBody = z.infer<typeof FoundItemCreateBody>;
+export const FoundItemIdParams = z.object({
+  id: z.uuid(),
+});
+
+export const PatchFoundItemBody = z.object({
+  categoryId: SmallIdQuery.optional(),
+  color: ItemColor.optional(),
+  brand: NonEmptySafeText.nullable().optional(),
+  foundPlace: NonEmptySafeText.optional(),
+  foundAt: DateTime.optional(),
+  isValuable: z.boolean().optional(),
+  memo: NonEmptySafeText.nullable().optional(),
+  photos: z
+    .array(FoundItemPhotoInput)
+    .max(10, "写真は最大 10 件まで登録できます")
+    .refine(
+      (photos) => {
+        const seen = new Set<string>();
+        for (const p of photos) {
+          if (seen.has(p.path) || seen.has(p.thumbPath)) {
+            return false;
+          }
+          seen.add(p.path);
+          seen.add(p.thumbPath);
+        }
+        return true;
+      },
+      {
+        message: "同じ写真パスを重複して指定できません",
+        path: ["photos"],
+      },
+    )
+    .optional(),
+});
+
+export type FoundItemPhotoInput = z.infer<typeof FoundItemPhotoInput>;
+export type FoundItemIdParams = z.infer<typeof FoundItemIdParams>;
+export type PatchFoundItemBody = z.infer<typeof PatchFoundItemBody>;
