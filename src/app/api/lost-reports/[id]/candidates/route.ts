@@ -39,6 +39,7 @@ export const GET = apiHandler(
         eq(foundItems.status, "received"),
       ),
       with: foundItemListWith,
+      // lostAt は guest の見積もりなので、前後を区別せず時刻の差で並べる。差が同じなら、新しく登録した方を先にする
       orderBy: [
         asc(
           sql`abs(extract(epoch from (${foundItems.foundAt} - ${report.lostAt.toISOString()}::timestamptz)))`,

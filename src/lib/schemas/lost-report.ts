@@ -1,3 +1,4 @@
+import { FoundItem } from "./found-item";
 import {
   CancelReason,
   CategoryRef,
@@ -9,7 +10,6 @@ import {
   PageQuery,
 } from "./common";
 import { z } from "./zod";
-import { FoundItem } from "./found-item";
 
 // 遺失物申請（Notion 設計仕様「API設計」の LostReport）。
 // guest に返す形（LostReport）と、admin に返す形（LostReportForAdmin）がある。
@@ -104,5 +104,4 @@ export const LostReportCandidates = z
   })
   .openapi("LostReportCandidates");
 
-export type LostReportIdParams = z.infer<typeof LostReportIdParams>;
 export type LostReportCandidates = z.infer<typeof LostReportCandidates>;

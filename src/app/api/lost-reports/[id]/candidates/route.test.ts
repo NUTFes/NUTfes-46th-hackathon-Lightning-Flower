@@ -6,22 +6,14 @@ const mockRequireAdmin = vi.fn();
 const mockFindFirstLostReport = vi.fn();
 const mockFindManyFoundItems = vi.fn();
 const mockSignPhotoUrls = vi.fn();
+const mockGetDb = vi.fn();
 
 vi.mock("@/lib/api/auth", () => ({
   requireAdmin: (...args: unknown[]) => mockRequireAdmin(...args),
 }));
 
 vi.mock("@/db", () => ({
-  getDb: () => ({
-    query: {
-      lostReports: {
-        findFirst: (...args: unknown[]) => mockFindFirstLostReport(...args),
-      },
-      foundItems: {
-        findMany: (...args: unknown[]) => mockFindManyFoundItems(...args),
-      },
-    },
-  }),
+  getDb: (...args: unknown[]) => mockGetDb(...args),
 }));
 
 vi.mock("@/lib/storage/photos", () => ({
@@ -29,6 +21,9 @@ vi.mock("@/lib/storage/photos", () => ({
 }));
 
 import { GET } from "./route";
+
+// 権限と入力の誤りは DB の前で止まることを確かめる。カテゴリ・status・論理削除での絞り込みと、
+// foundAt の近い順の並びは DB を使うので、テストではなく curl で確かめる（CI に DB がないため）
 
 const VALID_ID = "22222222-2222-4222-8222-222222222222";
 
@@ -39,6 +34,16 @@ function makeCtx(id: string) {
 describe("GET /api/lost-reports/{id}/candidates", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetDb.mockReturnValue({
+      query: {
+        lostReports: {
+          findFirst: (...args: unknown[]) => mockFindFirstLostReport(...args),
+        },
+        foundItems: {
+          findMany: (...args: unknown[]) => mockFindManyFoundItems(...args),
+        },
+      },
+    });
     mockRequireAdmin.mockResolvedValue({
       role: "admin",
       email: "admin@example.com",
@@ -49,28 +54,25 @@ describe("GET /api/lost-reports/{id}/candidates", () => {
       lostAt: new Date("2026-09-19T04:00:00.000Z"),
     });
     mockFindManyFoundItems.mockResolvedValue([]);
-    mockSignPhotoUrls.mockResolvedValue(
-      (path: string) => `https://example.com/${path}`,
-    );
+    // 本物と同じく、署名を頼んだパスにだけ URL を返す
+    mockSignPhotoUrls.mockImplementation(async (paths: string[]) => {
+      return (path: string) =>
+        paths.includes(path) ? `https://example.com/${path}` : "";
+    });
   });
 
-  // 1. 権限のテスト
-  it("未ログインは 401 を返す", async () => {
-    mockRequireAdmin.mockRejectedValueOnce(unauthorized());
+  // 1. 権限のテスト（未ログインは 401、admin 以外（member / guest）は 403）
+  it.each([
+    [unauthorized(), 401],
+    [forbidden(), 403],
+  ])("admin でなければ DB に触らない（%#）", async (error, status) => {
+    mockRequireAdmin.mockRejectedValueOnce(error);
     const res = await GET(
       new Request(`http://localhost/api/lost-reports/${VALID_ID}/candidates`),
       makeCtx(VALID_ID),
     );
-    expect(res.status).toBe(401);
-  });
-
-  it("admin 以外（member / guest）は 403 を返す", async () => {
-    mockRequireAdmin.mockRejectedValueOnce(forbidden());
-    const res = await GET(
-      new Request(`http://localhost/api/lost-reports/${VALID_ID}/candidates`),
-      makeCtx(VALID_ID),
-    );
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(status);
+    expect(mockGetDb).not.toHaveBeenCalled();
   });
 
   // 2. 入力の誤りのテスト
@@ -80,6 +82,7 @@ describe("GET /api/lost-reports/{id}/candidates", () => {
       makeCtx("not-a-uuid"),
     );
     expect(res.status).toBe(400);
+    expect(mockGetDb).not.toHaveBeenCalled();
   });
 
   // 3. 存在しない申請のテスト
@@ -92,8 +95,8 @@ describe("GET /api/lost-reports/{id}/candidates", () => {
     expect(res.status).toBe(404);
   });
 
-  // 4. 正常系のテスト
-  it("admin で照合候補の拾得物一覧を取得できる", async () => {
+  // 4. 返す形のテスト（DB から取った行を FoundItem の形にする。絞り込みと並び順は curl で確かめる）
+  it("取った行を FoundItem の形にして返す（写真はサムネイルだけ署名する）", async () => {
     mockFindManyFoundItems.mockResolvedValueOnce([
       {
         id: "11111111-1111-4111-8111-111111111111",
@@ -140,10 +143,11 @@ describe("GET /api/lost-reports/{id}/candidates", () => {
       photos: [
         {
           id: "33333333-3333-4333-8333-333333333333",
-          url: "https://example.com/found/42/full.jpg",
+          url: "",
           thumbUrl: "https://example.com/found/42/thumb.jpg",
         },
       ],
     });
+    expect(mockSignPhotoUrls).toHaveBeenCalledWith(["found/42/thumb.jpg"]);
   });
 });

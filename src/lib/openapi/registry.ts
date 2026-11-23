@@ -281,7 +281,7 @@ registry.registerPath({
   path: "/api/lost-reports/{id}/candidates",
   summary: "照合の候補一覧（admin）",
   description:
-    "申請と同じカテゴリで status が received の拾得物を、lostAt に近い順で返す",
+    "申請と同じカテゴリで status が received の拾得物を、拾得日時（foundAt）が申請の lostAt に近い順で返す。論理削除したものは除く",
   request: { params: LostReportIdParams },
   responses: {
     200: {
