@@ -1,0 +1,80 @@
+/* admin の詳細画面の横に置く操作パネル（StatusChangePanel・HandoverForm・AccountInfoCard） */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--chakra-colors-border);
+  border-radius: var(--chakra-radii-l3);
+  background: var(--chakra-colors-bg);
+}
+
+.title {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.description {
+  color: var(--chakra-colors-fg-muted);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.current {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+}
+
+.currentLabel {
+  color: var(--chakra-colors-fg-muted);
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.error {
+  padding: 8px 12px;
+  border-radius: var(--chakra-radii-l2);
+  background: var(--chakra-colors-red-subtle);
+  color: var(--chakra-colors-red-fg);
+  font-size: 0.875rem;
+}
+
+.success {
+  padding: 8px 12px;
+  border-radius: var(--chakra-radii-l2);
+  background: var(--chakra-colors-green-subtle);
+  color: var(--chakra-colors-green-fg);
+  font-size: 0.875rem;
+}
+
+/* --- AccountInfoCard --- */
+
+.infoList {
+  display: grid;
+  grid-template-columns: 8em 1fr;
+  gap: 10px 16px;
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+.infoList dt {
+  color: var(--chakra-colors-fg-muted);
+}
+
+.infoList dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

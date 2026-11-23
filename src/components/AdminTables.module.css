@@ -1,0 +1,52 @@
+/* FoundItemTable・LostReportTable・PendingReportsList のセルの中身 */
+
+.number {
+  font-family: var(--chakra-fonts-mono);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: var(--chakra-radii-l1);
+  background: var(--chakra-colors-bg-muted);
+}
+
+.noThumb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--chakra-radii-l1);
+  background: var(--chakra-colors-bg-muted);
+  color: var(--chakra-colors-fg-subtle);
+  font-size: 0.75rem;
+}
+
+.stack {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.muted {
+  color: var(--chakra-colors-fg-subtle);
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.email {
+  display: inline-block;
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+  color: var(--chakra-colors-fg-muted);
+}
