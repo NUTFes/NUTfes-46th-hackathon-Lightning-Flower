@@ -3,11 +3,15 @@ import { AdminDashboard } from "@/lib/schemas/admin";
 import { CategoryList } from "@/lib/schemas/category";
 import { ErrorResponse } from "@/lib/schemas/error";
 import {
+  BulkStatusBody,
+  BulkStatusResult,
   FoundItem,
   FoundItemCreateBody,
   FoundItemIdParams,
   FoundItemList,
   FoundItemListQuery,
+  FoundItemStatusBody,
+  HandoverBody,
   PatchFoundItemBody,
 } from "@/lib/schemas/found-item";
 import { HealthError, HealthOk } from "@/lib/schemas/health";
@@ -15,9 +19,12 @@ import {
   LostReport,
   LostReportForAdmin,
   LostReportForAdminList,
+  LostReportCancelBody,
   LostReportList,
   LostReportIdParams,
   LostReportPatchBody,
+  LostReportPickupBody,
+  LostReportCandidates,
 } from "@/lib/schemas/lost-report";
 import { MatchCreateBody, MatchParams } from "@/lib/schemas/match";
 import { Me } from "@/lib/schemas/me";
@@ -31,6 +38,7 @@ import {
   MessageList,
   MessageListQuery,
 } from "@/lib/schemas/message";
+import { PhotoUploadUrls, PhotoUploadUrlsBody } from "@/lib/schemas/photo";
 
 // API を足したら、ここにスキーマとパスを登録する。`make openapi` で openapi.yaml を出力する。
 export const registry = new OpenAPIRegistry();
@@ -111,6 +119,46 @@ registry.registerPath({
       content: { "application/json": { schema: Me } },
     },
     ...unauthorizedResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/me/consent",
+  summary: "個人情報の取り扱いに同意する（guest）",
+  description:
+    "ログインしている guest の guests の行を作る（あれば agreedAt を入れる）。本文は受け取らない。2 回目以降も 200 で、最初に同意した日時を残す。ほかのサイト（Sec-Fetch-Site・Origin が違う）からは 403。Supabase Auth のユーザーが消されていれば 401",
+  responses: {
+    200: {
+      description: "同意したあとのログイン中の人（GET /api/me と同じ形）",
+      content: { "application/json": { schema: Me } },
+    },
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/photos/upload-urls",
+  summary: "写真の署名付きアップロード URL を発行する（member / admin）",
+  description:
+    "count 枚ぶんの、元の画像とサムネイルのアップロード先（path・thumbPath）と署名付きアップロード URL を返す。画面は uploadUrl・thumbUploadUrl に画像を PUT し（Content-Type は image/jpeg・image/png・image/webp、1MiB まで）、path・thumbPath を POST /api/found-items の photos に渡す。URL の有効期限は 2 時間。すでにあるファイルは上書きできない",
+  request: {
+    body: {
+      content: { "application/json": { schema: PhotoUploadUrlsBody } },
+    },
+  },
+  responses: {
+    200: {
+      description: "発行したアップロード先と URL（count 件）",
+      content: { "application/json": { schema: PhotoUploadUrls } },
+    },
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
     ...serverErrorResponse,
   },
 });
@@ -217,6 +265,87 @@ registry.registerPath({
   responses: {
     204: {
       description: "削除完了（ボディなし）",
+    },
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...notFoundResponse,
+    ...conflictResponse,
+    ...serverErrorResponse,
+  },
+});
+
+const updatedFoundItemResponse = {
+  200: {
+    description: "更新したあとの拾得物",
+    content: { "application/json": { schema: FoundItem } },
+  },
+};
+
+registry.registerPath({
+  method: "post",
+  path: "/api/found-items/{id}/handover",
+  summary: "受け渡しを記録して解決済みにする（admin）",
+  description:
+    "拾得物が received / matching / awaiting_handover のときだけ（それ以外は 409）。handovers に記録し、拾得物を resolved にする。有効な紐づけの申請があれば（maybe_found でも awaiting_handover でも。本人確認の前（verified でない maybe_found）でも通す。窓口で現物を見せて本人確認する運用のため）それも resolved にする。ロックを待つ間に紐づけが変わっていたら 409。紐づけがなければ直接返却（lostReportId なし）",
+  request: {
+    params: FoundItemIdParams,
+    body: {
+      required: true,
+      content: { "application/json": { schema: HandoverBody } },
+    },
+  },
+  responses: {
+    ...updatedFoundItemResponse,
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...notFoundResponse,
+    ...conflictResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "patch",
+  path: "/api/found-items/{id}/status",
+  summary: "ステータスを手で変える（admin）",
+  description:
+    "紐づけがないときの received と transferred_to_police・disposed の行き来だけ。ほかの値は 400、今と同じ値や紐づけがあるときは 409。移管・処分にしたら disposedAt を入れて disposalNote を消し、received に戻したら disposedAt・disposalNote を消す",
+  request: {
+    params: FoundItemIdParams,
+    body: {
+      required: true,
+      content: { "application/json": { schema: FoundItemStatusBody } },
+    },
+  },
+  responses: {
+    ...updatedFoundItemResponse,
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...notFoundResponse,
+    ...conflictResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/found-items/bulk-status",
+  summary: "期間終了の一括変更（admin）",
+  description:
+    "仮の決め方：対象は received で有効な紐づけがない拾得物だけ。1 件でも対象外があれば何も変えない（ない・削除済みは 404、状態が違うか紐づけがあれば 409）。disposedAt と disposalNote（= note）を入れる。申請は変えない",
+  request: {
+    body: {
+      required: true,
+      content: { "application/json": { schema: BulkStatusBody } },
+    },
+  },
+  responses: {
+    200: {
+      description: "変えた件数",
+      content: { "application/json": { schema: BulkStatusResult } },
     },
     ...badRequestResponse,
     ...unauthorizedResponse,
@@ -439,6 +568,88 @@ registry.registerPath({
     ...forbiddenResponse,
     ...notFoundResponse,
     ...conflictResponse,
+    ...serverErrorResponse,
+  },
+});
+
+// 受け取り方法・取り消しは guest の API。更新したあとの申請を guest に返す形で返す
+const updatedLostReportForGuestResponse = {
+  200: {
+    description: "更新したあとの申請",
+    content: { "application/json": { schema: LostReport } },
+  },
+};
+const guestLostReportNotFoundResponse = {
+  404: {
+    description: "申請がない（ほかの人の申請を指したときも）",
+    content: errorContent,
+  },
+};
+
+registry.registerPath({
+  method: "put",
+  path: "/api/lost-reports/{id}/pickup",
+  summary: "受け取り方法を選ぶ（guest は自分の申請だけ）",
+  description:
+    "申請が maybe_found で、admin が本人確認 OK にしたあと（verified が true）だけ（それ以外は 409）。method が other のときは note が必須。申請と紐づいた拾得物を awaiting_handover にする",
+  request: {
+    params: LostReportIdParams,
+    body: {
+      required: true,
+      content: { "application/json": { schema: LostReportPickupBody } },
+    },
+  },
+  responses: {
+    ...updatedLostReportForGuestResponse,
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...guestLostReportNotFoundResponse,
+    ...conflictResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/lost-reports/{id}/cancel",
+  summary: "申請を取り消す（guest は自分の申請だけ）",
+  description:
+    "申請が searching・maybe_found・awaiting_handover のときだけ（それ以外は 409）。申請を cancelled にし、本人確認を消す。有効な紐づけがあれば releasedAt を入れて解除し、拾得物を received に戻す",
+  request: {
+    params: LostReportIdParams,
+    body: {
+      required: true,
+      content: { "application/json": { schema: LostReportCancelBody } },
+    },
+  },
+  responses: {
+    ...updatedLostReportForGuestResponse,
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...guestLostReportNotFoundResponse,
+    ...conflictResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/lost-reports/{id}/candidates",
+  summary: "照合の候補一覧（admin）",
+  description:
+    "申請と同じカテゴリで status が received の拾得物を、拾得日時（foundAt）が申請の lostAt に近い順で返す。論理削除したものは除く",
+  request: { params: LostReportIdParams },
+  responses: {
+    200: {
+      description: "照合候補の拾得物一覧",
+      content: { "application/json": { schema: LostReportCandidates } },
+    },
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...notFoundResponse,
     ...serverErrorResponse,
   },
 });
