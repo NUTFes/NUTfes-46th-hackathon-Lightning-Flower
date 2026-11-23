@@ -76,7 +76,7 @@ async function seed(myEmail: string) {
       .values([
         {
           categoryId: 6,
-          features: "紺色のワイヤレスイヤホン",
+          color: "navy",
           brand: "SONY",
           foundPlace: "屋外ステージ付近",
           foundAt: at("13:35"),
@@ -86,7 +86,8 @@ async function seed(myEmail: string) {
         },
         {
           categoryId: 2,
-          features: "黒い革の長財布",
+          color: "black",
+          memo: "革の長財布",
           foundPlace: "体育館の入口",
           foundAt: at("11:10"),
           isValuable: true,
@@ -95,7 +96,8 @@ async function seed(myEmail: string) {
         },
         {
           categoryId: 10,
-          features: "透明のビニール傘（100% 撥水と書いてある）",
+          color: "clear",
+          memo: "ビニール傘（100% 撥水と書いてある）",
           foundPlace: "正門",
           foundAt: at("10:05"),
           isValuable: false,
@@ -103,7 +105,8 @@ async function seed(myEmail: string) {
         },
         {
           categoryId: 4,
-          features: "鈴の付いた自転車の鍵",
+          color: "silver",
+          memo: "鈴の付いた自転車の鍵",
           foundPlace: "駐輪場",
           foundAt: at("12:20"),
           isValuable: true,
@@ -112,7 +115,7 @@ async function seed(myEmail: string) {
         },
         {
           categoryId: 9,
-          features: "白いタオル",
+          color: "white",
           foundPlace: "屋外ステージ付近",
           foundAt: at("15:00"),
           isValuable: false,
@@ -122,7 +125,8 @@ async function seed(myEmail: string) {
         {
           // 論理削除したもの（一覧には出ない）
           categoryId: 12,
-          features: "削除したサンプル",
+          color: "other",
+          memo: "削除したサンプル",
           foundPlace: "どこか",
           foundAt: at("09:00"),
           isValuable: false,
@@ -162,7 +166,8 @@ async function seed(myEmail: string) {
       .values({
         guestId: GUEST_ID,
         categoryId: 2,
-        features: "黒い長財布",
+        color: "black",
+        note: "長財布",
         lostPlace: "体育館",
         lostAt: at("11:00"),
         status: "maybe_found",

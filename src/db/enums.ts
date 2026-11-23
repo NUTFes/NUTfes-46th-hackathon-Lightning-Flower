@@ -22,6 +22,27 @@ export const LOST_STATUSES = [
   "cancelled", // 取り消し済み
 ] as const;
 
+// 色（拾得物・遺失物申請で 1 つ選ぶ）
+export const ITEM_COLORS = [
+  "black", // 黒
+  "white", // 白
+  "gray", // 灰
+  "brown", // 茶
+  "beige", // ベージュ
+  "red", // 赤
+  "pink", // ピンク
+  "orange", // オレンジ
+  "yellow", // 黄
+  "green", // 緑
+  "blue", // 青
+  "navy", // 紺
+  "purple", // 紫
+  "gold", // 金
+  "silver", // 銀
+  "clear", // 透明
+  "other", // その他
+] as const;
+
 // 受け取り方法
 export const PICKUP_METHODS = [
   "today", // 今日取りに行く
