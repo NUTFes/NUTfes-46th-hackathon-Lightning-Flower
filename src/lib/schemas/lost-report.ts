@@ -8,6 +8,7 @@ import {
   PickupMethod,
 } from "./common";
 import { z } from "./zod";
+import { FoundItem } from "./found-item";
 
 // 遺失物申請（Notion 設計仕様「API設計」の LostReport）。
 // guest に返す形（LostReport）と、admin に返す形（LostReportForAdmin）がある。
@@ -54,3 +55,16 @@ export const LostReportForAdminList = paginated(LostReportForAdmin).openapi(
 
 export type LostReport = z.infer<typeof LostReport>;
 export type LostReportForAdmin = z.infer<typeof LostReportForAdmin>;
+
+export const LostReportIdParams = z.object({
+  id: z.uuid(),
+});
+
+export const LostReportCandidates = z
+  .object({
+    items: z.array(FoundItem),
+  })
+  .openapi("LostReportCandidates");
+
+export type LostReportIdParams = z.infer<typeof LostReportIdParams>;
+export type LostReportCandidates = z.infer<typeof LostReportCandidates>;

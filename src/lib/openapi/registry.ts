@@ -12,6 +12,8 @@ import {
   LostReportForAdmin,
   LostReportForAdminList,
   LostReportList,
+  LostReportCandidates,
+  LostReportIdParams,
 } from "@/lib/schemas/lost-report";
 import { Me } from "@/lib/schemas/me";
 
@@ -31,6 +33,9 @@ const unauthorizedResponse = {
 // requireStaff・requireAdmin などで、ロールが合わなかったとき
 const forbiddenResponse = {
   403: { description: "権限がない", content: errorContent },
+};
+const notFoundResponse = {
+  404: { description: "見つからない", content: errorContent },
 };
 // apiHandler で包んだ API は、想定外のエラーのとき 500 INTERNAL_ERROR を返す
 const serverErrorResponse = {
@@ -102,6 +107,26 @@ registry.registerPath({
     ...badRequestResponse,
     ...unauthorizedResponse,
     ...forbiddenResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/lost-reports/{id}/candidates",
+  summary: "照合の候補一覧（admin）",
+  description:
+    "申請と同じカテゴリで status が received の拾得物を、lostAt に近い順で返す",
+  request: { params: LostReportIdParams },
+  responses: {
+    200: {
+      description: "照合候補の拾得物一覧",
+      content: { "application/json": { schema: LostReportCandidates } },
+    },
+    ...badRequestResponse,
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...notFoundResponse,
     ...serverErrorResponse,
   },
 });
