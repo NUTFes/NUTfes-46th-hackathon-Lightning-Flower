@@ -29,7 +29,8 @@ export const POST = apiHandler(async (request) => {
           senderRole: sql`'admin'::sender_role`.as("sender_role"),
           senderEmail: sql`${admin.email}`.as("sender_email"),
           body: sql`${input.body}`.as("body"),
-          createdAt: sql`now()`.as("created_at"),
+          // 個別の送信と同じく、トランザクションの開始時刻ではなく入れるときの時刻にする
+          createdAt: sql`clock_timestamp()`.as("created_at"),
         })
         .from(lostReports)
         .where(

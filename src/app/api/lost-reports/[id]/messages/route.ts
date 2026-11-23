@@ -1,4 +1,4 @@
-import { and, asc, eq, gt } from "drizzle-orm";
+import { and, asc, eq, gt, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { ENDED_LOST_STATUSES } from "@/db/enums";
 import { lostReports, messages } from "@/db/schema";
@@ -111,6 +111,9 @@ export const POST = apiHandler(async (request, ctx: Ctx) => {
         // 送った staff のメール。guest は申請から分かるので入れない
         senderEmail: actor.role === "admin" ? actor.email : null,
         body,
+        // ロックを取ったあとの時刻にする（既定の now() はトランザクションの開始時刻なので、
+        // ロックを待つと、先に入ったメッセージより前の時刻になり、ポーリングで取りこぼす）
+        createdAt: sql`clock_timestamp()`,
       })
       .returning(messageColumns);
     return inserted;
