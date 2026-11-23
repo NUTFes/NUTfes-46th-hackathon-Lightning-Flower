@@ -95,7 +95,8 @@ export function ConfirmDialog({
               </Dialog.Body>
             )}
             <Dialog.Footer>
-              <Dialog.CloseTrigger asChild>
+              {/* CloseTrigger は右上の×ボタン用で絶対配置になるので、フッターのボタンには ActionTrigger を使う */}
+              <Dialog.ActionTrigger asChild>
                 <Button
                   ref={cancelButton}
                   type="button"
@@ -104,7 +105,7 @@ export function ConfirmDialog({
                 >
                   {cancelLabel}
                 </Button>
-              </Dialog.CloseTrigger>
+              </Dialog.ActionTrigger>
               <Button
                 type="button"
                 colorPalette={colorPalette}
