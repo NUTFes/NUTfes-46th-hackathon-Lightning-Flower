@@ -45,7 +45,7 @@ export const POST = apiHandler(async (request) => {
     .values({
       guestId: guest.id,
       categoryId: body.categoryId,
-      features: body.features,
+      color: body.color,
       brand: body.brand ?? null,
       lostPlace: body.lostPlace,
       lostAt: new Date(body.lostAt),
