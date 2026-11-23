@@ -1,6 +1,7 @@
 import type { InferSelectModel } from "drizzle-orm";
 import type { messages } from "@/db/schema";
 import { formatLostNumber } from "@/lib/display-number";
+import { isAwaitingReply } from "@/lib/queries/awaiting-reply";
 import type { ChatThread, Message } from "@/lib/schemas/message";
 
 // DB の messages の行を、API の Message にする（送った人のメールは返さない）
@@ -37,6 +38,6 @@ export function toChatThread(row: ChatThreadRow): ChatThread {
     color: row.color,
     status: row.status,
     lastMessageAt: row.lastMessageAt.toISOString(),
-    awaitingReply: row.lastSenderRole === "guest",
+    awaitingReply: isAwaitingReply(row.lastSenderRole, row.status),
   };
 }

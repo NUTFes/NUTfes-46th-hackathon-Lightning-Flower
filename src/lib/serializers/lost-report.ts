@@ -1,5 +1,6 @@
 import type { RowOf } from "@/db";
 import { formatFoundNumber, formatLostNumber } from "@/lib/display-number";
+import { isAwaitingReply } from "@/lib/queries/awaiting-reply";
 import type {
   lostReportForAdminWith,
   lostReportWith,
@@ -57,6 +58,6 @@ export function toLostReportForAdmin(
           displayNumber: formatFoundNumber(match.foundItem.number),
         }
       : null,
-    awaitingReply: row.messages[0]?.senderRole === "guest",
+    awaitingReply: isAwaitingReply(row.messages[0]?.senderRole, row.status),
   };
 }

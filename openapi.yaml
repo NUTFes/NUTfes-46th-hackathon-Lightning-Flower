@@ -377,6 +377,26 @@ components:
       required:
         - items
         - total
+    AdminDashboard:
+      type: object
+      properties:
+        foundItemCount:
+          type: integer
+          minimum: 0
+        lostReportCount:
+          type: integer
+          minimum: 0
+        awaitingReplyCount:
+          type: integer
+          minimum: 0
+        resolvedCount:
+          type: integer
+          minimum: 0
+      required:
+        - foundItemCount
+        - lostReportCount
+        - awaitingReplyCount
+        - resolvedCount
     HealthOk:
       type: object
       properties:
@@ -1633,7 +1653,8 @@ paths:
     get:
       summary: チャットのスレッドの一覧（admin）
       description: メッセージが 1 通以上ある申請を、lastMessageAt の新しい順に返す（?page=1&limit=20
-        で区切り、total は条件に合う全件の数）。返信待ち＝最新のメッセージが guest のもの
+        で区切り、total は条件に合う全件の数）。返信待ち＝最新のメッセージが guest
+        で、申請が終わっていない（resolved・transferred_to_police・disposed・cancelled でない）もの
       parameters:
         - schema:
             type: integer
@@ -2070,6 +2091,34 @@ paths:
                 $ref: "#/components/schemas/Error"
         "404":
           description: 見つからない（削除済みを含む）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/admin/dashboard:
+    get:
+      summary: ダッシュボードの件数（admin）
+      responses:
+        "200":
+          description: ダッシュボードの集計件数
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDashboard"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
           content:
             application/json:
               schema:

@@ -52,4 +52,10 @@ describe("toChatThread", () => {
       toChatThread({ ...row, lastSenderRole: "admin" }).awaitingReply,
     ).toBe(false);
   });
+
+  it("終わった申請は、最新のメッセージが guest でも返信待ちではない", () => {
+    expect(toChatThread({ ...row, status: "resolved" }).awaitingReply).toBe(
+      false,
+    );
+  });
 });

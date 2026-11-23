@@ -1,4 +1,5 @@
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
+import { AdminDashboard } from "@/lib/schemas/admin";
 import { CategoryList } from "@/lib/schemas/category";
 import { ErrorResponse } from "@/lib/schemas/error";
 import {
@@ -77,6 +78,7 @@ registry.register("LostReport", LostReport);
 registry.register("LostReportForAdmin", LostReportForAdmin);
 registry.register("LostReportList", LostReportList);
 registry.register("LostReportForAdminList", LostReportForAdminList);
+registry.register("AdminDashboard", AdminDashboard);
 
 registry.registerPath({
   method: "get",
@@ -467,7 +469,7 @@ registry.registerPath({
   path: "/api/chats",
   summary: "チャットのスレッドの一覧（admin）",
   description:
-    "メッセージが 1 通以上ある申請を、lastMessageAt の新しい順に返す（?page=1&limit=20 で区切り、total は条件に合う全件の数）。返信待ち＝最新のメッセージが guest のもの",
+    "メッセージが 1 通以上ある申請を、lastMessageAt の新しい順に返す（?page=1&limit=20 で区切り、total は条件に合う全件の数）。返信待ち＝最新のメッセージが guest で、申請が終わっていない（resolved・transferred_to_police・disposed・cancelled でない）もの",
   request: { query: ChatThreadListQuery },
   responses: {
     200: {
@@ -648,6 +650,21 @@ registry.registerPath({
     ...unauthorizedResponse,
     ...forbiddenResponse,
     ...notFoundResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/admin/dashboard",
+  summary: "ダッシュボードの件数（admin）",
+  responses: {
+    200: {
+      description: "ダッシュボードの集計件数",
+      content: { "application/json": { schema: AdminDashboard } },
+    },
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
     ...serverErrorResponse,
   },
 });

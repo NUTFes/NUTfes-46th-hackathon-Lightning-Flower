@@ -116,4 +116,12 @@ describe("toLostReportForAdmin", () => {
     expect(toLostReportForAdmin(adminRow()).awaitingReply).toBe(false);
     expect(toLostReportForAdmin(adminRow()).activeMatch).toBeNull();
   });
+
+  it("終わった申請は、最新のメッセージが guest でも返信待ちではない", () => {
+    expect(
+      toLostReportForAdmin(
+        adminRow({ status: "cancelled", messages: [{ senderRole: "guest" }] }),
+      ).awaitingReply,
+    ).toBe(false);
+  });
 });
