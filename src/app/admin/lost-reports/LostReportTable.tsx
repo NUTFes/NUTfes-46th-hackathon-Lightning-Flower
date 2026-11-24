@@ -1,6 +1,6 @@
 "use client";
 
-import { Link, Stack, Text } from "@chakra-ui/react";
+import { Box, Link, Stack, Text } from "@chakra-ui/react";
 import NextLink from "next/link";
 import type { ReactNode } from "react";
 import styles from "@/components/AdminTables.module.css";
@@ -29,13 +29,17 @@ const columns: DataTableColumn<LostReportForAdmin>[] = [
     key: "details",
     header: "申請内容",
     render: (report) => (
-      <Stack gap="0" overflowWrap="anywhere">
+      <Stack gap="0" whiteSpace="normal" overflowWrap="anywhere">
         <span className={styles.stack}>
           <strong>{report.category.name}</strong>
           <ColorLabel color={report.color} />
-          {report.brand}
+          {report.brand && (
+            <Text as="span" minW="0" lineClamp="2">
+              {report.brand}
+            </Text>
+          )}
         </span>
-        <Text fontSize="xs" color="fg.muted">
+        <Text fontSize="xs" color="fg.muted" lineClamp="2">
           {report.lostPlace}
           {report.note && ` ／ ${report.note}`}
         </Text>
@@ -106,15 +110,17 @@ export function LostReportTable({
   emptyState?: ReactNode;
 }) {
   return (
-    <DataTable
-      columns={columns}
-      rows={rows}
-      getRowId={(report) => report.id}
-      rowHref={reportHref}
-      selectable={selectable}
-      selectedIds={selectedIds}
-      onSelectionChange={onSelectionChange}
-      emptyState={emptyState ?? "遺失物申請はありません"}
-    />
+    <Box css={{ "& table": { tableLayout: "fixed", width: "100%" } }}>
+      <DataTable
+        columns={columns}
+        rows={rows}
+        getRowId={(report) => report.id}
+        rowHref={reportHref}
+        selectable={selectable}
+        selectedIds={selectedIds}
+        onSelectionChange={onSelectionChange}
+        emptyState={emptyState ?? "遺失物申請はありません"}
+      />
+    </Box>
   );
 }
