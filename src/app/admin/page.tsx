@@ -1,5 +1,5 @@
-import { ScreenPlaceholder } from "@/components/ScreenPlaceholder";
+import { AdminDashboard } from "./AdminDashboard";
 
 export default function Page() {
-  return <ScreenPlaceholder code="A01" title="ダッシュボード" />;
+  return <AdminDashboard />;
 }
