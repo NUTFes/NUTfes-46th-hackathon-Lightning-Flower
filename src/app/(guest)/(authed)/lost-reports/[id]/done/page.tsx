@@ -9,9 +9,10 @@ export default async function Page({
   const { id } = await params;
   return (
     <>
-      {/* ヘッダーは画面の端まで広げる（レイアウトの Container の px="4" を打ち消す） */}
+      {/* ヘッダーは画面の端まで広げる（レイアウトの Container の px="4" を打ち消す）。
+          申請が見つからないときや、入力内容を変更しているときも食い違わないよう、画面の名前だけにする */}
       <Box mx="-4">
-        <AppHeader title="申請が完了しました" />
+        <AppHeader title="申請完了" />
       </Box>
       <LostReportDone id={id} />
     </>

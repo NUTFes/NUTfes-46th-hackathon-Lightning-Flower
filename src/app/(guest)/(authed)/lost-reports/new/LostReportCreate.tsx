@@ -57,7 +57,9 @@ export function LostReportCreate() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      router.push(`/lost-reports/${report.id}/done`);
+      // 履歴を置き換える。push だと、G04 で「戻る」を押すと空のフォームに戻り、
+      // 申請が消えたと思って同じ申請をもう一度出しやすい
+      router.replace(`/lost-reports/${report.id}/done`);
       return { ok: true, data: { id: report.id } };
     } catch (error) {
       // 画面を開いたあとにセッションが切れた。トップでログインし直してもらう

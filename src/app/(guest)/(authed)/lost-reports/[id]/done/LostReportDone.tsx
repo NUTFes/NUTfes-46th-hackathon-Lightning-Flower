@@ -57,7 +57,9 @@ export function LostReportDone({ id }: { id: string }) {
           id,
           state: "error",
           message:
-            error instanceof FetchApiError && error.status === 404
+            // 400 は id の形が正しくない（URL を手で変えたなど）。404 と同じ案内にする
+            error instanceof FetchApiError &&
+            (error.status === 404 || error.status === 400)
               ? "申請が見つかりませんでした。ホームから申請を確かめてください。"
               : errorMessageOf(error),
         });
