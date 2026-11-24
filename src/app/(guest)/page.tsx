@@ -44,7 +44,7 @@ export default async function Page({ searchParams }: PageProps<"/">) {
             技大祭の落とし物サポート
           </Text>
           <Text fontSize="xs" color="gray.500">
-            写真照合ではなく、実行委員が確認します。
+            見つかった落とし物は、実行委員が確認してご連絡します。
           </Text>
         </Stack>
 
@@ -111,10 +111,10 @@ export default async function Page({ searchParams }: PageProps<"/">) {
         </Stack>
 
         <Text fontSize="sm" fontWeight="bold">
-          ※落とし物を拾った方は、近くの実行委員にお渡しください
+          ※落とし物を拾った方は、近くの実行委員か本部にお渡しください
         </Text>
 
-        <HqLocationCard name={HQ_LOCATION.name} note={HQ_LOCATION.note} />
+        <HqLocationCard name={HQ_LOCATION.name} />
       </Stack>
     </>
   );

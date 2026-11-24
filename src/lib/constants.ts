@@ -100,8 +100,6 @@ export function fromLocalInputValue(value: string) {
 }
 
 // 学園祭本部の場所（トップ画面などに出す）。
-// TODO: 技大祭の会場図が決まったら場所を書く
 export const HQ_LOCATION = {
-  name: "学園祭本部",
-  note: "場所は運用時に記載します",
+  name: "電気棟1F",
 } as const;
