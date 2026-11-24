@@ -289,11 +289,11 @@ registry.registerPath({
   path: "/api/found-items/{id}/handover",
   summary: "受け渡しを記録して解決済みにする（admin）",
   description:
-    "拾得物が received / matching / awaiting_handover のときだけ（それ以外は 409）。handovers に記録し、拾得物を resolved にする。有効な紐づけの申請があれば（maybe_found でも awaiting_handover でも。本人確認の前（verified でない maybe_found）でも通す。窓口で現物を見せて本人確認する運用のため）それも resolved にする。ロックを待つ間に紐づけが変わっていたら 409。紐づけがなければ直接返却（lostReportId なし）",
+    "拾得物が received / matching / awaiting_handover のときだけ（それ以外は 409）。handovers に記録し、拾得物を resolved にする。有効な紐づけの申請があれば（maybe_found でも awaiting_handover でも。本人確認の前（verified でない maybe_found）でも通す。窓口で現物を見せて本人確認する運用のため）それも resolved にする。ロックを待つ間に紐づけが変わっていたら 409。紐づけがなければ直接返却（lostReportId なし）。本文はなくてよい（入力はない）。受け渡しの時刻（handedAt）はサーバーの今の時刻、受け取った人の名前（receiverName）は null で記録する。古い画面が handedAt・receiverName を送ってきても 400 にせず、無視する",
   request: {
     params: FoundItemIdParams,
     body: {
-      required: true,
+      required: false,
       content: { "application/json": { schema: HandoverBody } },
     },
   },

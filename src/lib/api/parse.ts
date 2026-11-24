@@ -19,6 +19,22 @@ export async function parseBody<T extends z.ZodType>(
   return validate(schema, json);
 }
 
+// 本文がなくてもよいリクエストの JSON。本文が空なら {} として確かめる
+export async function parseOptionalBody<T extends z.ZodType>(
+  request: Request,
+  schema: T,
+): Promise<z.infer<T>> {
+  const text = await request.text();
+  if (text.trim() === "") return validate(schema, {});
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw badRequest("リクエストの本文が JSON ではありません");
+  }
+  return validate(schema, json);
+}
+
 // クエリ文字列（?page=1&status=a,b）。値はすべて文字列なので、数値は z.coerce.number() などで受ける。
 // 複数の値はカンマ区切りで受ける。同じキーを繰り返したとき（?status=a&status=b）は、黙って片方を
 // 捨てないように 400 にする。値が空のキー（検索欄を空のまま送った ?q=&status=）は、指定なしとして扱う
