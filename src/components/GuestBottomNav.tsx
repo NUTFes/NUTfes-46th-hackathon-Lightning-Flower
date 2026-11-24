@@ -3,12 +3,12 @@
 import { Flex, Text, VStack } from "@chakra-ui/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FiHome, FiFileText, FiMessageCircle } from "react-icons/fi";
+import { FiHome, FiFileText } from "react-icons/fi";
 
+// チャットは申請ごとの画面（/lost-reports/[id]/chat）しかないので、ここには置かない
 const navItems = [
   { label: "ホーム", href: "/home", icon: FiHome },
   { label: "申請", href: "/lost-reports/new", icon: FiFileText },
-  { label: "チャット", href: "/chat", icon: FiMessageCircle },
 ];
 
 export function GuestBottomNav() {
