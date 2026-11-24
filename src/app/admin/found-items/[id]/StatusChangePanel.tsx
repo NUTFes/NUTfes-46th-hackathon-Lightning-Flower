@@ -2,7 +2,6 @@
 
 import { Button, Link } from "@chakra-ui/react";
 import NextLink from "next/link";
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Field } from "@/components/Field";
@@ -29,15 +28,18 @@ export function StatusChangePanel({
   linkedReport,
   allowedNext,
   action,
+  disabled = false,
+  disabledReason,
 }: {
   itemId: string;
   currentStatus: FoundItemStatus;
   // API の FoundItem.activeMatch をそのまま渡せる
   linkedReport?: { lostReportId: string; displayNumber: string } | null;
-  allowedNext: FoundItemStatus[];
+  allowedNext: readonly FoundItemStatus[];
+  disabled?: boolean;
+  disabledReason?: string;
   action: (input: StatusChangeInput) => Promise<ActionResult>;
 }) {
-  const router = useRouter();
   const [nextStatus, setNextStatus] = useState<FoundItemStatus | "">("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,13 +52,12 @@ export function StatusChangePanel({
     if (result.ok) {
       setSaved(true);
       setNextStatus("");
-      router.refresh();
     }
     return result;
   }
 
   function submit() {
-    if (!nextStatus) return;
+    if (disabled || !nextStatus || nextStatus === currentStatus) return;
     setError(null);
     setSaved(false);
     if (FINAL_STATUSES.includes(nextStatus)) {
@@ -72,10 +73,10 @@ export function StatusChangePanel({
   return (
     <section className={styles.panel} aria-labelledby={`status-${itemId}`}>
       <h2 id={`status-${itemId}`} className={styles.title}>
-        ステータス
+        ステータス管理
       </h2>
       <div className={styles.current}>
-        <span className={styles.currentLabel}>いま</span>
+        <span className={styles.currentLabel}>現在</span>
         <StatusBadge kind="found" status={currentStatus} />
       </div>
       {linkedReport && (
@@ -89,6 +90,7 @@ export function StatusChangePanel({
         </div>
       )}
 
+      {disabledReason && <p className={styles.description}>{disabledReason}</p>}
       {allowedNext.length === 0 ? (
         <p className={styles.description}>このステータスからは変更できません</p>
       ) : (
@@ -96,7 +98,7 @@ export function StatusChangePanel({
           <Field
             kind="select"
             label="変更後のステータス"
-            disabled={pending}
+            disabled={disabled || pending || !!disabledReason}
             control={{
               value: nextStatus,
               onChange: (event) => {
@@ -111,7 +113,11 @@ export function StatusChangePanel({
                     選択してください
                   </option>
                   {allowedNext.map((status) => (
-                    <option key={status} value={status}>
+                    <option
+                      key={status}
+                      value={status}
+                      disabled={status === currentStatus}
+                    >
                       {statusLabel(status)}
                     </option>
                   ))}
@@ -123,7 +129,13 @@ export function StatusChangePanel({
             <Button
               colorPalette="blue"
               onClick={submit}
-              disabled={!nextStatus}
+              w="full"
+              disabled={
+                disabled ||
+                !!disabledReason ||
+                !nextStatus ||
+                nextStatus === currentStatus
+              }
               loading={pending}
             >
               変更する

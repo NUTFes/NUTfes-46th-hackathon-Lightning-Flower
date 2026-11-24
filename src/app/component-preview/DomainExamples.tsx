@@ -402,7 +402,7 @@ export function AdminExample() {
         />
       </Example>
       <Example title="HandoverForm（A03）">
-        <HandoverForm itemId={foundItems[0].id} action={mock("HandoverForm")} />
+        <HandoverForm action={mock("HandoverForm")} />
       </Example>
       <Example title="MatchingBoard（A05）">
         <MatchingBoard
