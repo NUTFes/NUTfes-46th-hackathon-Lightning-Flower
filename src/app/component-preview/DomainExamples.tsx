@@ -301,6 +301,7 @@ export function FormExample() {
         <CancelReportForm
           reportId={lostReport.id}
           action={mock("CancelReportForm")}
+          backHref={`/lost-reports/${lostReport.id}`}
         />
       </Example>
       <Example title="FoundItemForm（新規）">

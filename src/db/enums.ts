@@ -67,3 +67,10 @@ export const ENDED_LOST_STATUSES = [
   "disposed",
   "cancelled",
 ] as const satisfies readonly (typeof LOST_STATUSES)[number][];
+
+// guest が取り消せる申請のステータス（POST /api/lost-reports/{id}/cancel と G05・G08 の画面で使う）
+export const CANCELLABLE_LOST_STATUSES = [
+  "searching",
+  "maybe_found",
+  "awaiting_handover",
+] as const satisfies readonly (typeof LOST_STATUSES)[number][];

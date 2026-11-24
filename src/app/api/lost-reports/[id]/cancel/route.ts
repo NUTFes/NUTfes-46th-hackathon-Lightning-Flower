@@ -1,5 +1,6 @@
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { getDb } from "@/db";
+import { CANCELLABLE_LOST_STATUSES } from "@/db/enums";
 import { foundItems, lostReports, matches } from "@/db/schema";
 import { requireGuest } from "@/lib/api/auth";
 import { notFound } from "@/lib/api/errors";
@@ -41,11 +42,7 @@ export const POST = apiHandler(
           and(
             eq(lostReports.id, id),
             eq(lostReports.guestId, guest.id),
-            inArray(lostReports.status, [
-              "searching",
-              "maybe_found",
-              "awaiting_handover",
-            ]),
+            inArray(lostReports.status, [...CANCELLABLE_LOST_STATUSES]),
           ),
         )
         .returning({ id: lostReports.id });
