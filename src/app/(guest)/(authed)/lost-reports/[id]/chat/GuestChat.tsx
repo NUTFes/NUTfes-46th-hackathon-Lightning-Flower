@@ -289,7 +289,8 @@ function ChatContextBar({
   pollError: string | null;
 }) {
   return (
-    <Stack gap="2" px="5" py="3">
+    // 空の role="status" の要素に間が付かないよう、gap ではなく子の mt で間をあける
+    <Stack gap="0" px="5" py="3">
       <Flex align="center" justify="space-between" gap="3">
         <Text fontSize="sm" fontWeight="bold" minW="0" overflowWrap="anywhere">
           {report.displayNumber} {reportTitleOf(report)}
@@ -298,23 +299,24 @@ function ChatContextBar({
           <StatusBadge kind="lost" status={report.status} />
         </Box>
       </Flex>
-      {/* 読み上げで、ボタンが出たことを伝える（role="status" の要素は先に置いておく） */}
+      {/* 読み上げで、ボタンが出たことを伝える（role="status" の要素は先に置いておく）。
+          帯が高くなりすぎて一覧が狭くならないよう、説明とボタンは 1 行に並べる */}
       <Box role="status">
         {canChoosePickup && (
-          <Stack gap="2">
-            <Text fontSize="xs" color="gray.700">
+          <Flex align="center" gap="3" mt="2">
+            <Text flex="1" minW="0" fontSize="xs" color="gray.700">
               本部の確認が済みました。受け取り方法を選んでください。
             </Text>
-            <Button asChild colorPalette="blue" w="full">
+            <Button asChild colorPalette="blue" size="sm" flexShrink={0}>
               <NextLink href={`/lost-reports/${report.id}/pickup`}>
                 受け取り方法を選ぶ
               </NextLink>
             </Button>
-          </Stack>
+          </Flex>
         )}
       </Box>
       {pollError && (
-        <Text role="status" fontSize="xs" color="red.600">
+        <Text role="status" mt="1" fontSize="xs" color="red.600">
           新しいメッセージを取得できませんでした。{pollError}
         </Text>
       )}

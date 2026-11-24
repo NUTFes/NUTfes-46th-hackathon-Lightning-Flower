@@ -76,9 +76,10 @@ export function GuestPickup({ reportId }: { reportId: string }) {
         if (handleUnauthorized(error)) return { ok: false, error: "" };
         if (error instanceof FetchApiError && error.status === 409) {
           // もう選んだ・本部が紐づけを解除した・拾得物の準備ができていないなど。今の状態を出し直す。
-          // 申請の状態が変わらない 409 もあるので、押し直しても同じにならないよう、フォームは隠して理由を出す
+          // 申請の状態が変わらない 409 もあるので、押し直しても同じにならないよう、フォームは隠して理由を出す。
+          // G07 は取り直しをしないので、本部の準備ができたかはわからない。理由は開き直すまで出したままにする
           const message =
-            "受け取り方法を選べませんでした。申請の状態が変わったか、本部での準備が済んでいません。チャットで本部に確かめてください。";
+            "受け取り方法を選べませんでした。申請の状態が変わったか、本部での準備が済んでいません。チャットで本部に確かめて、準備ができたらこの画面を開き直してください。";
           setConflict(message);
           fetchApi<LostReport>(base)
             .then((report) => setLoaded({ state: "ok", report }))
