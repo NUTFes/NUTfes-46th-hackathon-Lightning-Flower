@@ -24,7 +24,7 @@ import type { Category, CategoryList } from "@/lib/schemas/category";
 import type { FoundItem, PatchFoundItemBody } from "@/lib/schemas/found-item";
 import type { FoundItemInput } from "@/lib/schemas/form-inputs";
 import { errorMessageOf, fetchApi, FetchApiError } from "../../fetch-api";
-import { uploadPhoto } from "../../photo-upload";
+import { foundItemSaveFailureOf, uploadPhoto } from "../../photo-upload";
 
 type Result =
   | { id: string; state: "ok"; item: FoundItem }
@@ -158,7 +158,7 @@ export function FoundItemDetail({ id }: { id: string }) {
       setNotice("保存しました");
       return { ok: true, data: { id: updated.id } };
     } catch (error) {
-      return { ok: false, error: errorMessageOf(error) };
+      return foundItemSaveFailureOf(error);
     }
   }
 

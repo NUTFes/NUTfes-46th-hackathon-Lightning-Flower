@@ -17,6 +17,7 @@ import {
   FoundItemIdParams,
   PatchFoundItemBody,
 } from "@/lib/schemas/found-item";
+import { PHOTO_FILE_MISSING_MESSAGE } from "@/lib/schemas/photo";
 import { photoPathsOf, toFoundItem } from "@/lib/serializers/found-item";
 import { removePhotoFilesIfUnused } from "@/lib/storage/photo-cleanup";
 import { findMissingPhotoFiles, signPhotoUrls } from "@/lib/storage/photos";
@@ -86,9 +87,7 @@ export const PATCH = apiHandler(async (request, ctx: RouteContext) => {
   // 使われていない写真をまとめて消したあとに、画面に残っていた古いパスで保存させない
   const newPaths = (body.photos ?? []).flatMap((p) => [p.path, p.thumbPath]);
   if ((await findMissingPhotoFiles(newPaths)).length > 0) {
-    throw badRequest(
-      "写真のファイルが見つかりません。写真を選び直してから保存してください",
-    );
+    throw badRequest(PHOTO_FILE_MISSING_MESSAGE);
   }
 
   const updateValues: Partial<typeof foundItems.$inferInsert> = {};
