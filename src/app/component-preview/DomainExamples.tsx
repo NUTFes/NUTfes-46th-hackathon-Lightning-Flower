@@ -411,7 +411,7 @@ export function AdminExample() {
           linkedFoundItemId={foundItems[1].id}
           linkAction={mock("MatchingBoard.link")}
           unlinkAction={mock("MatchingBoard.unlink")}
-          proceedToVerifyAction={mock("MatchingBoard.proceedToVerify")}
+          chatHref={`/admin/chats/${lostReport.id}`}
         />
       </Example>
       <Example title="BroadcastMessageDialog（A07）">
