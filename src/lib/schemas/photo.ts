@@ -24,6 +24,13 @@ export const PhotoUploadUrls = z
   .object({ items: z.array(PhotoUploadUrl) })
   .openapi("PhotoUploadUrls");
 
+// 使われていない写真のファイルの削除（POST /api/photos/cleanup）の結果。
+// deleted は消したファイルの数（写真 1 枚は、元の画像とサムネイルの 2 ファイル）
+export const PhotoCleanupResult = z
+  .object({ deleted: z.number().int().min(0) })
+  .openapi("PhotoCleanupResult");
+
 export type PhotoUploadUrlsBody = z.infer<typeof PhotoUploadUrlsBody>;
 export type PhotoUploadUrl = z.infer<typeof PhotoUploadUrl>;
 export type PhotoUploadUrls = z.infer<typeof PhotoUploadUrls>;
+export type PhotoCleanupResult = z.infer<typeof PhotoCleanupResult>;
