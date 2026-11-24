@@ -15,7 +15,7 @@ import { fromLocalInputValue, toLocalInputValue } from "@/lib/constants";
 import { CategoryList, type Category } from "@/lib/schemas/category";
 import { type FoundItem, PatchFoundItemBody } from "@/lib/schemas/found-item";
 
-type EditBody = Omit<PatchFoundItemBody, "photos">;
+type EditBody = Omit<PatchFoundItemBody, "photos" | "keepPhotoIds">;
 
 export function FoundItemEditForm({
   item,

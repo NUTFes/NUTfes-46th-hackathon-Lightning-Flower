@@ -40,9 +40,7 @@ const requiredText = (message: string) => z.string().trim().min(1, message);
 
 // POST /api/found-items（FoundItemCreateBody）・PATCH /api/found-items/{id} と同じ項目。
 // 写真は先に Storage に上げ、そのパス（photos）を渡す（Server Action の body の上限 1MB を超えないように）。
-// 編集のときに残す既存の写真は keepPhotoIds で渡す。
-// TODO: PATCH の photos は全部の写真のパスを受け取るので、既存の写真のパスを API から取れるようにするか、
-// 残す写真の ID で受け取れるようにするかを API 担当と決める
+// 編集のときに残す既存の写真は、並べた順に keepPhotoIds（写真の ID）で渡す（PATCH の keepPhotoIds と同じ）。
 // refine を付けると .omit() を使えないので、項目だけのものを分けておく
 export const FoundItemFields = z.object({
   photos: z.array(FoundItemPhotoInput),

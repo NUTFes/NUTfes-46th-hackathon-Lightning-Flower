@@ -30,24 +30,14 @@ type Result =
   | { id: string; state: "ok"; item: FoundItem }
   | { id: string; state: "error"; status?: number; message: string };
 
-// 写真の送り方を決める。PATCH の photos は写真を丸ごと置き換えるが、
-// 今ある写真のパスは GET で返らないので、今の写真の一部だけを残すことはできない。
-//   - 写真を変えていない → photos を送らない
-//   - 今の写真をすべて外した → 新しく上げた写真だけを送る（証明書類なら 0 枚もある）
-//   - 一部だけ残して足した・外した → 送れないので null
-// TODO: API が残す写真を ID で受け取れるようになったら、keepPhotoIds をそのまま送る
-function photosToSend(
-  item: FoundItem,
-  input: FoundItemInput,
-): PatchFoundItemBody["photos"] | null {
-  const currentIds = item.photos.map((photo) => photo.id);
-  const unchanged =
-    input.photos.length === 0 &&
-    input.keepPhotoIds.length === currentIds.length &&
-    input.keepPhotoIds.every((id, index) => id === currentIds[index]);
-  if (unchanged) return undefined;
-  if (input.keepPhotoIds.length === 0) return input.photos;
-  return null;
+// 写真を変えたか（足した・外した・並べ替えた）。変えていなければ写真は送らない。
+// 送ると、別の画面で写真を変えたあとに古い画面でメモだけを直したとき、400 になったり、足された写真が外れたりする
+function photosChanged(item: FoundItem, input: FoundItemInput) {
+  return (
+    input.photos.length > 0 ||
+    input.keepPhotoIds.length !== item.photos.length ||
+    input.keepPhotoIds.some((id, index) => id !== item.photos[index].id)
+  );
 }
 
 // M04 拾得物詳細の本体。表示・自分の登録の編集・削除
@@ -140,15 +130,7 @@ export function FoundItemDetail({ id }: { id: string }) {
   async function save(
     input: FoundItemInput,
   ): Promise<ActionResult<{ id: string }>> {
-    const photos = photosToSend(item, input);
-    if (photos === null) {
-      return {
-        ok: false,
-        error:
-          "今は、写真の一部だけを残して足したり外したりできません。写真を変えるときは、今の写真をすべて外してから撮り直してください。",
-        fieldErrors: { photos: "今の写真をすべて外してから撮り直してください" },
-      };
-    }
+    // 写真を変えたときは、残す写真の ID（並べた順）と新しく上げた写真をそのまま送る
     const body: PatchFoundItemBody = {
       categoryId: input.categoryId,
       color: input.color,
@@ -157,7 +139,10 @@ export function FoundItemDetail({ id }: { id: string }) {
       foundAt: input.foundAt,
       isValuable: input.isValuable,
       memo: input.memo,
-      photos,
+      ...(photosChanged(item, input) && {
+        keepPhotoIds: input.keepPhotoIds,
+        photos: input.photos,
+      }),
     };
     try {
       const updated = await fetchApi<FoundItem>(
@@ -218,8 +203,6 @@ export function FoundItemDetail({ id }: { id: string }) {
             uploadPhoto={uploadPhoto}
             action={save}
             submitLabel="保存する"
-            // PATCH が今の写真を残したまま足せないので、上げる前に止める（photosToSend も参照）
-            replacePhotosOnly
           />
         ) : (
           <Stack gap="4" aria-busy="true">
