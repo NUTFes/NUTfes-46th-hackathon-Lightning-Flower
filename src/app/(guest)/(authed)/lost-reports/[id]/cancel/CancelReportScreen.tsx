@@ -9,10 +9,12 @@ import type { ActionResult } from "@/lib/action-result";
 import type { CancelReportInput } from "@/lib/schemas/form-inputs";
 import type { LostReport } from "@/lib/schemas/lost-report";
 import { isCancellable, reportTitle } from "../report-title";
+import { isReportNotFound, ReportNotFound } from "../ReportNotFound";
 import { CancelReportForm } from "./CancelReportForm";
 
 type Result =
-  { state: "ok"; report: LostReport } | { state: "error"; message: string };
+  | { state: "ok"; report: LostReport }
+  | { state: "error"; notFound: boolean; message: string };
 
 // G08 申請取り消しの本体。GET /api/lost-reports/{id} で取り消せるかを確かめ、
 // POST /api/lost-reports/{id}/cancel で取り消す。取り消したら申請状況（G05）へ戻る
@@ -38,10 +40,8 @@ export function CancelReportScreen({ reportId }: { reportId: string }) {
         }
         setResult({
           state: "error",
-          message:
-            error instanceof FetchApiError && error.status === 404
-              ? "申請が見つかりません。ホームから選び直してください。"
-              : errorMessageOf(error),
+          notFound: isReportNotFound(error),
+          message: errorMessageOf(error),
         });
       });
     return () => controller.abort();
@@ -54,7 +54,8 @@ export function CancelReportScreen({ reportId }: { reportId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason: input.reason, note: input.note }),
       });
-      router.push(statusHref);
+      // 「戻る」で取り消しの画面に戻らないよう、履歴を置き換える（G07 と同じ）
+      router.replace(statusHref);
       return { ok: true };
     } catch (error) {
       if (error instanceof FetchApiError && error.status === 401) {
@@ -92,6 +93,7 @@ export function CancelReportScreen({ reportId }: { reportId: string }) {
   }
 
   if (result.state === "error") {
+    if (result.notFound) return <ReportNotFound />;
     return (
       <Stack gap="4">
         <Alert.Root status="error">

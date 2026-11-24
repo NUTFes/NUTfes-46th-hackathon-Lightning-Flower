@@ -35,7 +35,11 @@ export function Radio({
       name={name}
       aria-label={label ?? name}
       disabled={disabled}
-      gap="2"
+      // RadioGroup.Root は flex ではないので、縦に並べて gap を効かせる
+      display="flex"
+      flexDirection="column"
+      alignItems="stretch"
+      gap="1"
       colorPalette="blue"
     >
       {options.map((option) => (
@@ -44,6 +48,9 @@ export function Radio({
           value={option.value}
           disabled={option.disabled}
           gap="2"
+          // ラベルの行全体を押せるようにし、指で押しやすい高さにする
+          minH="40px"
+          cursor="pointer"
         >
           <RadioGroup.ItemHiddenInput />
           <RadioGroup.ItemIndicator

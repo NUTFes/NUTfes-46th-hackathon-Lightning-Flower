@@ -24,15 +24,20 @@ import type { LostReportInput } from "@/lib/schemas/form-inputs";
 import type { LostReport } from "@/lib/schemas/lost-report";
 import type { MessageList } from "@/lib/schemas/message";
 import { isCancellable, reportTitle } from "./report-title";
+import { isReportNotFound, ReportNotFound } from "./ReportNotFound";
 import { updateLostReport } from "./update-lost-report";
 
-// 実行委員からの最新のメッセージ。読めなかったときと「まだない」（latest が null）を分ける
-type AdminMessage = { state: "ok"; latest: string | null } | { state: "error" };
+// チャットのようす。読めなかったときと「まだない」（latest が null）を分ける。
+// latest は実行委員からの最新のメッセージ、hasMessages はどちらからでも 1 通以上あるか
+type AdminMessage =
+  | { state: "ok"; latest: string | null; hasMessages: boolean }
+  | { state: "error" };
 
 type Loaded = { report: LostReport; adminMessage: AdminMessage };
 
 type Result =
-  { state: "ok"; data: Loaded } | { state: "error"; message: string };
+  | { state: "ok"; data: Loaded }
+  | { state: "error"; notFound: boolean; message: string };
 
 type Categories =
   | { state: "loading" }
@@ -77,6 +82,7 @@ export function LostReportStatusView({ reportId }: { reportId: string }) {
             messages.items
               .filter((message) => message.senderRole === "admin")
               .at(-1)?.body ?? null,
+          hasMessages: messages.items.length > 0,
         }),
         (): AdminMessage => ({ state: "error" }),
       ),
@@ -93,10 +99,8 @@ export function LostReportStatusView({ reportId }: { reportId: string }) {
         }
         setResult({
           state: "error",
-          message:
-            error instanceof FetchApiError && error.status === 404
-              ? "申請が見つかりません。ホームから選び直してください。"
-              : errorMessageOf(error),
+          notFound: isReportNotFound(error),
+          message: errorMessageOf(error),
         });
       });
     return () => controller.abort();
@@ -126,6 +130,7 @@ export function LostReportStatusView({ reportId }: { reportId: string }) {
   }
 
   if (result.state === "error") {
+    if (result.notFound) return <ReportNotFound />;
     return (
       <Alert.Root status="error">
         <Alert.Indicator />
@@ -243,6 +248,16 @@ export function LostReportStatusView({ reportId }: { reportId: string }) {
           )}
         </Stack>
       )}
+
+      {/* 終わった申請でも、受け渡しのときのやりとりを見返せるようにする（G06 は読むだけで開く） */}
+      {ended &&
+        (adminMessage.state === "error" || adminMessage.hasMessages) && (
+          <Button asChild variant="outline" w="full">
+            <NextLink href={`/lost-reports/${reportId}/chat`}>
+              チャットの履歴を見る
+            </NextLink>
+          </Button>
+        )}
 
       <Stack as="section" gap="2">
         <Heading as="h2" size="sm">
