@@ -11,6 +11,8 @@ const mockFindFirstCategory = vi.fn();
 const mockUpdate = vi.fn();
 const mockTransaction = vi.fn();
 const mockSignPhotoUrls = vi.fn();
+const mockFindMissingPhotoFiles = vi.fn();
+const mockRemovePhotoFilesIfUnused = vi.fn();
 
 vi.mock("@/lib/api/auth", () => ({
   requireStaff: (...args: unknown[]) => mockRequireStaff(...args),
@@ -18,6 +20,13 @@ vi.mock("@/lib/api/auth", () => ({
 
 vi.mock("@/lib/storage/photos", () => ({
   signPhotoUrls: (...args: unknown[]) => mockSignPhotoUrls(...args),
+  findMissingPhotoFiles: (...args: unknown[]) =>
+    mockFindMissingPhotoFiles(...args),
+}));
+
+vi.mock("@/lib/storage/photo-cleanup", () => ({
+  removePhotoFilesIfUnused: (...args: unknown[]) =>
+    mockRemovePhotoFilesIfUnused(...args),
 }));
 
 vi.mock("@/lib/serializers/found-item", () => ({
@@ -90,6 +99,8 @@ beforeEach(() => {
     email: "member@example.com",
   });
   mockSignPhotoUrls.mockResolvedValue(new Map());
+  mockFindMissingPhotoFiles.mockResolvedValue([]);
+  mockRemovePhotoFilesIfUnused.mockResolvedValue(0);
 });
 
 describe("GET /api/found-items/[id]", () => {
@@ -177,8 +188,8 @@ describe("PATCH /api/found-items/[id]", () => {
         color: "blue",
         registeredByEmail: "member@example.com",
       });
-    mockTransaction.mockImplementation(async (cb) => {
-      await cb({
+    mockTransaction.mockImplementation(async (cb) =>
+      cb({
         update: () => ({
           set: () => ({
             where: vi.fn().mockResolvedValue(undefined),
@@ -190,8 +201,8 @@ describe("PATCH /api/found-items/[id]", () => {
         insert: () => ({
           values: vi.fn().mockResolvedValue(undefined),
         }),
-      });
-    });
+      }),
+    );
 
     const req = new Request(`http://localhost/api/found-items/${VALID_ID}`, {
       method: "PATCH",
@@ -235,8 +246,8 @@ describe("PATCH /api/found-items/[id]", () => {
       color: "black",
       registeredByEmail: "member@example.com",
     });
-    mockTransaction.mockImplementation(async (cb) => {
-      await cb({
+    mockTransaction.mockImplementation(async (cb) =>
+      cb({
         update: () => ({
           set: (values: unknown) => ({
             where: vi.fn(async (where: SQL) => {
@@ -261,8 +272,8 @@ describe("PATCH /api/found-items/[id]", () => {
         insert: () => ({
           values: mockInsertValues,
         }),
-      });
-    });
+      }),
+    );
     return { mockInsertValues, mockDeleteWhere, mockSortOrderSet, mockLock };
   }
 
@@ -351,6 +362,79 @@ describe("PATCH /api/found-items/[id]", () => {
       [{ sortOrder: 0 }, [PHOTO_B]],
     ]);
     expect(mockInsertValues).not.toHaveBeenCalled();
+  });
+
+  it("Storage：外した写真のファイル（元の画像とサムネイル）を、コミットのあとで使われていなければ消す", async () => {
+    const order: string[] = [];
+    mockPhotoTransaction({
+      currentPhotos: [
+        currentPhoto(PHOTO_A, "a", 0),
+        currentPhoto(PHOTO_B, "b", 1),
+      ],
+    });
+    const transaction = mockTransaction.getMockImplementation()!;
+    mockTransaction.mockImplementation(async (cb) => {
+      const result = await transaction(cb);
+      order.push("commit");
+      return result;
+    });
+    mockRemovePhotoFilesIfUnused.mockImplementation(async () => {
+      order.push("remove");
+      return 2;
+    });
+
+    const res = await PATCH(
+      patchRequest({ keepPhotoIds: [PHOTO_B] }),
+      makeContext(),
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockRemovePhotoFilesIfUnused).toHaveBeenCalledWith([
+      "found/a.jpg",
+      "found/a_thumb.jpg",
+    ]);
+    expect(order).toEqual(["commit", "remove"]);
+  });
+
+  it("Storage：外した写真のファイルを消せなくても、保存は済んでいるので 200", async () => {
+    mockPhotoTransaction({ currentPhotos: [currentPhoto(PHOTO_A, "a")] });
+    mockRemovePhotoFilesIfUnused.mockRejectedValue(new Error("storage down"));
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    const res = await PATCH(patchRequest({ keepPhotoIds: [] }), makeContext());
+
+    expect(res.status).toBe(200);
+    expect(consoleError).toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
+  it("Storage：写真を変えないときは、何も消さない", async () => {
+    mockPhotoTransaction({ currentPhotos: [currentPhoto(PHOTO_A, "a")] });
+
+    const res = await PATCH(patchRequest({ color: "blue" }), makeContext());
+
+    expect(res.status).toBe(200);
+    expect(mockRemovePhotoFilesIfUnused).toHaveBeenCalledWith([]);
+  });
+
+  it("入力：新しく付ける写真のファイルが Storage になければ 400 で、写真を変えない", async () => {
+    mockPhotoTransaction({ currentPhotos: [currentPhoto(PHOTO_A, "a")] });
+    mockFindMissingPhotoFiles.mockResolvedValue(["found/replaced_thumb.jpg"]);
+
+    const res = await PATCH(
+      patchRequest({ keepPhotoIds: [PHOTO_A], photos: [newPhoto] }),
+      makeContext(),
+    );
+
+    expect(res.status).toBe(400);
+    expect(mockFindMissingPhotoFiles).toHaveBeenCalledWith([
+      "found/replaced.jpg",
+      "found/replaced_thumb.jpg",
+    ]);
+    expect(mockTransaction).not.toHaveBeenCalled();
+    expect(mockRemovePhotoFilesIfUnused).not.toHaveBeenCalled();
   });
 
   it("正常：keepPhotoIds と photos のどちらも送らなければ、写真に触らない", async () => {
