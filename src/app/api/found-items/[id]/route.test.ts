@@ -509,6 +509,8 @@ describe("PATCH /api/found-items/[id]", () => {
     );
 
     expect(res.status).toBe(400);
+    // トランザクションの中で失敗したら（ロールバック）、外すはずだった写真のファイルも消さない
+    expect(mockRemovePhotoFilesIfUnused).not.toHaveBeenCalled();
     expect(mockDeleteWhere).not.toHaveBeenCalled();
     expect(mockInsertValues).not.toHaveBeenCalled();
   });
@@ -527,6 +529,8 @@ describe("PATCH /api/found-items/[id]", () => {
     );
 
     expect(res.status).toBe(400);
+    // トランザクションの中で失敗したら（ロールバック）、外すはずだった写真のファイルも消さない
+    expect(mockRemovePhotoFilesIfUnused).not.toHaveBeenCalled();
     expect(mockDeleteWhere).not.toHaveBeenCalled();
     expect(mockInsertValues).not.toHaveBeenCalled();
   });
@@ -543,6 +547,8 @@ describe("PATCH /api/found-items/[id]", () => {
     );
 
     expect(res.status).toBe(404);
+    // トランザクションの中で失敗したら（ロールバック）、外すはずだった写真のファイルも消さない
+    expect(mockRemovePhotoFilesIfUnused).not.toHaveBeenCalled();
     expect(mockDeleteWhere).not.toHaveBeenCalled();
     expect(mockInsertValues).not.toHaveBeenCalled();
   });
