@@ -39,6 +39,7 @@ describe("POST /api/found-items/[id]/handover", () => {
     ["拾得物の ID が uuid でない", "abc", undefined],
     ["本文が JSON でない", FOUND_ITEM_ID, "{"],
     ["本文がオブジェクトでない", FOUND_ITEM_ID, "[]"],
+    ["本文が null", FOUND_ITEM_ID, "null"],
   ])("%s なら 400 にする", async (_, id, body) => {
     vi.mocked(requireAdmin).mockResolvedValue({
       role: "admin",
@@ -52,6 +53,7 @@ describe("POST /api/found-items/[id]/handover", () => {
 
   it.each([
     ["本文なし", undefined],
+    ["本文が空白だけ", "  \n"],
     ["空のオブジェクト", "{}"],
     [
       "古い画面の本文（handedAt・receiverName）",
@@ -63,11 +65,12 @@ describe("POST /api/found-items/[id]/handover", () => {
       email: "admin@example.com",
     });
     // DB に進んだことだけを確かめる（transaction で止めて 500 にする）
+    const transaction = vi.fn().mockRejectedValue(new Error("stop"));
     vi.mocked(getDb).mockReturnValue({
-      transaction: vi.fn().mockRejectedValue(new Error("stop")),
+      transaction,
     } as unknown as ReturnType<typeof getDb>);
     const res = await call(FOUND_ITEM_ID, body);
     expect(res.status).toBe(500);
-    expect(getDb).toHaveBeenCalled();
+    expect(transaction).toHaveBeenCalledOnce();
   });
 });
