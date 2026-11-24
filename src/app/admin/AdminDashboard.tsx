@@ -51,6 +51,7 @@ async function loadMetrics(signal: AbortSignal) {
 }
 
 const PAGE_LIMIT = 100;
+const DISPLAY_LIMIT = 20;
 
 async function loadOldest<T>(
   path: string,
@@ -111,13 +112,18 @@ async function loadPendingRows(signal: AbortSignal) {
       pendingAt: thread.lastMessageAt,
     });
   }
+  // 返信待ち（guest がチャットで待っている）をいちばん急ぐので先に出し、そのあと探し中を古い順に並べる。
+  // まとめて時刻で並べると、受付の古い探し中に新しい返信待ちが押し出される。
+  // ダッシュボードには先頭の DISPLAY_LIMIT 件だけ出し、残りは「ほか N 件」で一覧へ送る
   const rows = [...unique.values()]
     .sort(
       (a, b) =>
+        Number(b.reason === "awaiting_reply") -
+          Number(a.reason === "awaiting_reply") ||
         Date.parse(a.pendingAt) - Date.parse(b.pendingAt) ||
         a.number.localeCompare(b.number, "ja", { numeric: true }),
     )
-    .slice(0, PAGE_LIMIT);
+    .slice(0, DISPLAY_LIMIT);
   const displayedReplies = rows.filter(
     (row) => row.reason === "awaiting_reply",
   ).length;
