@@ -124,7 +124,7 @@ export function MatchingScreen({ id }: { id: string }) {
       if (error instanceof FetchApiError && error.status === 409) {
         reload();
         setConflict(
-          "ほかの操作で申請か拾得物の状態が変わっていたため、操作できませんでした。最新の状態を読み込み直しました。",
+          "ほかの操作で申請か拾得物の状態が変わっていたため、操作できませんでした。最新の状態を読み込み直します。",
         );
         return { ok: false, error: error.message };
       }

@@ -71,8 +71,9 @@ export function MatchingBoard({
       : candidates;
   const hasActiveCard =
     !!activeId && cards.some((item) => item.id === activeId);
-  const chatLabel =
-    report.status === "maybe_found" ? "本人確認へ進む" : "チャットを開く";
+  // 本人確認がまだのときだけ「本人確認へ進む」。済んだあとや受け渡し待ち・終わった申請はチャットを開くだけ
+  const toVerify = report.status === "maybe_found" && !report.verified;
+  const chatLabel = toVerify ? "本人確認へ進む" : "チャットを開く";
 
   function confirm(): Promise<ActionResult> {
     if (!operation)
@@ -145,7 +146,7 @@ export function MatchingBoard({
             同じカテゴリの拾得物候補
           </h2>
           <Text fontSize="sm" color="fg.muted">
-            {candidates.length}件
+            {cards.length}件
           </Text>
         </Flex>
         {cards.length === 0 ? (
@@ -173,7 +174,7 @@ export function MatchingBoard({
                       chatHref && (
                         <Button asChild size="sm" alignSelf="end">
                           <NextLink href={chatHref}>
-                            選択中：{chatLabel}
+                            {toVerify ? `選択中：${chatLabel}` : chatLabel}
                           </NextLink>
                         </Button>
                       )
