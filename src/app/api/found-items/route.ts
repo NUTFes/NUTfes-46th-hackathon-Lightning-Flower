@@ -16,8 +16,9 @@ import {
   FoundItemListQuery,
   type FoundItemList,
 } from "@/lib/schemas/found-item";
+import { PHOTO_FILE_MISSING_MESSAGE } from "@/lib/schemas/photo";
 import { photoPathsOf, toFoundItem } from "@/lib/serializers/found-item";
-import { signPhotoUrls } from "@/lib/storage/photos";
+import { findMissingPhotoFiles, signPhotoUrls } from "@/lib/storage/photos";
 
 const PHOTO_OPTIONAL_CATEGORY = "証明書・カード・定期券類";
 
@@ -66,6 +67,13 @@ export const POST = apiHandler(async (request) => {
   // 2. 入力を確かめる（合わなければ 400）
   const body = await parseBody(request, FoundItemCreateBody);
 
+  // 写真のファイルが Storage にあるか（トランザクションの外で、Storage に問い合わせる）。
+  // 使われていない写真をまとめて消したあとに、画面に残っていた古いパスで登録させない
+  const paths = body.photos.flatMap((p) => [p.path, p.thumbPath]);
+  if ((await findMissingPhotoFiles(paths)).length > 0) {
+    throw badRequest(PHOTO_FILE_MISSING_MESSAGE);
+  }
+
   // 3. カテゴリ確認・写真必須チェック・登録を 1 トランザクションで実行
   const db = getDb();
   const foundAt = body.foundAt ? new Date(body.foundAt) : new Date();
@@ -88,7 +96,6 @@ export const POST = apiHandler(async (request) => {
 
     const isValuable = body.isValuable ?? category.isValuableDefault;
 
-    const paths = body.photos.flatMap((p) => [p.path, p.thumbPath]);
     if (await isPhotoPathUsed(tx, paths)) {
       throw badRequest("すでに使用されている写真パスは指定できません");
     }

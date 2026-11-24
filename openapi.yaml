@@ -509,6 +509,14 @@ components:
           maximum: 5
       required:
         - count
+    PhotoCleanupResult:
+      type: object
+      properties:
+        deleted:
+          type: integer
+          minimum: 0
+      required:
+        - deleted
     FoundItemList:
       type: object
       properties:
@@ -878,6 +886,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /api/photos/cleanup:
+    post:
+      summary: 使われていない写真のファイルをまとめて消す（admin）
+      description: Storage の found/ のファイルのうち、どの拾得物の写真（削除した拾得物のものも含む）にも使われておらず、作ってから 1
+        日たったものを消す。上げたばかりで、まだ登録・保存していない写真は消さない。本文はいらない。画面：A07
+      responses:
+        "200":
+          description: 消したファイルの数（写真 1 枚は、元の画像とサムネイルの 2 ファイル）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PhotoCleanupResult"
+        "401":
+          description: ログインしていない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 権限がない
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーのエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /api/found-items:
     get:
       summary: 拾得物の一覧・検索（member / admin）
@@ -1001,7 +1039,8 @@ paths:
                 $ref: "#/components/schemas/Error"
     post:
       summary: 拾得物の登録（member / admin）
-      description: 拾得物を 1 件登録する。photos は原則必須だが、「証明書・カード・定期券類」のみ空配列可
+      description: 拾得物を 1 件登録する。photos は原則必須だが、「証明書・カード・定期券類」のみ空配列可。photos
+        のファイル（path・thumbPath）が Storage になければ 400（使われていない写真をまとめて消したあとの、古いパス）
       requestBody:
         required: true
         content:

@@ -3,6 +3,7 @@
 import { Alert, Button, Flex, Skeleton, Stack, Text } from "@chakra-ui/react";
 import { useEffect, useRef, useState } from "react";
 import { errorMessageOf, FetchApiError, fetchApi } from "@/app/staff/fetch-api";
+import type { ActionResult } from "@/lib/action-result";
 import type {
   BulkStatusResult,
   FoundItem,
@@ -10,6 +11,7 @@ import type {
 } from "@/lib/schemas/found-item";
 import type { LostReportList } from "@/lib/schemas/lost-report";
 import type { MessageBroadcastResult } from "@/lib/schemas/message";
+import type { PhotoCleanupResult } from "@/lib/schemas/photo";
 import type { BroadcastResult } from "./BroadcastMessageDialog";
 import {
   type BulkUpdateResult,
@@ -17,6 +19,7 @@ import {
   type Tab,
 } from "./ExpiryProcessor";
 import { PeriodEndSummaryCard } from "./PeriodEndSummaryCard";
+import { PhotoCleanupSection } from "./PhotoCleanupSection";
 
 // GET /api/found-items の 1 ページの上限
 const PAGE_LIMIT = 100;
@@ -217,6 +220,20 @@ export function PeriodEndScreen() {
     }
   }
 
+  // 使われていない写真のファイルを消す。通信が切れて消えたかわからなくても、押し直してよい
+  // （消えるのは使われていないファイルだけなので、二重に押しても困らない）
+  async function cleanupPhotos(): Promise<ActionResult<{ deleted: number }>> {
+    try {
+      const { deleted } = await fetchApi<PhotoCleanupResult>(
+        "/api/photos/cleanup",
+        { method: "POST" },
+      );
+      return { ok: true, data: { deleted } };
+    } catch (error) {
+      return { ok: false, error: errorMessageOf(error) };
+    }
+  }
+
   return (
     <Stack gap="6">
       {loadError && (
@@ -314,6 +331,8 @@ export function PeriodEndScreen() {
           </Stack>
         )
       )}
+
+      <PhotoCleanupSection action={cleanupPhotos} />
     </Stack>
   );
 }

@@ -39,7 +39,11 @@ import {
   MessageList,
   MessageListQuery,
 } from "@/lib/schemas/message";
-import { PhotoUploadUrls, PhotoUploadUrlsBody } from "@/lib/schemas/photo";
+import {
+  PhotoCleanupResult,
+  PhotoUploadUrls,
+  PhotoUploadUrlsBody,
+} from "@/lib/schemas/photo";
 
 // API を足したら、ここにスキーマとパスを登録する。`make openapi` で openapi.yaml を出力する。
 export const registry = new OpenAPIRegistry();
@@ -165,6 +169,24 @@ registry.registerPath({
 });
 
 registry.registerPath({
+  method: "post",
+  path: "/api/photos/cleanup",
+  summary: "使われていない写真のファイルをまとめて消す（admin）",
+  description:
+    "Storage の found/ のファイルのうち、どの拾得物の写真（削除した拾得物のものも含む）にも使われておらず、作ってから 1 日たったものを消す。上げたばかりで、まだ登録・保存していない写真は消さない。本文はいらない。画面：A07",
+  responses: {
+    200: {
+      description:
+        "消したファイルの数（写真 1 枚は、元の画像とサムネイルの 2 ファイル）",
+      content: { "application/json": { schema: PhotoCleanupResult } },
+    },
+    ...unauthorizedResponse,
+    ...forbiddenResponse,
+    ...serverErrorResponse,
+  },
+});
+
+registry.registerPath({
   method: "get",
   path: "/api/found-items",
   summary: "拾得物の一覧・検索（member / admin）",
@@ -188,7 +210,7 @@ registry.registerPath({
   path: "/api/found-items",
   summary: "拾得物の登録（member / admin）",
   description:
-    "拾得物を 1 件登録する。photos は原則必須だが、「証明書・カード・定期券類」のみ空配列可",
+    "拾得物を 1 件登録する。photos は原則必須だが、「証明書・カード・定期券類」のみ空配列可。photos のファイル（path・thumbPath）が Storage になければ 400（使われていない写真をまとめて消したあとの、古いパス）",
   request: {
     body: {
       required: true,

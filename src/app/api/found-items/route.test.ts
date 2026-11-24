@@ -11,8 +11,13 @@ vi.mock("@/lib/api/auth", () => ({
     email: "member@example.com",
   })),
 }));
+// Storage にないファイルのパス（findMissingPhotoFiles が返すもの）
+const missingFiles = vi.hoisted(() => vi.fn<() => string[]>(() => []));
 vi.mock("@/lib/storage/photos", () => ({
   signPhotoUrls: vi.fn(async () => () => ""),
+  findMissingPhotoFiles: vi.fn(async (paths: string[]) =>
+    paths.filter((path) => missingFiles().includes(path)),
+  ),
 }));
 vi.mock("@/lib/serializers/found-item", () => ({
   photoPathsOf: vi.fn(() => []),
@@ -61,6 +66,7 @@ const photos = [{ path: "found/a", thumbPath: "found/a_thumb" }];
 beforeEach(() => {
   mockSelect.mockReset();
   mockInsert.mockReset();
+  missingFiles.mockReset().mockReturnValue([]);
 });
 
 describe("POST /api/found-items", () => {
@@ -77,6 +83,17 @@ describe("POST /api/found-items", () => {
     expect(res.status).toBe(201);
     expect(mockInsert).toHaveBeenCalled();
   });
+
+  it.each([["found/a"], ["found/a_thumb"]])(
+    "写真のファイル（%s）が Storage になければ 400 で、DB を見ない",
+    async (missing) => {
+      missingFiles.mockReturnValue([missing]);
+      const res = await POST(request({ ...base, photos }), undefined);
+      expect(res.status).toBe(400);
+      expect(mockSelect).not.toHaveBeenCalled();
+      expect(mockInsert).not.toHaveBeenCalled();
+    },
+  );
 
   it("写真なし（証明書・カード・定期券類）なら、写真のパスを確かめずに 201", async () => {
     mockRows({ id: 1, name: "証明書・カード・定期券類" }, [{ id: "used" }]);
