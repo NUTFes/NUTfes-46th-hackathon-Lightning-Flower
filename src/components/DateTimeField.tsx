@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { toLocalInputValue } from "@/lib/constants";
 import { Field } from "./Field";
 
 type DateTimeFieldProps = {
@@ -9,6 +10,9 @@ type DateTimeFieldProps = {
   label: string;
   name?: string;
   defaultNow?: boolean;
+  defaultNowTimeZone?: "Asia/Tokyo";
+  lang?: string;
+  helperText?: string;
   required?: boolean;
   invalid?: boolean;
   disabled?: boolean;
@@ -20,6 +24,8 @@ export function DateTimeField({
   onChange,
   name,
   defaultNow,
+  defaultNowTimeZone,
+  lang,
   ...fieldProps
 }: DateTimeFieldProps) {
   const initialized = useRef(false);
@@ -29,11 +35,15 @@ export function DateTimeField({
     if (value !== "") return;
 
     const now = new Date();
+    if (defaultNowTimeZone === "Asia/Tokyo") {
+      onChange(toLocalInputValue(now.toISOString()));
+      return;
+    }
     const localTime = new Date(
       now.getTime() - now.getTimezoneOffset() * 60_000,
     );
     onChange(localTime.toISOString().slice(0, 16));
-  }, [defaultNow, onChange, value]);
+  }, [defaultNow, defaultNowTimeZone, onChange, value]);
 
   return (
     <Field
@@ -41,6 +51,7 @@ export function DateTimeField({
       control={{
         type: "datetime-local",
         name,
+        lang,
         value,
         onChange: (event) => onChange(event.currentTarget.value),
       }}

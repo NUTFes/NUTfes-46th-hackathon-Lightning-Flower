@@ -3,11 +3,13 @@
 import { Button } from "@chakra-ui/react";
 import { type SubmitEvent, useState } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { DateTimeField } from "@/components/DateTimeField";
 import { Field } from "@/components/Field";
 import styles from "@/components/Panel.module.css";
 import type { ActionResult } from "@/lib/action-result";
 import { fromLocalInputValue } from "@/lib/constants";
 import { HandoverInput } from "@/lib/schemas/form-inputs";
+import { HandoverBody } from "@/lib/schemas/found-item";
 import { fieldErrorsOf, type FieldErrors } from "@/components/form-errors";
 
 const handoverDateTime = new Intl.DateTimeFormat("ja-JP", {
@@ -15,6 +17,9 @@ const handoverDateTime = new Intl.DateTimeFormat("ja-JP", {
   timeStyle: "short",
   timeZone: "Asia/Tokyo",
   hourCycle: "h23",
+});
+const handoverFormInput = HandoverInput.extend({
+  handedAt: HandoverBody.shape.handedAt,
 });
 
 // 本部で直接返却（A03）。送る前に確認を挟む。
@@ -41,7 +46,7 @@ export function HandoverForm({
   const handedAtIso = fromLocalInputValue(handedAt);
 
   function parse() {
-    return HandoverInput.safeParse({
+    return handoverFormInput.safeParse({
       itemId,
       receiverName,
       handedAt: handedAtIso,
@@ -63,6 +68,7 @@ export function HandoverForm({
   async function submit(): Promise<ActionResult> {
     const parsed = parse();
     if (!parsed.success) {
+      setFieldErrors(fieldErrorsOf(parsed.error));
       return { ok: false, error: "入力を確かめてください" };
     }
     const result = await action(parsed.data);
@@ -97,19 +103,18 @@ export function HandoverForm({
             autoComplete: "off",
           }}
         />
-        <Field
+        <DateTimeField
           label="返却日時（日本時間）"
+          defaultNow
+          defaultNowTimeZone="Asia/Tokyo"
+          lang="ja"
+          value={handedAt}
+          onChange={setHandedAt}
           required
           disabled={disabled || !!disabledReason}
           invalid={!!fieldErrors.handedAt}
           errorText={fieldErrors.handedAt}
           helperText="例：2026年11月24日 14:30"
-          control={{
-            type: "datetime-local",
-            lang: "ja",
-            value: handedAt,
-            onChange: (event) => setHandedAt(event.currentTarget.value),
-          }}
         />
       </div>
 

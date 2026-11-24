@@ -68,6 +68,7 @@ export function FoundItemDetail({ id }: { id: string }) {
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string>();
+  const [conflict, setConflict] = useState(false);
   const [deleted, setDeleted] = useState(false);
   const writing = useRef(false);
   const validId = FoundItemIdParams.safeParse({ id }).success;
@@ -76,7 +77,7 @@ export function FoundItemDetail({ id }: { id: string }) {
   useEffect(() => {
     if (!validId) return;
     const controller = new AbortController();
-    fetchApi<unknown>(path, { signal: controller.signal })
+    fetchApi<unknown>(path, { signal: controller.signal, cache: "no-store" })
       .then((data) => {
         if (!controller.signal.aborted) setItem(FoundItem.parse(data));
       })
@@ -98,11 +99,22 @@ export function FoundItemDetail({ id }: { id: string }) {
     writing.current = true;
     setBusy(true);
     setNotice(undefined);
+    setConflict(false);
     try {
       await action();
       setNotice(successMessage);
       return { ok: true };
     } catch (error) {
+      if (
+        error instanceof FetchApiError &&
+        (error.status === 409 || error.status === 404)
+      ) {
+        // 再取得が終わるまで、古い情報に基づく操作を閉じる。
+        setItem(undefined);
+        setEditing(false);
+        setConflict(error.status === 409);
+        setAttempt((n) => n + 1);
+      }
       return { ok: false, error: itemError(error) };
     } finally {
       writing.current = false;
@@ -166,6 +178,16 @@ export function FoundItemDetail({ id }: { id: string }) {
           <Text fontSize="sm">拾得物を読み込み中です…</Text>
           <Skeleton h="200px" rounded="lg" />
         </Stack>
+      )}
+      {conflict && item && (
+        <Alert.Root status="warning" role="alert">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>
+              操作を完了できなかったため、最新の拾得物情報を表示しています。
+            </Alert.Title>
+          </Alert.Content>
+        </Alert.Root>
       )}
       {notice && (
         <Alert.Root status="success" role="status">
