@@ -20,9 +20,12 @@ import {
   lostReports,
   matches,
 } from "@/db/schema";
-import { conflict } from "@/lib/api/errors";
+import { badRequest, conflict, notFound } from "@/lib/api/errors";
 import type { Staff } from "@/lib/auth/staff";
-import type { FoundItemListQuery } from "@/lib/schemas/found-item";
+import type {
+  FoundItemListQuery,
+  FoundItemPhotoInput,
+} from "@/lib/schemas/found-item";
 
 // 拾得物を FoundItem にするために、一緒に取る関連の行（db.query.foundItems の with に渡す）。
 // 取った行の型が src/lib/serializers/found-item.ts の FoundItemRow になる（with を変えると、型が一緒に変わる）
@@ -167,4 +170,89 @@ export async function isPhotoPathUsed(
     )
     .limit(1);
   return used !== undefined;
+}
+
+// PATCH /api/found-items/{id} の写真の変更。写真を keepPhotoIds の順に並べ、そのあとに新しい photos を続ける。keepPhotoIds にない写真の行は消す。
+// keepPhotoIds を送らずに photos だけを送ったときは、今の写真をすべて外す（丸ごと置き換え）。
+// 外した写真のパスを返す（新しい photos に同じパスがあるものは除く。Storage のファイルの扱いは #64）。
+//
+// 拾得物の行を先にロックし、同じ拾得物の写真を同時に変える PATCH を順に通す
+// （読んだ写真の ID が、確かめてから消す・並べ替えるまでに変わらないように）。
+// 申請の行には触らないので、申請 → 拾得物のロックの順（docs/api-guide.md）とは食い違わない
+export async function replaceFoundItemPhotos(
+  tx: Tx,
+  foundItemId: string,
+  keepPhotoIds: string[],
+  photos: FoundItemPhotoInput[],
+): Promise<{ path: string; thumbPath: string }[]> {
+  const [locked] = await tx
+    .select({ id: foundItems.id })
+    .from(foundItems)
+    .where(activeFoundItemById(foundItemId))
+    .for("update");
+  if (!locked) throw notFound("拾得物が見つかりません");
+
+  const current = await tx
+    .select({
+      id: foundItemPhotos.id,
+      storagePath: foundItemPhotos.storagePath,
+      thumbPath: foundItemPhotos.thumbPath,
+    })
+    .from(foundItemPhotos)
+    .where(eq(foundItemPhotos.foundItemId, foundItemId));
+
+  // ほかの拾得物の写真の ID・存在しない ID は、どちらもこの拾得物の写真にないので 400
+  const currentById = new Map(current.map((photo) => [photo.id, photo]));
+  if (keepPhotoIds.some((photoId) => !currentById.has(photoId))) {
+    throw badRequest(
+      "この拾得物にない写真は残せません。画面を読み込み直してください",
+    );
+  }
+
+  // 新しい写真のパスは、ほかの拾得物の写真とも、残す写真とも重ねない
+  const keepIds = new Set(keepPhotoIds);
+  const keptPaths = new Set(
+    current
+      .filter((photo) => keepIds.has(photo.id))
+      .flatMap((photo) => [photo.storagePath, photo.thumbPath]),
+  );
+  const newPaths = photos.flatMap((p) => [p.path, p.thumbPath]);
+  if (
+    newPaths.some((path) => keptPaths.has(path)) ||
+    (await isPhotoPathUsed(tx, newPaths, foundItemId))
+  ) {
+    throw badRequest("すでに使用されている写真パスは指定できません");
+  }
+
+  const removed = current.filter((photo) => !keepIds.has(photo.id));
+  if (removed.length > 0) {
+    await tx.delete(foundItemPhotos).where(
+      inArray(
+        foundItemPhotos.id,
+        removed.map((photo) => photo.id),
+      ),
+    );
+  }
+  for (const [index, photoId] of keepPhotoIds.entries()) {
+    await tx
+      .update(foundItemPhotos)
+      .set({ sortOrder: index })
+      .where(eq(foundItemPhotos.id, photoId));
+  }
+  if (photos.length > 0) {
+    await tx.insert(foundItemPhotos).values(
+      photos.map((photo, index) => ({
+        foundItemId,
+        storagePath: photo.path,
+        thumbPath: photo.thumbPath,
+        sortOrder: keepPhotoIds.length + index,
+      })),
+    );
+  }
+
+  // 外した写真を新しい photos でもう一度付け直したときは、ファイルはまだ使っている
+  const reused = new Set(newPaths);
+  return removed
+    .map((photo) => ({ path: photo.storagePath, thumbPath: photo.thumbPath }))
+    .filter((photo) => !reused.has(photo.path) && !reused.has(photo.thumbPath));
 }

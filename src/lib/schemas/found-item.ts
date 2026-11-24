@@ -132,6 +132,9 @@ const NonEmptySafeText = z.string().trim().min(1).refine(hasNoNullByte, {
 
 const SmallId = z.number().int().min(1).max(32767);
 
+// 1 つの拾得物に付けられる写真の枚数の上限（登録と編集で同じ）
+export const MAX_FOUND_ITEM_PHOTOS = 10;
+
 export const FoundItemPhotoInput = z
   .object({
     path: z.string().trim().min(1).refine(isSafePhotoPath, {
@@ -157,7 +160,10 @@ export const FoundItemCreateBody = z
     memo: NonEmptySafeText.nullable().optional(),
     photos: z
       .array(FoundItemPhotoInput)
-      .max(10, "写真は最大 10 件まで登録できます")
+      .max(
+        MAX_FOUND_ITEM_PHOTOS,
+        `写真は最大 ${MAX_FOUND_ITEM_PHOTOS} 件まで登録できます`,
+      )
       .refine(
         (photos) => {
           const seen = new Set<string>();
@@ -183,36 +189,66 @@ export const FoundItemIdParams = z.object({
   id: z.uuid(),
 });
 
-export const PatchFoundItemBody = z.object({
-  categoryId: SmallIdQuery.optional(),
-  color: ItemColor.optional(),
-  brand: NonEmptySafeText.nullable().optional(),
-  foundPlace: NonEmptySafeText.optional(),
-  foundAt: DateTime.optional(),
-  isValuable: z.boolean().optional(),
-  memo: NonEmptySafeText.nullable().optional(),
-  photos: z
-    .array(FoundItemPhotoInput)
-    .max(10, "写真は最大 10 件まで登録できます")
-    .refine(
-      (photos) => {
-        const seen = new Set<string>();
-        for (const p of photos) {
-          if (seen.has(p.path) || seen.has(p.thumbPath)) {
-            return false;
+export const PatchFoundItemBody = z
+  .object({
+    categoryId: SmallIdQuery.optional(),
+    color: ItemColor.optional(),
+    brand: NonEmptySafeText.nullable().optional(),
+    foundPlace: NonEmptySafeText.optional(),
+    foundAt: DateTime.optional(),
+    isValuable: z.boolean().optional(),
+    memo: NonEmptySafeText.nullable().optional(),
+    // 新しく足す写真（POST /api/photos/upload-urls で上げたもの）。keepPhotoIds の写真のあとに並べる
+    photos: z
+      .array(FoundItemPhotoInput)
+      .max(
+        MAX_FOUND_ITEM_PHOTOS,
+        `写真は最大 ${MAX_FOUND_ITEM_PHOTOS} 件まで登録できます`,
+      )
+      .refine(
+        (photos) => {
+          const seen = new Set<string>();
+          for (const p of photos) {
+            if (seen.has(p.path) || seen.has(p.thumbPath)) {
+              return false;
+            }
+            seen.add(p.path);
+            seen.add(p.thumbPath);
           }
-          seen.add(p.path);
-          seen.add(p.thumbPath);
-        }
-        return true;
-      },
-      {
-        message: "同じ写真パスを重複して指定できません",
-        path: ["photos"],
-      },
-    )
-    .optional(),
-});
+          return true;
+        },
+        {
+          message: "同じ写真パスを重複して指定できません",
+          path: ["photos"],
+        },
+      )
+      .optional(),
+    // 残す写真の ID（GET の FoundItem.photos[].id）。この順に並べ、入っていない写真は外す
+    keepPhotoIds: z
+      .array(z.uuid())
+      .max(
+        MAX_FOUND_ITEM_PHOTOS,
+        `写真は最大 ${MAX_FOUND_ITEM_PHOTOS} 件まで登録できます`,
+      )
+      .refine((ids) => new Set(ids).size === ids.length, {
+        message: "同じ写真を重複して指定できません",
+      })
+      .optional()
+      .openapi({
+        description:
+          "残す写真の ID。この順に並べたあとに photos を続け、入っていない写真は外す。" +
+          "photos だけを送ったときは、今の写真をすべて外す（丸ごと置き換え）。どちらも送らなければ写真は変えない",
+      }),
+  })
+  .refine(
+    (body) =>
+      (body.keepPhotoIds?.length ?? 0) + (body.photos?.length ?? 0) <=
+      MAX_FOUND_ITEM_PHOTOS,
+    {
+      message: `写真は最大 ${MAX_FOUND_ITEM_PHOTOS} 件まで登録できます`,
+      path: ["photos"],
+    },
+  );
 
 export type FoundItemPhotoInput = z.infer<typeof FoundItemPhotoInput>;
 export type FoundItemIdParams = z.infer<typeof FoundItemIdParams>;

@@ -1,6 +1,8 @@
 import type { SQL } from "drizzle-orm";
 import { PgDialect, QueryBuilder } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Tx } from "@/db";
+import { replaceFoundItemPhotos } from "@/lib/queries/found-items";
 import { DELETE, GET, PATCH } from "./route";
 
 const mockRequireStaff = vi.fn();
@@ -46,6 +48,9 @@ vi.mock("@/db", () => ({
 }));
 
 const VALID_ID = "11111111-1111-4111-8111-111111111111";
+
+// WHERE などの条件を SQL にして、params で渡す値を確かめる
+const toSql = (sql: SQL) => new PgDialect().sqlToQuery(sql);
 
 function makeContext(id = VALID_ID) {
   return { params: Promise.resolve({ id }) };
@@ -172,10 +177,30 @@ describe("PATCH /api/found-items/[id]", () => {
     await expect(res.json()).resolves.toMatchObject({ color: "blue" });
   });
 
-  // photos の差し替えのトランザクション。usedPhotos はほかの拾得物が使っている写真の行
-  function mockPhotoTransaction(usedPhotos: { id: string }[]) {
+  const PHOTO_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const PHOTO_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const PHOTO_C = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+  const OTHER_PHOTO = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+
+  const currentPhoto = (id: string, name: string) => ({
+    id,
+    storagePath: `found/${name}.jpg`,
+    thumbPath: `found/${name}_thumb.jpg`,
+  });
+
+  // 写真を変えるトランザクション。currentPhotos はこの拾得物の今の写真、
+  // usedPhotos はほかの拾得物が使っている写真の行、locked は行のロックで拾得物が取れたか
+  function mockPhotoTransaction({
+    currentPhotos = [] as ReturnType<typeof currentPhoto>[],
+    usedPhotos = [] as { id: string }[],
+    locked = true,
+  } = {}) {
     const mockInsertValues = vi.fn().mockResolvedValue(undefined);
     const mockDeleteWhere = vi.fn().mockResolvedValue(undefined);
+    const mockSortOrderSet = vi.fn();
+    const mockLock = vi
+      .fn()
+      .mockResolvedValue(locked ? [{ id: VALID_ID }] : []);
     mockFindFirstFoundItem.mockResolvedValue({
       id: VALID_ID,
       status: "received",
@@ -185,15 +210,26 @@ describe("PATCH /api/found-items/[id]", () => {
     mockTransaction.mockImplementation(async (cb) => {
       await cb({
         update: () => ({
-          set: () => ({
-            where: vi.fn().mockResolvedValue(undefined),
+          set: (values: unknown) => ({
+            where: vi.fn(async (where: SQL) => {
+              if (
+                typeof values === "object" &&
+                values !== null &&
+                "sortOrder" in values
+              ) {
+                mockSortOrderSet(values, toSql(where).params);
+              }
+            }),
           }),
         }),
         select: () => ({
           from: () => ({
-            where: () => ({
-              limit: vi.fn().mockResolvedValue(usedPhotos),
-            }),
+            // 今の写真を読む（await）・拾得物をロックする（for）・ほかの拾得物のパスを見る（limit）
+            where: () =>
+              Object.assign(Promise.resolve(currentPhotos), {
+                for: mockLock,
+                limit: vi.fn().mockResolvedValue(usedPhotos),
+              }),
           }),
         }),
         delete: () => ({
@@ -204,29 +240,33 @@ describe("PATCH /api/found-items/[id]", () => {
         }),
       });
     });
-    return { mockInsertValues, mockDeleteWhere };
+    return { mockInsertValues, mockDeleteWhere, mockSortOrderSet, mockLock };
   }
 
-  const photosRequest = () =>
+  const patchRequest = (body: unknown) =>
     new Request(`http://localhost/api/found-items/${VALID_ID}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        photos: [
-          {
-            path: "found/replaced.jpg",
-            thumbPath: "found/replaced_thumb.jpg",
-          },
-        ],
-      }),
+      body: JSON.stringify(body),
     });
 
-  it("正常：photos を差し替えて 200 を返す", async () => {
-    const { mockInsertValues } = mockPhotoTransaction([]);
+  const newPhoto = {
+    path: "found/replaced.jpg",
+    thumbPath: "found/replaced_thumb.jpg",
+  };
 
-    const res = await PATCH(photosRequest(), makeContext());
+  it("正常：photos だけを送ったら、今の写真をすべて外して差し替える", async () => {
+    const { mockInsertValues, mockDeleteWhere, mockSortOrderSet } =
+      mockPhotoTransaction({ currentPhotos: [currentPhoto(PHOTO_A, "a")] });
+
+    const res = await PATCH(
+      patchRequest({ photos: [newPhoto] }),
+      makeContext(),
+    );
 
     expect(res.status).toBe(200);
+    expect(toSql(mockDeleteWhere.mock.calls[0][0]).params).toEqual([PHOTO_A]);
+    expect(mockSortOrderSet).not.toHaveBeenCalled();
     expect(mockInsertValues).toHaveBeenCalledWith([
       {
         foundItemId: VALID_ID,
@@ -237,16 +277,215 @@ describe("PATCH /api/found-items/[id]", () => {
     ]);
   });
 
-  it("入力：ほかの拾得物が使っている写真のパスなら 400 で、写真を変えない", async () => {
-    const { mockInsertValues, mockDeleteWhere } = mockPhotoTransaction([
-      { id: "33333333-3333-4333-8333-333333333333" },
-    ]);
+  it("正常：keepPhotoIds の順に並べ、外した写真の行を消し、新しい photos をそのあとに続ける", async () => {
+    const { mockInsertValues, mockDeleteWhere, mockSortOrderSet } =
+      mockPhotoTransaction({
+        currentPhotos: [
+          currentPhoto(PHOTO_A, "a"),
+          currentPhoto(PHOTO_B, "b"),
+          currentPhoto(PHOTO_C, "c"),
+        ],
+      });
 
-    const res = await PATCH(photosRequest(), makeContext());
+    const res = await PATCH(
+      patchRequest({ keepPhotoIds: [PHOTO_C, PHOTO_A], photos: [newPhoto] }),
+      makeContext(),
+    );
+
+    expect(res.status).toBe(200);
+    expect(toSql(mockDeleteWhere.mock.calls[0][0]).params).toEqual([PHOTO_B]);
+    expect(mockSortOrderSet.mock.calls).toEqual([
+      [{ sortOrder: 0 }, [PHOTO_C]],
+      [{ sortOrder: 1 }, [PHOTO_A]],
+    ]);
+    expect(mockInsertValues).toHaveBeenCalledWith([
+      {
+        foundItemId: VALID_ID,
+        storagePath: "found/replaced.jpg",
+        thumbPath: "found/replaced_thumb.jpg",
+        sortOrder: 2,
+      },
+    ]);
+  });
+
+  it("正常：keepPhotoIds だけなら、足さずに並べ替え・外しだけをする", async () => {
+    const { mockInsertValues, mockDeleteWhere, mockSortOrderSet } =
+      mockPhotoTransaction({
+        currentPhotos: [currentPhoto(PHOTO_A, "a"), currentPhoto(PHOTO_B, "b")],
+      });
+
+    const res = await PATCH(
+      patchRequest({ keepPhotoIds: [PHOTO_B] }),
+      makeContext(),
+    );
+
+    expect(res.status).toBe(200);
+    expect(toSql(mockDeleteWhere.mock.calls[0][0]).params).toEqual([PHOTO_A]);
+    expect(mockSortOrderSet.mock.calls).toEqual([
+      [{ sortOrder: 0 }, [PHOTO_B]],
+    ]);
+    expect(mockInsertValues).not.toHaveBeenCalled();
+  });
+
+  it("正常：keepPhotoIds と photos のどちらも送らなければ、写真に触らない", async () => {
+    const { mockLock, mockDeleteWhere, mockInsertValues } =
+      mockPhotoTransaction({ currentPhotos: [currentPhoto(PHOTO_A, "a")] });
+
+    const res = await PATCH(patchRequest({ color: "blue" }), makeContext());
+
+    expect(res.status).toBe(200);
+    expect(mockLock).not.toHaveBeenCalled();
+    expect(mockDeleteWhere).not.toHaveBeenCalled();
+    expect(mockInsertValues).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["ほかの拾得物の写真の ID", OTHER_PHOTO],
+    ["存在しない写真の ID", "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"],
+  ])(
+    "入力：keepPhotoIds に%sがあれば 400 で、写真を変えない",
+    async (_, photoId) => {
+      const { mockInsertValues, mockDeleteWhere, mockSortOrderSet } =
+        mockPhotoTransaction({ currentPhotos: [currentPhoto(PHOTO_A, "a")] });
+
+      const res = await PATCH(
+        patchRequest({ keepPhotoIds: [PHOTO_A, photoId] }),
+        makeContext(),
+      );
+
+      expect(res.status).toBe(400);
+      expect(mockDeleteWhere).not.toHaveBeenCalled();
+      expect(mockSortOrderSet).not.toHaveBeenCalled();
+      expect(mockInsertValues).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    [
+      "keepPhotoIds に同じ ID が重複している",
+      { keepPhotoIds: [PHOTO_A, PHOTO_A] },
+    ],
+    ["keepPhotoIds に UUID でない値がある", { keepPhotoIds: ["not-a-uuid"] }],
+    [
+      "keepPhotoIds と photos を合わせて 10 枚を超える",
+      {
+        keepPhotoIds: Array.from(
+          { length: 10 },
+          (_, i) => `aaaaaaaa-aaaa-4aaa-8aaa-${String(i).padStart(12, "0")}`,
+        ),
+        photos: [newPhoto],
+      },
+    ],
+  ])(
+    "入力の誤り：%sなら 400 で、トランザクションに入らない",
+    async (_, body) => {
+      mockPhotoTransaction();
+
+      const res = await PATCH(patchRequest(body), makeContext());
+
+      expect(res.status).toBe(400);
+      expect(mockTransaction).not.toHaveBeenCalled();
+    },
+  );
+
+  it("入力：ほかの拾得物が使っている写真のパスなら 400 で、写真を変えない", async () => {
+    const { mockInsertValues, mockDeleteWhere } = mockPhotoTransaction({
+      usedPhotos: [{ id: "33333333-3333-4333-8333-333333333333" }],
+    });
+
+    const res = await PATCH(
+      patchRequest({ photos: [newPhoto] }),
+      makeContext(),
+    );
 
     expect(res.status).toBe(400);
     expect(mockDeleteWhere).not.toHaveBeenCalled();
     expect(mockInsertValues).not.toHaveBeenCalled();
+  });
+
+  it("入力：残す写真と同じパスを新しい photos に入れたら 400 で、写真を変えない", async () => {
+    const { mockInsertValues, mockDeleteWhere } = mockPhotoTransaction({
+      currentPhotos: [currentPhoto(PHOTO_A, "a")],
+    });
+
+    const res = await PATCH(
+      patchRequest({
+        keepPhotoIds: [PHOTO_A],
+        photos: [{ path: "found/a.jpg", thumbPath: "found/new_thumb.jpg" }],
+      }),
+      makeContext(),
+    );
+
+    expect(res.status).toBe(400);
+    expect(mockDeleteWhere).not.toHaveBeenCalled();
+    expect(mockInsertValues).not.toHaveBeenCalled();
+  });
+
+  it("同時の操作：読んだあと、写真を変えるまでにほかの人が削除していたら 404 を返す", async () => {
+    const { mockDeleteWhere, mockInsertValues } = mockPhotoTransaction({
+      currentPhotos: [currentPhoto(PHOTO_A, "a")],
+      locked: false,
+    });
+
+    const res = await PATCH(
+      patchRequest({ keepPhotoIds: [PHOTO_A] }),
+      makeContext(),
+    );
+
+    expect(res.status).toBe(404);
+    expect(mockDeleteWhere).not.toHaveBeenCalled();
+    expect(mockInsertValues).not.toHaveBeenCalled();
+  });
+});
+
+describe("replaceFoundItemPhotos", () => {
+  it("外した写真のパスを返す。新しい photos で付け直したパスは除く", async () => {
+    const tx = {
+      select: () => ({
+        from: () => ({
+          where: () =>
+            Object.assign(
+              Promise.resolve([
+                {
+                  id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                  storagePath: "found/a.jpg",
+                  thumbPath: "found/a_thumb.jpg",
+                },
+                {
+                  id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+                  storagePath: "found/b.jpg",
+                  thumbPath: "found/b_thumb.jpg",
+                },
+                {
+                  id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+                  storagePath: "found/c.jpg",
+                  thumbPath: "found/c_thumb.jpg",
+                },
+              ]),
+              {
+                for: vi.fn().mockResolvedValue([{ id: VALID_ID }]),
+                limit: vi.fn().mockResolvedValue([]),
+              },
+            ),
+        }),
+      }),
+      delete: () => ({ where: vi.fn().mockResolvedValue(undefined) }),
+      update: () => ({
+        set: () => ({ where: vi.fn().mockResolvedValue(undefined) }),
+      }),
+      insert: () => ({ values: vi.fn().mockResolvedValue(undefined) }),
+    };
+
+    const removed = await replaceFoundItemPhotos(
+      tx as unknown as Tx,
+      VALID_ID,
+      ["aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"],
+      [{ path: "found/b.jpg", thumbPath: "found/b_thumb.jpg" }],
+    );
+
+    expect(removed).toEqual([
+      { path: "found/c.jpg", thumbPath: "found/c_thumb.jpg" },
+    ]);
   });
 });
 

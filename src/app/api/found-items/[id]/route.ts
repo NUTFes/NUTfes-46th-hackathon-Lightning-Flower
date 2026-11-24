@@ -10,7 +10,7 @@ import {
   activeFoundItemById,
   findFoundItemId,
   foundItemWith,
-  isPhotoPathUsed,
+  replaceFoundItemPhotos,
 } from "@/lib/queries/found-items";
 import {
   type FoundItem,
@@ -98,25 +98,15 @@ export const PATCH = apiHandler(async (request, ctx: RouteContext) => {
         .where(activeFoundItemById(id));
     }
 
-    if (body.photos !== undefined) {
-      const paths = body.photos.flatMap((p) => [p.path, p.thumbPath]);
-      if (await isPhotoPathUsed(tx, paths, id)) {
-        throw badRequest("すでに使用されている写真パスは指定できません");
-      }
-      await tx
-        .delete(foundItemPhotos)
-        .where(eq(foundItemPhotos.foundItemId, id));
-
-      if (body.photos.length > 0) {
-        await tx.insert(foundItemPhotos).values(
-          body.photos.map((photo, index) => ({
-            foundItemId: id,
-            storagePath: photo.path,
-            thumbPath: photo.thumbPath,
-            sortOrder: index,
-          })),
-        );
-      }
+    // keepPhotoIds と photos のどちらも送らなければ、写真は変えない
+    if (body.keepPhotoIds !== undefined || body.photos !== undefined) {
+      // TODO(#64): 返ってくる外した写真のファイルを、コミットしたあとに Storage から消す
+      await replaceFoundItemPhotos(
+        tx,
+        id,
+        body.keepPhotoIds ?? [],
+        body.photos ?? [],
+      );
     }
   });
 

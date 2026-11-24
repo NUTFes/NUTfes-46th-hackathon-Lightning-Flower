@@ -234,7 +234,10 @@ registry.registerPath({
   method: "patch",
   path: "/api/found-items/{id}",
   summary: "拾得物の編集（member は自分の登録だけ / admin）",
-  description: "photos を送ったら丸ごと置き換える。ステータス変更はしない",
+  description:
+    "写真は keepPhotoIds（残す写真の ID）の順に並べ、そのあとに photos（新しく足す写真）を続ける。" +
+    "keepPhotoIds にない写真は外す。photos だけを送ったら丸ごと置き換え、どちらも送らなければ写真は変えない。" +
+    "この拾得物にない写真の ID は 400。ステータス変更はしない",
   request: {
     params: FoundItemIdParams,
     body: {
