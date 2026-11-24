@@ -16,6 +16,7 @@ import {
   FoundItemListQuery,
   type FoundItemList,
 } from "@/lib/schemas/found-item";
+import { PHOTO_FILE_MISSING_MESSAGE } from "@/lib/schemas/photo";
 import { photoPathsOf, toFoundItem } from "@/lib/serializers/found-item";
 import { findMissingPhotoFiles, signPhotoUrls } from "@/lib/storage/photos";
 
@@ -70,9 +71,7 @@ export const POST = apiHandler(async (request) => {
   // 使われていない写真をまとめて消したあとに、画面に残っていた古いパスで登録させない
   const paths = body.photos.flatMap((p) => [p.path, p.thumbPath]);
   if ((await findMissingPhotoFiles(paths)).length > 0) {
-    throw badRequest(
-      "写真のファイルが見つかりません。写真を選び直してから登録してください",
-    );
+    throw badRequest(PHOTO_FILE_MISSING_MESSAGE);
   }
 
   // 3. カテゴリ確認・写真必須チェック・登録を 1 トランザクションで実行

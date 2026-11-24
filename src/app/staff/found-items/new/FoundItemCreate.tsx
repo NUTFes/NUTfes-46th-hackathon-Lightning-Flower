@@ -12,7 +12,10 @@ import type {
   FoundItemPhotoInput,
 } from "@/lib/schemas/found-item";
 import type { FoundItemInput } from "@/lib/schemas/form-inputs";
-import type { PhotoUploadUrls } from "@/lib/schemas/photo";
+import {
+  PHOTO_FILE_MISSING_MESSAGE,
+  type PhotoUploadUrls,
+} from "@/lib/schemas/photo";
 import { errorMessageOf, fetchApi, FetchApiError } from "../../fetch-api";
 import { PHOTO_CONTENT_TYPE, resizePhoto } from "./resize-photo";
 
@@ -112,6 +115,18 @@ export function FoundItemCreate() {
       router.push(`/staff/found-items/${item.id}/done`);
       return { ok: true, data: { id: item.id } };
     } catch (error) {
+      // 写真のファイルがない（まとめて消したあと）。写真の欄に出し、フォームに上げ直してもらう
+      if (
+        error instanceof FetchApiError &&
+        error.status === 400 &&
+        error.message === PHOTO_FILE_MISSING_MESSAGE
+      ) {
+        return {
+          ok: false,
+          error: PHOTO_FILE_MISSING_MESSAGE,
+          fieldErrors: { photos: PHOTO_FILE_MISSING_MESSAGE },
+        };
+      }
       return { ok: false, error: errorMessageOf(error) };
     }
   }

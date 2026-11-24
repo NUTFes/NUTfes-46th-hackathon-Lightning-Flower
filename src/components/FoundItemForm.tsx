@@ -85,7 +85,8 @@ export function FoundItemForm({
   const [submitted, setSubmitted] = useState(false);
   const [pending, startTransition] = useTransition();
   // 上げ終わった写真。保存に失敗して送り直すときに、同じ写真をもう一度上げないように使い回す
-  // TODO: 外した写真や、保存しなかったときに Storage に残る写真を消す仕組み（API 担当と相談）
+  // 保存しなかったときに Storage に残る写真は、A07 でまとめて消す（#64）。
+  // TODO(#64): 編集で外した写真のファイルは、PATCH がその場で消すようにする
   const uploadedRef = useRef(new Map<File, FoundItemPhotoInput>());
   const busy = pending || uploading || submitted;
 
@@ -177,6 +178,8 @@ export function FoundItemForm({
         else setSubmitted(true);
         return;
       }
+      // 写真の欄のエラー（写真のファイルがない、など）なら、上げ済みの写真を使い回さず、次に送るときに上げ直す
+      if (result.fieldErrors?.photos) uploadedRef.current.clear();
       setError(result.error);
       setFieldErrors(result.fieldErrors ?? {});
     });
