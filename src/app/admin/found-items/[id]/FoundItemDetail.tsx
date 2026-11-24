@@ -25,7 +25,6 @@ import {
   FoundItem,
   FoundItemIdParams,
   FoundItemStatusBody,
-  HandoverBody,
   MANUAL_FOUND_STATUSES,
 } from "@/lib/schemas/found-item";
 import { FoundItemEditForm } from "./FoundItemEditForm";
@@ -122,11 +121,13 @@ export function FoundItemDetail({ id }: { id: string }) {
     }
   }
 
-  async function save(suffix: string, method: "POST" | "PATCH", body: object) {
+  async function save(suffix: string, method: "POST" | "PATCH", body?: object) {
     const data = await fetchApi<unknown>(path + suffix, {
       method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      ...(body && {
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
     });
     setItem(FoundItem.parse(data));
   }
@@ -307,23 +308,13 @@ export function FoundItemDetail({ id }: { id: string }) {
               }}
             />
             <HandoverForm
-              itemId={id}
-              disabled={busy || editing}
-              disabledReason={
-                canHandover ? undefined : "現在の状態では返却を記録できません。"
-              }
-              action={({ handedAt, receiverName }) => {
-                const body = HandoverBody.safeParse({ handedAt, receiverName });
-                if (!body.success)
-                  return Promise.resolve({
-                    ok: false,
-                    error: "受け取った人の名前と返却日時を確認してください。",
-                  });
-                return runMutation(
-                  () => save("/handover", "POST", body.data),
+              disabled={busy || editing || !canHandover}
+              action={() =>
+                runMutation(
+                  () => save("/handover", "POST"),
                   "返却を記録しました。",
-                );
-              }}
+                )
+              }
             />
           </Stack>
         </Grid>

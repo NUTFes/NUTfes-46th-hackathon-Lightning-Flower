@@ -125,16 +125,6 @@ export const StatusChangeInput = z.object({
 
 export type StatusChangeInput = z.output<typeof StatusChangeInput>;
 
-// 本部で直接返却（A03）。handovers テーブルの項目に合わせる
-// （記録した人 recorded_by_email は、Access の JWT からサーバーで入れる）
-export const HandoverInput = z.object({
-  itemId: z.uuid(),
-  receiverName: requiredText("受け取った人の名前を入力してください"),
-  handedAt: DateTime,
-});
-
-export type HandoverInput = z.output<typeof HandoverInput>;
-
 // 照合画面（A05）の紐づけ・解除・本人確認へ進む
 export const MatchInput = z.object({
   reportId: z.uuid(),
