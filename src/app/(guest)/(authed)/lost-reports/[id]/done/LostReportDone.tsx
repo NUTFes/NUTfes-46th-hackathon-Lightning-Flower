@@ -13,10 +13,8 @@ import { StatusBadge } from "@/components/StatusBadge";
 import type { ActionResult } from "@/lib/action-result";
 import type { Category, CategoryList } from "@/lib/schemas/category";
 import type { LostReportInput } from "@/lib/schemas/form-inputs";
-import type {
-  LostReport,
-  LostReportPatchBody,
-} from "@/lib/schemas/lost-report";
+import type { LostReport } from "@/lib/schemas/lost-report";
+import { updateLostReport } from "../update-lost-report";
 
 type Result =
   | { id: string; state: "ok"; report: LostReport }
@@ -89,39 +87,24 @@ export function LostReportDone({ id }: { id: string }) {
   async function update(
     input: LostReportInput,
   ): Promise<ActionResult<{ id: string }>> {
-    const body: LostReportPatchBody = {
-      categoryId: input.categoryId,
-      color: input.color,
-      brand: input.brand,
-      lostPlace: input.lostPlace,
-      lostAt: input.lostAt,
-      note: input.note,
-    };
-    try {
-      const report = await fetchApi<LostReport>(
-        `/api/lost-reports/${encodeURIComponent(id)}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        },
-      );
-      setResult({ id, state: "ok", report });
+    const result = await updateLostReport(id, input);
+    if (result.ok) {
+      setResult({ id, state: "ok", report: result.report });
       openEditor(false);
       setSaved(true);
-      return { ok: true, data: { id: report.id } };
-    } catch (error) {
-      if (error instanceof FetchApiError && error.status === 401) {
-        router.replace(loginPath);
-      }
-      return {
-        ok: false,
-        error:
-          error instanceof FetchApiError && error.status === 409
-            ? "探し中ではなくなったため、変更できませんでした。ホームから申請状況を確かめてください。"
-            : errorMessageOf(error),
-      };
+      return { ok: true, data: { id: result.report.id } };
     }
+    if (result.reason === "unauthorized") {
+      router.replace(loginPath);
+      return { ok: false, error: result.error };
+    }
+    return {
+      ok: false,
+      error:
+        result.reason === "conflict"
+          ? `${result.error}ホームから申請状況を確かめてください。`
+          : result.error,
+    };
   }
 
   const current = result?.id === id ? result : null;

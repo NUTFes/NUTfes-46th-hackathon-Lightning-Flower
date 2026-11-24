@@ -23,16 +23,23 @@ import type { Category, CategoryList } from "@/lib/schemas/category";
 import type { LostReportInput } from "@/lib/schemas/form-inputs";
 import type { LostReport } from "@/lib/schemas/lost-report";
 import type { MessageList } from "@/lib/schemas/message";
-import { CANCELLABLE_STATUSES, reportTitle } from "./report-title";
+import { isCancellable, reportTitle } from "./report-title";
+import { updateLostReport } from "./update-lost-report";
 
-type Loaded = {
-  report: LostReport;
-  // 実行委員からの最新のメッセージ（なければ null）
-  latestAdminMessage: string | null;
-};
+// 実行委員からの最新のメッセージ。読めなかったときと「まだない」（latest が null）を分ける
+type AdminMessage = { state: "ok"; latest: string | null } | { state: "error" };
+
+type Loaded = { report: LostReport; adminMessage: AdminMessage };
 
 type Result =
   { state: "ok"; data: Loaded } | { state: "error"; message: string };
+
+type Categories =
+  | { state: "loading" }
+  | { state: "ok"; items: Category[] }
+  | { state: "error"; message: string };
+
+type Notice = { status: "success" | "warning"; text: string };
 
 const cardProps = {
   bg: "white",
@@ -46,9 +53,14 @@ const cardProps = {
 export function LostReportStatusView({ reportId }: { reportId: string }) {
   const router = useRouter();
   const [result, setResult] = useState<Result | null>(null);
+  // 増やすと申請を取り直す（もう一度読み込む・変更が 409 になったとき）
   const [reloadCount, setReloadCount] = useState(0);
   const [editing, setEditing] = useState(false);
-  const [categories, setCategories] = useState<Category[] | null>(null);
+  const [categories, setCategories] = useState<Categories>({
+    state: "loading",
+  });
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const loginPath = `/?next=/lost-reports/${reportId}`;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -58,22 +70,25 @@ export function LostReportStatusView({ reportId }: { reportId: string }) {
       // メッセージが読めなくても、申請状況は出す
       fetchApi<MessageList>(`/api/lost-reports/${reportId}/messages`, {
         signal,
-      }).catch(() => null),
-    ])
-      .then(([report, messages]) => {
-        const latest = messages?.items
-          .filter((message) => message.senderRole === "admin")
-          .at(-1);
-        setResult({
+      }).then(
+        (messages): AdminMessage => ({
           state: "ok",
-          data: { report, latestAdminMessage: latest?.body ?? null },
-        });
+          latest:
+            messages.items
+              .filter((message) => message.senderRole === "admin")
+              .at(-1)?.body ?? null,
+        }),
+        (): AdminMessage => ({ state: "error" }),
+      ),
+    ])
+      .then(([report, adminMessage]) => {
+        setResult({ state: "ok", data: { report, adminMessage } });
       })
       .catch((error: unknown) => {
         if (signal.aborted) return;
         // 画面を開いたあとにセッションが切れた。トップでログインし直してもらう
         if (error instanceof FetchApiError && error.status === 401) {
-          router.replace(`/?next=/lost-reports/${reportId}`);
+          router.replace(loginPath);
           return;
         }
         setResult({
@@ -85,19 +100,20 @@ export function LostReportStatusView({ reportId }: { reportId: string }) {
         });
       });
     return () => controller.abort();
-  }, [router, reportId, reloadCount]);
+  }, [router, reportId, reloadCount, loginPath]);
 
   // 入力情報の変更を開いたときだけ、カテゴリを取る
   useEffect(() => {
-    if (!editing || categories) return;
+    if (!editing || categories.state !== "loading") return;
     const controller = new AbortController();
     fetchApi<CategoryList>("/api/categories", { signal: controller.signal })
-      .then((list) => setCategories(list.items))
-      .catch(() => {
-        if (!controller.signal.aborted) setCategories([]);
+      .then((list) => setCategories({ state: "ok", items: list.items }))
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setCategories({ state: "error", message: errorMessageOf(error) });
       });
     return () => controller.abort();
-  }, [editing, categories]);
+  }, [editing, categories.state]);
 
   if (!result) {
     return (
@@ -133,45 +149,46 @@ export function LostReportStatusView({ reportId }: { reportId: string }) {
     );
   }
 
-  const { report, latestAdminMessage } = result.data;
+  const { report, adminMessage } = result.data;
   const ended = (ENDED_LOST_STATUSES as readonly string[]).includes(
     report.status,
   );
   // 入力情報の変更は、探し中のときだけ（PATCH は探し中以外だと 409）
   const editable = report.status === "searching";
-  const cancellable = CANCELLABLE_STATUSES.includes(report.status);
+  const cancellable = isCancellable(report.status);
+
+  function openEditor(open: boolean) {
+    setEditing(open);
+    setNotice(null);
+  }
 
   async function save(
     input: LostReportInput,
   ): Promise<ActionResult<{ id: string }>> {
-    try {
-      const updated = await fetchApi<LostReport>(
-        `/api/lost-reports/${reportId}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(input),
-        },
-      );
+    const updated = await updateLostReport(reportId, input);
+    if (updated.ok) {
       setResult({
         state: "ok",
-        data: { report: updated, latestAdminMessage },
+        data: { report: updated.report, adminMessage },
       });
-      setEditing(false);
-      return { ok: true, data: { id: updated.id } };
-    } catch (error) {
-      if (error instanceof FetchApiError && error.status === 401) {
-        router.replace(`/?next=/lost-reports/${reportId}`);
-      }
-      if (error instanceof FetchApiError && error.status === 409) {
-        return {
-          ok: false,
-          error:
-            "実行委員が確認を始めたため、入力情報を変更できなくなりました。ページを読み込み直してください。",
-        };
-      }
-      return { ok: false, error: errorMessageOf(error) };
+      openEditor(false);
+      setNotice({ status: "success", text: "入力情報を変更しました" });
+      return { ok: true, data: { id: updated.report.id } };
     }
+    if (updated.reason === "unauthorized") {
+      router.replace(loginPath);
+      return { ok: false, error: updated.error };
+    }
+    if (updated.reason === "conflict") {
+      // 実行委員が確認を始めていた。フォームを閉じ、今の状態を取り直して理由を出す
+      openEditor(false);
+      setNotice({
+        status: "warning",
+        text: `${updated.error}今の状態を表示しています。`,
+      });
+      setReloadCount((count) => count + 1);
+    }
+    return { ok: false, error: updated.error };
   }
 
   return (
@@ -188,6 +205,13 @@ export function LostReportStatusView({ reportId }: { reportId: string }) {
         </Box>
       </Stack>
 
+      {notice && (
+        <Alert.Root status={notice.status} role="status">
+          <Alert.Indicator />
+          <Alert.Title>{notice.text}</Alert.Title>
+        </Alert.Root>
+      )}
+
       <ReportProgress status={report.status} />
 
       {!ended && (
@@ -195,16 +219,28 @@ export function LostReportStatusView({ reportId }: { reportId: string }) {
           <Heading as="h2" size="sm">
             実行委員からのメッセージ
           </Heading>
-          <Text fontSize="sm" color="gray.600" whiteSpace="pre-wrap">
-            {latestAdminMessage
-              ? `「${latestAdminMessage}」`
-              : "まだメッセージはありません。気になることがあればチャットで聞けます。"}
-          </Text>
-          <Button asChild colorPalette="blue" w="full">
-            <NextLink href={`/lost-reports/${reportId}/chat`}>
-              {latestAdminMessage ? "チャットに返信する" : "チャットを開く"}
-            </NextLink>
-          </Button>
+          {adminMessage.state === "error" ? (
+            <Text fontSize="sm" color="red.600">
+              メッセージを読み込めませんでした。チャットを開いて確かめてください。
+            </Text>
+          ) : (
+            <Text fontSize="sm" color="gray.600" whiteSpace="pre-wrap">
+              {adminMessage.latest
+                ? `「${adminMessage.latest}」`
+                : "実行委員から連絡があると、ここに表示されます。"}
+            </Text>
+          )}
+          {/* guest が送れるのは、実行委員から 1 通以上届いてから（API が 409 を返す）。
+              まだ届いていないときは、開いても送れないのでボタンを出さない */}
+          {(adminMessage.state === "error" || adminMessage.latest) && (
+            <Button asChild colorPalette="blue" w="full">
+              <NextLink href={`/lost-reports/${reportId}/chat`}>
+                {adminMessage.state === "ok"
+                  ? "チャットに返信する"
+                  : "チャットを開く"}
+              </NextLink>
+            </Button>
+          )}
         </Stack>
       )}
 
@@ -213,29 +249,56 @@ export function LostReportStatusView({ reportId }: { reportId: string }) {
           申請した情報
         </Heading>
         {editing ? (
-          categories === null ? (
-            <Skeleton h="320px" rounded="lg" />
-          ) : (
-            <Stack gap="2">
+          <>
+            {categories.state === "loading" && (
+              <Skeleton h="320px" rounded="lg" />
+            )}
+            {categories.state === "error" && (
+              <Alert.Root status="error">
+                <Alert.Indicator />
+                <Alert.Content>
+                  <Alert.Title>カテゴリを読み込めませんでした</Alert.Title>
+                  <Alert.Description>{categories.message}</Alert.Description>
+                  <Stack direction="row" gap="2" mt="2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setCategories({ state: "loading" })}
+                    >
+                      もう一度読み込む
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => openEditor(false)}
+                    >
+                      変更をやめる
+                    </Button>
+                  </Stack>
+                </Alert.Content>
+              </Alert.Root>
+            )}
+            {categories.state === "ok" && (
               <LostReportForm
+                key={report.id}
                 mode="edit"
-                categories={categories}
+                categories={categories.items}
                 defaultValues={report}
                 action={save}
                 submitLabel="変更を保存する"
+                notice="入力内容は実行委員のみが確認します。"
+                onCancel={() => openEditor(false)}
+                cancelLabel="変更をやめる"
               />
-              <Button variant="ghost" onClick={() => setEditing(false)}>
-                変更をやめる
-              </Button>
-            </Stack>
-          )
+            )}
+          </>
         ) : (
           <LostReportDetailFields report={report} />
         )}
       </Stack>
 
       {editable && !editing && (
-        <Button variant="outline" w="full" onClick={() => setEditing(true)}>
+        <Button variant="outline" w="full" onClick={() => openEditor(true)}>
           入力情報を変更
         </Button>
       )}

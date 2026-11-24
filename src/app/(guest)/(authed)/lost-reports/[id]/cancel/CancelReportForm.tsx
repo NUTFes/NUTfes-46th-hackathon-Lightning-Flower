@@ -113,14 +113,16 @@ export function CancelReportForm({
         >
           申請を取り消す
         </Button>
-        <Button
-          asChild
-          variant="outline"
-          className={styles.submit}
-          aria-disabled={pending}
-        >
-          <NextLink href={backHref}>戻る</NextLink>
-        </Button>
+        {/* リンクは aria-disabled では押せてしまうので、送信中はふつうの押せないボタンにする */}
+        {pending ? (
+          <Button variant="outline" className={styles.submit} disabled>
+            戻る
+          </Button>
+        ) : (
+          <Button asChild variant="outline" className={styles.submit}>
+            <NextLink href={backHref}>戻る</NextLink>
+          </Button>
+        )}
       </div>
 
       <Text fontSize="xs" color="gray.500">
