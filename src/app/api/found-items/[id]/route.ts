@@ -1,6 +1,6 @@
 import { and, eq, isNull, notExists } from "drizzle-orm";
 import { getDb } from "@/db";
-import { categories, foundItemPhotos, foundItems, matches } from "@/db/schema";
+import { categories, foundItems, matches } from "@/db/schema";
 import { requireStaff } from "@/lib/api/auth";
 import { badRequest, forbidden, notFound } from "@/lib/api/errors";
 import { apiHandler } from "@/lib/api/handler";

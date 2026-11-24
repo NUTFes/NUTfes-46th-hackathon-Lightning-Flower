@@ -30,6 +30,16 @@ type Result =
   | { id: string; state: "ok"; item: FoundItem }
   | { id: string; state: "error"; status?: number; message: string };
 
+// 写真を変えたか（足した・外した・並べ替えた）。変えていなければ写真は送らない。
+// 送ると、別の画面で写真を変えたあとに古い画面でメモだけを直したとき、400 になったり、足された写真が外れたりする
+function photosChanged(item: FoundItem, input: FoundItemInput) {
+  return (
+    input.photos.length > 0 ||
+    input.keepPhotoIds.length !== item.photos.length ||
+    input.keepPhotoIds.some((id, index) => id !== item.photos[index].id)
+  );
+}
+
 // M04 拾得物詳細の本体。表示・自分の登録の編集・削除
 export function FoundItemDetail({ id }: { id: string }) {
   const router = useRouter();
@@ -120,8 +130,7 @@ export function FoundItemDetail({ id }: { id: string }) {
   async function save(
     input: FoundItemInput,
   ): Promise<ActionResult<{ id: string }>> {
-    // 写真は、残す写真の ID（並べた順）と新しく上げた写真をそのまま送る。
-    // 変えていなくても送ってよい（同じ順に並べ直すだけ）
+    // 写真を変えたときは、残す写真の ID（並べた順）と新しく上げた写真をそのまま送る
     const body: PatchFoundItemBody = {
       categoryId: input.categoryId,
       color: input.color,
@@ -130,8 +139,10 @@ export function FoundItemDetail({ id }: { id: string }) {
       foundAt: input.foundAt,
       isValuable: input.isValuable,
       memo: input.memo,
-      keepPhotoIds: input.keepPhotoIds,
-      photos: input.photos,
+      ...(photosChanged(item, input) && {
+        keepPhotoIds: input.keepPhotoIds,
+        photos: input.photos,
+      }),
     };
     try {
       const updated = await fetchApi<FoundItem>(

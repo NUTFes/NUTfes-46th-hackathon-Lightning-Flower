@@ -52,6 +52,33 @@ const VALID_ID = "11111111-1111-4111-8111-111111111111";
 // WHERE などの条件を SQL にして、params で渡す値を確かめる
 const toSql = (sql: SQL) => new PgDialect().sqlToQuery(sql);
 
+// 写真を変えるトランザクションの tx.select()。where() のあとの使い方で返すものを変える：
+// for("update") は拾得物のロック、limit() はほかの拾得物のパス（isPhotoPathUsed）、
+// そのまま await したときは、呼んだ順に awaited の結果（今の写真 → 消したあともまだ使っている行）を返す
+function mockSelect({
+  lock,
+  used,
+  awaited,
+}: {
+  lock: () => Promise<unknown[]>;
+  used: unknown[];
+  awaited: unknown[][];
+}) {
+  const queue = [...awaited];
+  return () => ({
+    from: () => ({
+      where: () => ({
+        for: lock,
+        limit: vi.fn().mockResolvedValue(used),
+        then: (
+          resolve: (value: unknown[]) => unknown,
+          reject: (reason: unknown) => unknown,
+        ) => Promise.resolve(queue.shift() ?? []).then(resolve, reject),
+      }),
+    }),
+  });
+}
+
 function makeContext(id = VALID_ID) {
   return { params: Promise.resolve({ id }) };
 }
@@ -182,10 +209,11 @@ describe("PATCH /api/found-items/[id]", () => {
   const PHOTO_C = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
   const OTHER_PHOTO = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 
-  const currentPhoto = (id: string, name: string) => ({
+  const currentPhoto = (id: string, name: string, sortOrder = 0) => ({
     id,
     storagePath: `found/${name}.jpg`,
     thumbPath: `found/${name}_thumb.jpg`,
+    sortOrder,
   });
 
   // 写真を変えるトランザクション。currentPhotos はこの拾得物の今の写真、
@@ -222,15 +250,10 @@ describe("PATCH /api/found-items/[id]", () => {
             }),
           }),
         }),
-        select: () => ({
-          from: () => ({
-            // 今の写真を読む（await）・拾得物をロックする（for）・ほかの拾得物のパスを見る（limit）
-            where: () =>
-              Object.assign(Promise.resolve(currentPhotos), {
-                for: mockLock,
-                limit: vi.fn().mockResolvedValue(usedPhotos),
-              }),
-          }),
+        select: mockSelect({
+          lock: mockLock,
+          used: usedPhotos,
+          awaited: [currentPhotos, []],
         }),
         delete: () => ({
           where: mockDeleteWhere,
@@ -281,9 +304,9 @@ describe("PATCH /api/found-items/[id]", () => {
     const { mockInsertValues, mockDeleteWhere, mockSortOrderSet } =
       mockPhotoTransaction({
         currentPhotos: [
-          currentPhoto(PHOTO_A, "a"),
-          currentPhoto(PHOTO_B, "b"),
-          currentPhoto(PHOTO_C, "c"),
+          currentPhoto(PHOTO_A, "a", 0),
+          currentPhoto(PHOTO_B, "b", 1),
+          currentPhoto(PHOTO_C, "c", 2),
         ],
       });
 
@@ -311,7 +334,10 @@ describe("PATCH /api/found-items/[id]", () => {
   it("正常：keepPhotoIds だけなら、足さずに並べ替え・外しだけをする", async () => {
     const { mockInsertValues, mockDeleteWhere, mockSortOrderSet } =
       mockPhotoTransaction({
-        currentPhotos: [currentPhoto(PHOTO_A, "a"), currentPhoto(PHOTO_B, "b")],
+        currentPhotos: [
+          currentPhoto(PHOTO_A, "a", 0),
+          currentPhoto(PHOTO_B, "b", 1),
+        ],
       });
 
     const res = await PATCH(
@@ -439,52 +465,66 @@ describe("PATCH /api/found-items/[id]", () => {
 });
 
 describe("replaceFoundItemPhotos", () => {
-  it("外した写真のパスを返す。新しい photos で付け直したパスは除く", async () => {
+  const photo = (id: string, name: string, sortOrder: number) => ({
+    id,
+    storagePath: `found/${name}.jpg`,
+    thumbPath: `found/${name}_thumb.jpg`,
+    sortOrder,
+  });
+  const A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const C = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+
+  function makeTx(stillUsed: { storagePath: string; thumbPath: string }[]) {
+    const sortOrderSet = vi.fn();
     const tx = {
-      select: () => ({
-        from: () => ({
-          where: () =>
-            Object.assign(
-              Promise.resolve([
-                {
-                  id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-                  storagePath: "found/a.jpg",
-                  thumbPath: "found/a_thumb.jpg",
-                },
-                {
-                  id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
-                  storagePath: "found/b.jpg",
-                  thumbPath: "found/b_thumb.jpg",
-                },
-                {
-                  id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
-                  storagePath: "found/c.jpg",
-                  thumbPath: "found/c_thumb.jpg",
-                },
-              ]),
-              {
-                for: vi.fn().mockResolvedValue([{ id: VALID_ID }]),
-                limit: vi.fn().mockResolvedValue([]),
-              },
-            ),
-        }),
+      select: mockSelect({
+        lock: vi.fn().mockResolvedValue([{ id: VALID_ID }]),
+        used: [],
+        awaited: [
+          [photo(A, "a", 0), photo(B, "b", 1), photo(C, "c", 2)],
+          stillUsed,
+        ],
       }),
       delete: () => ({ where: vi.fn().mockResolvedValue(undefined) }),
       update: () => ({
-        set: () => ({ where: vi.fn().mockResolvedValue(undefined) }),
+        set: (values: unknown) => ({
+          where: vi.fn(async () => sortOrderSet(values)),
+        }),
       }),
       insert: () => ({ values: vi.fn().mockResolvedValue(undefined) }),
     };
+    return { tx: tx as unknown as Tx, sortOrderSet };
+  }
+
+  it("外した写真のパスを返す。消したあともまだどれかの行が使っているパスの写真は除く", async () => {
+    // B は新しい photos で付け直し、C はほかの拾得物の行も同じパスを指している
+    const { tx } = makeTx([
+      { storagePath: "found/b.jpg", thumbPath: "found/b_thumb.jpg" },
+      { storagePath: "found/x.jpg", thumbPath: "found/c_thumb.jpg" },
+    ]);
 
     const removed = await replaceFoundItemPhotos(
-      tx as unknown as Tx,
+      tx,
       VALID_ID,
-      ["aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"],
+      [],
       [{ path: "found/b.jpg", thumbPath: "found/b_thumb.jpg" }],
     );
 
     expect(removed).toEqual([
-      { path: "found/c.jpg", thumbPath: "found/c_thumb.jpg" },
+      { path: "found/a.jpg", thumbPath: "found/a_thumb.jpg" },
+    ]);
+  });
+
+  it("並びが変わらない写真の sortOrder は書き直さない", async () => {
+    const { tx, sortOrderSet } = makeTx([]);
+
+    const removed = await replaceFoundItemPhotos(tx, VALID_ID, [A, C], []);
+
+    // A は 0 のまま、C だけ 2 → 1
+    expect(sortOrderSet.mock.calls).toEqual([[{ sortOrder: 1 }]]);
+    expect(removed).toEqual([
+      { path: "found/b.jpg", thumbPath: "found/b_thumb.jpg" },
     ]);
   });
 });

@@ -174,7 +174,9 @@ export async function isPhotoPathUsed(
 
 // PATCH /api/found-items/{id} の写真の変更。写真を keepPhotoIds の順に並べ、そのあとに新しい photos を続ける。keepPhotoIds にない写真の行は消す。
 // keepPhotoIds を送らずに photos だけを送ったときは、今の写真をすべて外す（丸ごと置き換え）。
-// 外した写真のパスを返す（新しい photos に同じパスがあるものは除く。Storage のファイルの扱いは #64）。
+// 外した写真のパスを返す（Storage のファイルの扱いは #64）。消したあとも、どれかの行（残す写真・付け直した写真・
+// ほかの拾得物の写真）が使っているパスの写真は除く。ただし、同時に走るほかのトランザクションのまだコミットしていない行は
+// 見えないので、ファイルを消す側でも、コミットしたあとでどの行も使っていないことを確かめ直す
 //
 // 拾得物の行を先にロックし、同じ拾得物の写真を同時に変える PATCH を順に通す
 // （読んだ写真の ID が、確かめてから消す・並べ替えるまでに変わらないように）。
@@ -197,6 +199,7 @@ export async function replaceFoundItemPhotos(
       id: foundItemPhotos.id,
       storagePath: foundItemPhotos.storagePath,
       thumbPath: foundItemPhotos.thumbPath,
+      sortOrder: foundItemPhotos.sortOrder,
     })
     .from(foundItemPhotos)
     .where(eq(foundItemPhotos.foundItemId, foundItemId));
@@ -233,7 +236,9 @@ export async function replaceFoundItemPhotos(
       ),
     );
   }
+  // 並びが変わった写真だけを書き直す
   for (const [index, photoId] of keepPhotoIds.entries()) {
+    if (currentById.get(photoId)?.sortOrder === index) continue;
     await tx
       .update(foundItemPhotos)
       .set({ sortOrder: index })
@@ -250,9 +255,32 @@ export async function replaceFoundItemPhotos(
     );
   }
 
-  // 外した写真を新しい photos でもう一度付け直したときは、ファイルはまだ使っている
-  const reused = new Set(newPaths);
+  // 外した写真のうち、まだどれかの行が使っているパスのものは返さない
+  // （新しい photos で付け直したとき・残す写真やほかの拾得物の写真と同じパスを指していたとき）
+  const removedPaths = removed.flatMap((photo) => [
+    photo.storagePath,
+    photo.thumbPath,
+  ]);
+  if (removedPaths.length === 0) return [];
+  const stillUsed = await tx
+    .select({
+      storagePath: foundItemPhotos.storagePath,
+      thumbPath: foundItemPhotos.thumbPath,
+    })
+    .from(foundItemPhotos)
+    .where(
+      or(
+        inArray(foundItemPhotos.storagePath, removedPaths),
+        inArray(foundItemPhotos.thumbPath, removedPaths),
+      ),
+    );
+  const usedPaths = new Set(
+    stillUsed.flatMap((row) => [row.storagePath, row.thumbPath]),
+  );
   return removed
-    .map((photo) => ({ path: photo.storagePath, thumbPath: photo.thumbPath }))
-    .filter((photo) => !reused.has(photo.path) && !reused.has(photo.thumbPath));
+    .filter(
+      (photo) =>
+        !usedPaths.has(photo.storagePath) && !usedPaths.has(photo.thumbPath),
+    )
+    .map((photo) => ({ path: photo.storagePath, thumbPath: photo.thumbPath }));
 }

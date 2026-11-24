@@ -132,7 +132,8 @@ const NonEmptySafeText = z.string().trim().min(1).refine(hasNoNullByte, {
 
 const SmallId = z.number().int().min(1).max(32767);
 
-// 1 つの拾得物に付けられる写真の枚数の上限（登録と編集で同じ）
+// API で 1 つの拾得物に付けられる写真の枚数の上限（登録と編集で同じ）。
+// 画面（M02・M04）の上限は src/lib/constants.ts の MAX_PHOTOS で、こちらより少ない
 export const MAX_FOUND_ITEM_PHOTOS = 10;
 
 export const FoundItemPhotoInput = z
