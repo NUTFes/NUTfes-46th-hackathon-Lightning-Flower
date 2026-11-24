@@ -16,7 +16,7 @@ import styles from "./MatchingBoard.module.css";
 
 type MatchAction = (input: MatchInput) => Promise<ActionResult>;
 type Operation = {
-  kind: "link" | "unlink" | "verify";
+  kind: "link" | "unlink";
   itemId: string;
   number: string;
 };
@@ -32,29 +32,28 @@ const confirmation = {
     label: "解除する",
     description: "申請は「探し中」に戻り、本人確認の記録も取り消されます。",
   },
-  verify: {
-    title: "本人確認へ進みますか？",
-    label: "進む",
-    description: "",
-  },
 };
 
 export function MatchingBoard({
   report,
   candidates,
   linkedFoundItemId,
+  linkedItem,
+  chatHref,
   disabled = false,
   linkAction,
   unlinkAction,
-  proceedToVerifyAction,
 }: {
   report: LostReport & Partial<Pick<LostReportForAdmin, "activeMatch">>;
   candidates: FoundItem[];
   linkedFoundItemId?: string;
+  // 紐づけた拾得物（照合中なので candidates には出てこない）。「選択中」のカードで先頭に出す
+  linkedItem?: FoundItem;
+  // 紐づけたあとに開くチャット（A06）。紐づける前は出さない
+  chatHref?: string;
   disabled?: boolean;
   linkAction: MatchAction;
   unlinkAction: MatchAction;
-  proceedToVerifyAction?: MatchAction;
 }) {
   const [operation, setOperation] = useState<Operation>();
   const activeId = report.activeMatch?.foundItemId ?? linkedFoundItemId;
@@ -64,6 +63,16 @@ export function MatchingBoard({
   const canLink = !disabled && !activeId && report.status === "searching";
   const canUnlink = !disabled && !!activeId && report.status === "maybe_found";
   const dialog = operation && confirmation[operation.kind];
+  const cards =
+    linkedItem &&
+    linkedItem.id === activeId &&
+    !candidates.some((item) => item.id === linkedItem.id)
+      ? [linkedItem, ...candidates]
+      : candidates;
+  const hasActiveCard =
+    !!activeId && cards.some((item) => item.id === activeId);
+  const chatLabel =
+    report.status === "maybe_found" ? "本人確認へ進む" : "チャットを開く";
 
   function confirm(): Promise<ActionResult> {
     if (!operation)
@@ -71,8 +80,6 @@ export function MatchingBoard({
     const input = { reportId: report.id, foundItemId: operation.itemId };
     if (operation.kind === "link" && canLink) return linkAction(input);
     if (operation.kind === "unlink" && canUnlink) return unlinkAction(input);
-    if (operation.kind === "verify" && !disabled && proceedToVerifyAction)
-      return proceedToVerifyAction(input);
     return Promise.resolve({
       ok: false,
       error: "現在の状態では操作できません。",
@@ -114,19 +121,9 @@ export function MatchingBoard({
               >
                 紐づけを解除
               </Button>
-              {proceedToVerifyAction && (
-                <Button
-                  size="sm"
-                  disabled={disabled || !!operation}
-                  onClick={() =>
-                    setOperation({
-                      kind: "verify",
-                      itemId: activeId,
-                      number: activeNumber ?? "拾得物",
-                    })
-                  }
-                >
-                  本人確認へ進む
+              {chatHref && !hasActiveCard && (
+                <Button asChild size="sm">
+                  <NextLink href={chatHref}>{chatLabel}</NextLink>
                 </Button>
               )}
             </Flex>
@@ -151,11 +148,11 @@ export function MatchingBoard({
             {candidates.length}件
           </Text>
         </Flex>
-        {candidates.length === 0 ? (
+        {cards.length === 0 ? (
           <EmptyState title="同じカテゴリの拾得物候補はありません" />
         ) : (
           <div className={styles.candidateCards}>
-            {candidates.map((item) => (
+            {cards.map((item) => (
               <FoundItemCard
                 key={item.id}
                 item={item}
@@ -172,27 +169,37 @@ export function MatchingBoard({
                         {[item.brand, item.memo].filter(Boolean).join(" ／ ")}
                       </Text>
                     )}
-                    <Button
-                      size="sm"
-                      alignSelf="end"
-                      variant="outline"
-                      colorPalette="blue"
-                      disabled={
-                        !canLink ||
-                        item.status !== "received" ||
-                        !!item.activeMatch ||
-                        !!operation
-                      }
-                      onClick={() =>
-                        setOperation({
-                          kind: "link",
-                          itemId: item.id,
-                          number: item.displayNumber,
-                        })
-                      }
-                    >
-                      紐づける
-                    </Button>
+                    {item.id === activeId ? (
+                      chatHref && (
+                        <Button asChild size="sm" alignSelf="end">
+                          <NextLink href={chatHref}>
+                            選択中：{chatLabel}
+                          </NextLink>
+                        </Button>
+                      )
+                    ) : (
+                      <Button
+                        size="sm"
+                        alignSelf="end"
+                        variant="outline"
+                        colorPalette="blue"
+                        disabled={
+                          !canLink ||
+                          item.status !== "received" ||
+                          !!item.activeMatch ||
+                          !!operation
+                        }
+                        onClick={() =>
+                          setOperation({
+                            kind: "link",
+                            itemId: item.id,
+                            number: item.displayNumber,
+                          })
+                        }
+                      >
+                        紐づける
+                      </Button>
+                    )}
                   </Stack>
                 }
               />

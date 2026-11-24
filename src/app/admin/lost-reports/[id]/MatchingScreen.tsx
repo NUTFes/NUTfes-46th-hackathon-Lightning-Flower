@@ -17,12 +17,14 @@ import {
   LostReportForAdmin,
   LostReportIdParams,
 } from "@/lib/schemas/lost-report";
+import { FoundItem } from "@/lib/schemas/found-item";
 import { MatchCreateBody } from "@/lib/schemas/match";
 import { MatchingBoard } from "./MatchingBoard";
 
 type Data = {
   report: LostReportForAdmin;
   candidates: LostReportCandidates["items"];
+  linkedItem?: FoundItem;
 };
 type LoadResult = { attempt: number } & ({ data: Data } | { error: string });
 
@@ -38,6 +40,7 @@ export function MatchingScreen({ id }: { id: string }) {
   const [result, setResult] = useState<LoadResult>();
   const [notice, setNotice] = useState<string>();
   const [needsRefresh, setNeedsRefresh] = useState(false);
+  const [conflict, setConflict] = useState<string>();
   const writing = useRef(false);
   const path = `/api/lost-reports/${encodeURIComponent(id)}`;
   const validId = LostReportIdParams.safeParse({ id }).success;
@@ -56,11 +59,23 @@ export function MatchingScreen({ id }: { id: string }) {
         LostReportCandidates.parse(body),
       ),
     ])
-      .then(([report, candidates]) => {
+      .then(async ([report, candidates]) => {
+        // 紐づけた拾得物は「照合中」なので候補に出てこない。選択中のカード用に別に取る。
+        // 取れなくても、照合の画面は出す（左のリンクとボタンは残る）
+        const linkedId = report.activeMatch?.foundItemId;
+        const linkedItem =
+          linkedId && !candidates.items.some((item) => item.id === linkedId)
+            ? await fetchApi<unknown>(
+                `/api/found-items/${encodeURIComponent(linkedId)}`,
+                options,
+              )
+                .then((body) => FoundItem.parse(body))
+                .catch(() => undefined)
+            : undefined;
         if (!controller.signal.aborted) {
           setResult({
             attempt,
-            data: { report, candidates: candidates.items },
+            data: { report, candidates: candidates.items, linkedItem },
           });
         }
       })
@@ -85,6 +100,7 @@ export function MatchingScreen({ id }: { id: string }) {
     }
     writing.current = true;
     setNotice(undefined);
+    setConflict(undefined);
     try {
       const base = `${path}/matches`;
       const body = await fetchApi<unknown>(
@@ -104,6 +120,14 @@ export function MatchingScreen({ id }: { id: string }) {
       reload();
       return { ok: true };
     } catch (error) {
+      // ほかの人の操作などで状態が変わっていたら、古い候補を残さずに読み直す
+      if (error instanceof FetchApiError && error.status === 409) {
+        reload();
+        setConflict(
+          "ほかの操作で申請か拾得物の状態が変わっていたため、操作できませんでした。最新の状態を読み込み直しました。",
+        );
+        return { ok: false, error: error.message };
+      }
       // 応答が失われた場合も、現在の状態を読み直すまで更新を繰り返さない。
       setNeedsRefresh(true);
       return {
@@ -137,6 +161,12 @@ export function MatchingScreen({ id }: { id: string }) {
         <Alert.Root status="success" role="status">
           <Alert.Indicator />
           <Alert.Title>{notice}</Alert.Title>
+        </Alert.Root>
+      )}
+      {conflict && (
+        <Alert.Root status="warning" role="alert">
+          <Alert.Indicator />
+          <Alert.Title>{conflict}</Alert.Title>
         </Alert.Root>
       )}
       {(!validId || (current && "error" in current) || needsRefresh) && (
@@ -173,6 +203,8 @@ export function MatchingScreen({ id }: { id: string }) {
         <MatchingBoard
           report={data.report}
           candidates={data.candidates}
+          linkedItem={data.linkedItem}
+          chatHref={`/admin/chats/${encodeURIComponent(data.report.id)}`}
           disabled={needsRefresh}
           linkAction={({ foundItemId }) => updateMatch("POST", foundItemId)}
           unlinkAction={({ foundItemId }) => updateMatch("DELETE", foundItemId)}
