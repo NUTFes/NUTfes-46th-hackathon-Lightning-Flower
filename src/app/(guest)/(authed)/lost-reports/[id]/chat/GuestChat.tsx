@@ -73,6 +73,20 @@ export function GuestChat({ reportId }: { reportId: string }) {
     setLoaded((prev) => (prev.state === "ok" ? { ...prev, report } : prev));
   }, []);
 
+  // 申請の表示の世代（A06 と同じ）。送信が 409 で取り直すときに進め、それより前に投げた
+  // ポーリングの応答（古い状態）で、取り直した結果を上書きしないようにする
+  const reportEpoch = useRef(0);
+
+  const refetchReport = useCallback(
+    async (signal?: AbortSignal) => {
+      const epoch = reportEpoch.current;
+      const report = await fetchApi<LostReport>(base, { signal });
+      if (!signal?.aborted && reportEpoch.current === epoch)
+        applyReport(report);
+    },
+    [base, applyReport],
+  );
+
   // 最初に、申請とメッセージを全部取る
   useEffect(() => {
     const controller = new AbortController();
@@ -113,15 +127,17 @@ export function GuestChat({ reportId }: { reportId: string }) {
       const query = after
         ? `?${new URLSearchParams({ after: pollAfterOf(after) })}`
         : "";
+      // メッセージと申請は、取れたほうから別々に反映する（片方が失敗しても、もう片方は捨てない）
       Promise.all([
-        fetchApi<MessageList>(`${base}/messages${query}`, { signal }),
-        fetchApi<LostReport>(base, { signal }),
+        fetchApi<MessageList>(`${base}/messages${query}`, { signal }).then(
+          ({ items }) => {
+            if (!signal.aborted) applyMessages(items);
+          },
+        ),
+        refetchReport(signal),
       ])
-        .then(([{ items }, report]) => {
-          if (signal.aborted) return;
-          applyMessages(items);
-          applyReport(report);
-          setPollError(null);
+        .then(() => {
+          if (!signal.aborted) setPollError(null);
         })
         .catch((error: unknown) => {
           if (signal.aborted || handleUnauthorized(error)) return;
@@ -138,7 +154,7 @@ export function GuestChat({ reportId }: { reportId: string }) {
       document.removeEventListener("visibilitychange", onVisibilityChange);
       controller?.abort();
     };
-  }, [ready, base, applyMessages, applyReport, handleUnauthorized]);
+  }, [ready, base, applyMessages, refetchReport, handleUnauthorized]);
 
   const send = useCallback(
     async (_reportId: string, body: string): Promise<ActionResult<Message>> => {
@@ -154,9 +170,8 @@ export function GuestChat({ reportId }: { reportId: string }) {
         if (handleUnauthorized(error)) return { ok: false, error: "" };
         if (error instanceof FetchApiError && error.status === 409) {
           // 申請が終わったなど。今の状態に合わせて、送れるかの表示を直す
-          fetchApi<LostReport>(base)
-            .then(applyReport)
-            .catch(() => {});
+          reportEpoch.current += 1;
+          refetchReport().catch(() => {});
           return {
             ok: false,
             error:
@@ -166,12 +181,18 @@ export function GuestChat({ reportId }: { reportId: string }) {
         return { ok: false, error: errorMessageOf(error) };
       }
     },
-    [base, applyMessages, applyReport, handleUnauthorized],
+    [base, applyMessages, refetchReport, handleUnauthorized],
   );
 
   if (loaded.state === "loading") {
     return (
-      <Stack h="full" gap="3" p="4" aria-busy>
+      <Stack
+        h="full"
+        gap="3"
+        p="4"
+        aria-busy
+        aria-label="チャットを読み込んでいます"
+      >
         <Skeleton h="48px" rounded="8px" />
         <Skeleton flex="1" rounded="8px" />
       </Stack>
@@ -237,11 +258,15 @@ export function GuestChat({ reportId }: { reportId: string }) {
         initialMessages={messages}
         canSend={canSend}
         sendAction={send}
-        header={<ChatContextBar report={report} pollError={pollError} />}
+        header={
+          <ChatContextBar
+            report={report}
+            canChoosePickup={canChoosePickup}
+            pollError={pollError}
+          />
+        }
         footerSlot={
           <ChatFooter
-            reportId={report.id}
-            canChoosePickup={canChoosePickup}
             pickup={report.pickup}
             hint={sendHintOf({ ended, hasAdminMessage })}
           />
@@ -251,16 +276,20 @@ export function GuestChat({ reportId }: { reportId: string }) {
   );
 }
 
-// 申請の番号・概要・状態（Figma の ChatContextBar）
+// 申請の番号・概要・状態（Figma の ChatContextBar）と「受け取り方法を選ぶ」。
+// ボタンは、本人確認 OK がポーリングで届いたときに、一覧のスクロールの位置にかかわらず
+// 見えるように、スクロールしない上の帯に出す（Figma では一覧の下だが、見落とされないことを優先した）
 function ChatContextBar({
   report,
+  canChoosePickup,
   pollError,
 }: {
   report: LostReport;
+  canChoosePickup: boolean;
   pollError: string | null;
 }) {
   return (
-    <Stack gap="1" px="5" py="3">
+    <Stack gap="2" px="5" py="3">
       <Flex align="center" justify="space-between" gap="3">
         <Text fontSize="sm" fontWeight="bold" minW="0" overflowWrap="anywhere">
           {report.displayNumber} {reportTitleOf(report)}
@@ -269,6 +298,21 @@ function ChatContextBar({
           <StatusBadge kind="lost" status={report.status} />
         </Box>
       </Flex>
+      {/* 読み上げで、ボタンが出たことを伝える（role="status" の要素は先に置いておく） */}
+      <Box role="status">
+        {canChoosePickup && (
+          <Stack gap="2">
+            <Text fontSize="xs" color="gray.700">
+              本部の確認が済みました。受け取り方法を選んでください。
+            </Text>
+            <Button asChild colorPalette="blue" w="full">
+              <NextLink href={`/lost-reports/${report.id}/pickup`}>
+                受け取り方法を選ぶ
+              </NextLink>
+            </Button>
+          </Stack>
+        )}
+      </Box>
       {pollError && (
         <Text role="status" fontSize="xs" color="red.600">
           新しいメッセージを取得できませんでした。{pollError}
@@ -279,17 +323,13 @@ function ChatContextBar({
 }
 
 function ChatFooter({
-  reportId,
-  canChoosePickup,
   pickup,
   hint,
 }: {
-  reportId: string;
-  canChoosePickup: boolean;
   pickup: LostReport["pickup"];
   hint: string | null;
 }) {
-  if (!canChoosePickup && !pickup && !hint) return null;
+  if (!pickup && !hint) return null;
   return (
     <Stack gap="3">
       {pickup && (
@@ -308,13 +348,6 @@ function ChatFooter({
             {pickupLabelOf(pickup)}
           </Text>
         </Box>
-      )}
-      {canChoosePickup && (
-        <Button asChild colorPalette="blue" size="lg" w="full">
-          <NextLink href={`/lost-reports/${reportId}/pickup`}>
-            受け取り方法を選ぶ
-          </NextLink>
-        </Button>
       )}
       {hint && (
         <Text fontSize="xs" color="gray.600" textAlign="center">

@@ -63,20 +63,22 @@ export function GuestPickup({ reportId }: { reportId: string }) {
   const choose = useCallback(
     async (input: PickupMethodInput): Promise<ActionResult> => {
       try {
-        await fetchApi<LostReport>(`${base}/pickup`, {
+        const report = await fetchApi<LostReport>(`${base}/pickup`, {
           method: "PUT",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ method: input.method, note: input.note }),
         });
+        // 返ってきた申請で表示を先に合わせる（チャットへ移るまでのあいだに、フォームを押し直せないように）
+        setLoaded({ state: "ok", report });
         router.replace(chatPath);
         return { ok: true };
       } catch (error) {
         if (handleUnauthorized(error)) return { ok: false, error: "" };
         if (error instanceof FetchApiError && error.status === 409) {
-          // もう選んだ・本部が紐づけを解除したなど。今の状態を出し直す。
-          // 出し直すとフォームが消えるので、理由はフォームの外（conflict）にも残す
+          // もう選んだ・本部が紐づけを解除した・拾得物の準備ができていないなど。今の状態を出し直す。
+          // 申請の状態が変わらない 409 もあるので、押し直しても同じにならないよう、フォームは隠して理由を出す
           const message =
-            "今は受け取り方法を選べません。申請の状態が変わりました。チャットで本部からの連絡を確かめてください。";
+            "受け取り方法を選べませんでした。申請の状態が変わったか、本部での準備が済んでいません。チャットで本部に確かめてください。";
           setConflict(message);
           fetchApi<LostReport>(base)
             .then((report) => setLoaded({ state: "ok", report }))
@@ -91,7 +93,7 @@ export function GuestPickup({ reportId }: { reportId: string }) {
 
   if (loaded.state === "loading") {
     return (
-      <Stack gap="3" aria-busy>
+      <Stack gap="3" aria-busy aria-label="申請を読み込んでいます">
         <Skeleton h="72px" rounded="lg" />
         <Skeleton h="200px" rounded="lg" />
       </Stack>
@@ -154,7 +156,7 @@ export function GuestPickup({ reportId }: { reportId: string }) {
         note="本部で、実行委員が現物をお渡しします。"
       />
 
-      {canChoose ? (
+      {canChoose && !conflict ? (
         <Stack gap="3">
           <Text fontSize="sm" color="gray.700">
             受け取り方法を選んでください。選んだあとは変えられないので、変えたいときはチャットで本部に伝えてください。
@@ -171,17 +173,20 @@ export function GuestPickup({ reportId }: { reportId: string }) {
               </Alert.Content>
             </Alert.Root>
           )}
-          <Alert.Root status="info">
-            <Alert.Indicator />
-            <Alert.Content>
-              <Alert.Title>{unavailableTitleOf(report)}</Alert.Title>
-              {report.pickup && (
-                <Alert.Description>
-                  {pickupLabelOf(report.pickup)}
-                </Alert.Description>
-              )}
-            </Alert.Content>
-          </Alert.Root>
+          {/* 申請の状態が変わらない 409 では canChoose のままなので、そのときは理由（conflict）だけを出す */}
+          {!canChoose && (
+            <Alert.Root status="info">
+              <Alert.Indicator />
+              <Alert.Content>
+                <Alert.Title>{unavailableTitleOf(report)}</Alert.Title>
+                {report.pickup && (
+                  <Alert.Description>
+                    {pickupLabelOf(report.pickup)}
+                  </Alert.Description>
+                )}
+              </Alert.Content>
+            </Alert.Root>
+          )}
           <Button asChild variant="outline" w="full">
             <NextLink href={chatPath}>チャットに戻る</NextLink>
           </Button>
