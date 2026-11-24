@@ -4,17 +4,17 @@ import { requireAdmin } from "@/lib/api/auth";
 import { forbidden, unauthorized } from "@/lib/api/errors";
 import { POST } from "./route";
 
-// 権限と入力の誤りは DB の前で止まることを確かめる（CI に DB がないので、DB を使う正常系は curl で確かめる）
+// 権限と入力の誤りは DB の前で止まり、本文なし・古い形の本文は DB に進むことを確かめる（CI に DB がないので、DB を使う正常系は curl で確かめる）
 vi.mock("@/lib/api/auth", () => ({ requireAdmin: vi.fn() }));
 vi.mock("@/db", () => ({ getDb: vi.fn() }));
 
 const FOUND_ITEM_ID = "11111111-1111-4111-8111-111111111111";
-const BODY = { handedAt: "2026-09-19T15:00:00+09:00", receiverName: "山田" };
 
-function call(id: string, body: unknown) {
+// body は送る本文の文字列（undefined なら本文なし）
+function call(id: string, body: string | undefined) {
   const request = new Request(
     `http://localhost/api/found-items/${id}/handover`,
-    { method: "POST", body: JSON.stringify(body) },
+    { method: "POST", body },
   );
   return POST(request, { params: Promise.resolve({ id }) });
 }
@@ -30,31 +30,16 @@ describe("POST /api/found-items/[id]/handover", () => {
     [forbidden(), 403],
   ])("admin でなければ DB に触らない（%#）", async (error, status) => {
     vi.mocked(requireAdmin).mockRejectedValue(error);
-    const res = await call(FOUND_ITEM_ID, BODY);
+    const res = await call(FOUND_ITEM_ID, undefined);
     expect(res.status).toBe(status);
     expect(getDb).not.toHaveBeenCalled();
   });
 
   it.each([
-    ["拾得物の ID が uuid でない", "abc", BODY],
-    ["handedAt がない", FOUND_ITEM_ID, { receiverName: "山田" }],
-    [
-      "handedAt にオフセットがない",
-      FOUND_ITEM_ID,
-      { ...BODY, handedAt: "2026-09-19T15:00:00" },
-    ],
-    ["receiverName がない", FOUND_ITEM_ID, { handedAt: BODY.handedAt }],
-    ["receiverName が空白だけ", FOUND_ITEM_ID, { ...BODY, receiverName: "  " }],
-    [
-      "handedAt が DB の範囲外（年 0000）",
-      FOUND_ITEM_ID,
-      { ...BODY, handedAt: "0000-01-01T00:00:00Z" },
-    ],
-    [
-      "handedAt が 2 日より先",
-      FOUND_ITEM_ID,
-      { ...BODY, handedAt: new Date(Date.now() + 2 * 86400000).toISOString() },
-    ],
+    ["拾得物の ID が uuid でない", "abc", undefined],
+    ["本文が JSON でない", FOUND_ITEM_ID, "{"],
+    ["本文がオブジェクトでない", FOUND_ITEM_ID, "[]"],
+    ["本文が null", FOUND_ITEM_ID, "null"],
   ])("%s なら 400 にする", async (_, id, body) => {
     vi.mocked(requireAdmin).mockResolvedValue({
       role: "admin",
@@ -64,5 +49,28 @@ describe("POST /api/found-items/[id]/handover", () => {
     expect(res.status).toBe(400);
     expect((await res.json()).error.code).toBe("VALIDATION_ERROR");
     expect(getDb).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["本文なし", undefined],
+    ["本文が空白だけ", "  \n"],
+    ["空のオブジェクト", "{}"],
+    [
+      "古い画面の本文（handedAt・receiverName）",
+      JSON.stringify({ handedAt: "0000-01-01T00:00:00Z", receiverName: "  " }),
+    ],
+  ])("%s なら 400 にせず DB に進む", async (_, body) => {
+    vi.mocked(requireAdmin).mockResolvedValue({
+      role: "admin",
+      email: "admin@example.com",
+    });
+    // DB に進んだことだけを確かめる（transaction で止めて 500 にする）
+    const transaction = vi.fn().mockRejectedValue(new Error("stop"));
+    vi.mocked(getDb).mockReturnValue({
+      transaction,
+    } as unknown as ReturnType<typeof getDb>);
+    const res = await call(FOUND_ITEM_ID, body);
+    expect(res.status).toBe(500);
+    expect(transaction).toHaveBeenCalledOnce();
   });
 });

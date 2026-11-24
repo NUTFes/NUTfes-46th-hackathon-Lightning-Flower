@@ -220,19 +220,9 @@ export type PatchFoundItemBody = z.infer<typeof PatchFoundItemBody>;
 
 // --- 状態を変える API の入力（#14） ------------------------------------------
 
-// POST /api/found-items/{id}/handover の本文
-// 受け渡しの日時は、今より先にしない（時計のずれは 1 日まで許す）
-const HandedAt = DateTime.refine(
-  (value) => new Date(value).getTime() <= Date.now() + 24 * 60 * 60 * 1000,
-  { message: "handedAt は今までの日時にしてください" },
-);
-
-export const HandoverBody = z
-  .object({
-    handedAt: HandedAt,
-    receiverName: NonEmptySafeText,
-  })
-  .openapi("HandoverBody");
+// POST /api/found-items/{id}/handover の本文。入力はない（受け渡しの時刻はサーバーの今の時刻、受け取った人の名前は入れない）。
+// 古い画面が handedAt・receiverName を送ってきても、400 にせずに捨てる（z.object は知らないキーを落とす）
+export const HandoverBody = z.object({}).openapi("HandoverBody");
 
 // 手で変えられるステータス。紐づけがないときの「受理」と「警察へ移管」「処分」の行き来だけで、
 // 照合中・受け渡し待ち・解決済みには、紐づけ・受け取り方法・受け渡しの API でしか変わらない

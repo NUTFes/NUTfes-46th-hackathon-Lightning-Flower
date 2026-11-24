@@ -1,10 +1,10 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { foundItems, handovers, lostReports } from "@/db/schema";
 import { requireAdmin } from "@/lib/api/auth";
 import { conflict, notFound } from "@/lib/api/errors";
 import { apiHandler } from "@/lib/api/handler";
-import { parseBody, parseParams } from "@/lib/api/parse";
+import { parseOptionalBody, parseParams } from "@/lib/api/parse";
 import { notFoundOrConflict } from "@/lib/api/transition";
 import {
   activeFoundItemById,
@@ -26,7 +26,8 @@ export const POST = apiHandler(
   async (request, ctx: RouteContext<"/api/found-items/[id]/handover">) => {
     const staff = await requireAdmin(request);
     const { id } = parseParams(await ctx.params, FoundItemIdParams);
-    const { handedAt, receiverName } = await parseBody(request, HandoverBody);
+    // 入力はない（古い画面が送ってくる handedAt・receiverName は捨てる）
+    await parseOptionalBody(request, HandoverBody);
 
     const row = await getDb().transaction(async (tx) => {
       // 申請 → 拾得物の順にロックする（有効な紐づけがあれば、申請の行を先にロックして確かめ直す）
@@ -76,8 +77,9 @@ export const POST = apiHandler(
       await tx.insert(handovers).values({
         foundItemId: id,
         lostReportId,
-        handedAt: new Date(handedAt),
-        receiverName,
+        // 受け渡しの時刻は、ボタンを押した時刻（ほかの状態を変える API と同じく DB の now()）。受け取った人の名前は入れない
+        handedAt: sql`now()`,
+        receiverName: null,
         recordedByEmail: staff.email,
       });
 
