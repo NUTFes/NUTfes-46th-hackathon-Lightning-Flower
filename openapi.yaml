@@ -1135,7 +1135,9 @@ paths:
       summary: 拾得物の編集（member は自分の登録だけ / admin）
       description: 写真は keepPhotoIds（残す写真の ID）の順に並べ、そのあとに
         photos（新しく足す写真）を続ける。keepPhotoIds にない写真は外す。photos
-        だけを送ったら丸ごと置き換え、どちらも送らなければ写真は変えない。この拾得物にない写真の ID は 400。ステータス変更はしない
+        だけを送ったら丸ごと置き換え、どちらも送らなければ写真は変えない。この拾得物にない写真の ID と、Storage にファイルがない
+        photos は 400。外した写真のファイルは、保存したあとで、ほかの写真の行が使っていなければ Storage
+        から消す（消せなくても保存は成功）。ステータス変更はしない
       parameters:
         - schema:
             type: string

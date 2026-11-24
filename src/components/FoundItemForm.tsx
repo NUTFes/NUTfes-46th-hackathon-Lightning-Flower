@@ -80,8 +80,7 @@ export function FoundItemForm({
   const [submitted, setSubmitted] = useState(false);
   const [pending, startTransition] = useTransition();
   // 上げ終わった写真。保存に失敗して送り直すときに、同じ写真をもう一度上げないように使い回す
-  // 保存しなかったときに Storage に残る写真は、A07 でまとめて消す（#64）。
-  // TODO(#64): 編集で外した写真のファイルは、PATCH がその場で消すようにする
+  // 外した写真のファイルは PATCH が消し、保存しなかったときに残る写真は A07 でまとめて消す（#64）
   const uploadedRef = useRef(new Map<File, FoundItemPhotoInput>());
   const busy = pending || uploading || submitted;
 

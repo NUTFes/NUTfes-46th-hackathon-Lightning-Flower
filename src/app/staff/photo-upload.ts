@@ -1,6 +1,9 @@
-import type { ActionResult } from "@/lib/action-result";
+import type { ActionFailure, ActionResult } from "@/lib/action-result";
 import type { FoundItemPhotoInput } from "@/lib/schemas/found-item";
-import type { PhotoUploadUrls } from "@/lib/schemas/photo";
+import {
+  PHOTO_FILE_MISSING_MESSAGE,
+  type PhotoUploadUrls,
+} from "@/lib/schemas/photo";
 import { errorMessageOf, fetchApi, FetchApiError } from "./fetch-api";
 
 // 拾得物の写真を、スマホで縮小してから Storage に上げる（POST /api/photos/upload-urls #17）。
@@ -109,4 +112,22 @@ export async function uploadPhoto(
   } catch (error) {
     return { ok: false, error: errorMessageOf(error) };
   }
+}
+
+// 拾得物の登録（POST）・編集（PATCH）に失敗したときの、FoundItemForm に返す失敗。
+// 写真のファイルがない（使われていない写真をまとめて消したあと）400 は写真の欄のエラーにする。
+// FoundItemForm は写真の欄のエラーで上げ済みの写真の使い回しをやめるので、押し直すと上げ直して送る
+export function foundItemSaveFailureOf(error: unknown): ActionFailure {
+  if (
+    error instanceof FetchApiError &&
+    error.status === 400 &&
+    error.message === PHOTO_FILE_MISSING_MESSAGE
+  ) {
+    return {
+      ok: false,
+      error: PHOTO_FILE_MISSING_MESSAGE,
+      fieldErrors: { photos: PHOTO_FILE_MISSING_MESSAGE },
+    };
+  }
+  return { ok: false, error: errorMessageOf(error) };
 }

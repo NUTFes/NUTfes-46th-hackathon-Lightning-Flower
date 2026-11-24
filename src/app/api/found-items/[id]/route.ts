@@ -17,8 +17,10 @@ import {
   FoundItemIdParams,
   PatchFoundItemBody,
 } from "@/lib/schemas/found-item";
+import { PHOTO_FILE_MISSING_MESSAGE } from "@/lib/schemas/photo";
 import { photoPathsOf, toFoundItem } from "@/lib/serializers/found-item";
-import { signPhotoUrls } from "@/lib/storage/photos";
+import { removePhotoFilesIfUnused } from "@/lib/storage/photo-cleanup";
+import { findMissingPhotoFiles, signPhotoUrls } from "@/lib/storage/photos";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -81,6 +83,13 @@ export const PATCH = apiHandler(async (request, ctx: RouteContext) => {
     }
   }
 
+  // 新しく付ける写真のファイルが Storage にあるか（トランザクションの外で、Storage に問い合わせる）。
+  // 使われていない写真をまとめて消したあとに、画面に残っていた古いパスで保存させない
+  const newPaths = (body.photos ?? []).flatMap((p) => [p.path, p.thumbPath]);
+  if ((await findMissingPhotoFiles(newPaths)).length > 0) {
+    throw badRequest(PHOTO_FILE_MISSING_MESSAGE);
+  }
+
   const updateValues: Partial<typeof foundItems.$inferInsert> = {};
   if (body.categoryId !== undefined) updateValues.categoryId = body.categoryId;
   if (body.color !== undefined) updateValues.color = body.color;
@@ -90,7 +99,7 @@ export const PATCH = apiHandler(async (request, ctx: RouteContext) => {
   if (body.isValuable !== undefined) updateValues.isValuable = body.isValuable;
   if (body.memo !== undefined) updateValues.memo = body.memo;
 
-  await db.transaction(async (tx) => {
+  const removedPhotos = await db.transaction(async (tx) => {
     if (Object.keys(updateValues).length > 0) {
       await tx
         .update(foundItems)
@@ -100,14 +109,23 @@ export const PATCH = apiHandler(async (request, ctx: RouteContext) => {
 
     // keepPhotoIds と photos のどちらも送らなければ、写真は変えない
     if (body.keepPhotoIds !== undefined || body.photos !== undefined) {
-      // TODO(#64): 返ってくる外した写真のファイルを、コミットしたあとに Storage から消す
-      await replaceFoundItemPhotos(
+      return replaceFoundItemPhotos(
         tx,
         id,
         body.keepPhotoIds ?? [],
         body.photos ?? [],
       );
     }
+    return [];
+  });
+
+  // 外した写真のファイルは、コミットしたあとに Storage から消す。同じファイルをほかの行が使っていることが
+  // あるので、消す直前にどの行も使っていないことを確かめ直す（removePhotoFilesIfUnused）。
+  // 消すのに失敗しても保存は済んでいるので、ログだけ残して成功にする（残ったファイルは A07 でまとめて消える）
+  await removePhotoFilesIfUnused(
+    removedPhotos.flatMap((photo) => [photo.path, photo.thumbPath]),
+  ).catch((error: unknown) => {
+    console.error("外した写真のファイルを Storage から消せませんでした", error);
   });
 
   const updated = await findActiveFoundItem(id);
