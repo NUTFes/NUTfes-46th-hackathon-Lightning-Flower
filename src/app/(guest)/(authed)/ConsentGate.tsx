@@ -1,9 +1,10 @@
 "use client";
 
-import { Button, Spinner, Stack, Text } from "@chakra-ui/react";
+import { Box, Button, Spinner, Stack, Text } from "@chakra-ui/react";
 import NextLink from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
+import { AppHeader } from "@/components/AppHeader";
 import { Checkbox } from "@/components/Checkbox";
 import styles from "@/components/Form.module.css";
 import type { Me } from "@/lib/schemas/me";
@@ -52,7 +53,15 @@ export function ConsentGate({ children }: { children: ReactNode }) {
       </Text>
     );
   }
-  return <ConsentForm onConsented={() => setState("consented")} />;
+  return (
+    <>
+      {/* ヘッダーは画面の端まで広げる（レイアウトの Container の px="4" を打ち消す。ほかの guest の画面と同じ） */}
+      <Box mx="-4">
+        <AppHeader title="個人情報の取り扱い" />
+      </Box>
+      <ConsentForm onConsented={() => setState("consented")} />
+    </>
+  );
 }
 
 function ConsentForm({ onConsented }: { onConsented: () => void }) {
