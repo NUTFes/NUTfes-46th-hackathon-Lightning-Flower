@@ -1,7 +1,13 @@
 "use client";
 
 import { Button } from "@chakra-ui/react";
-import { type SubmitEvent, useId, useState, useTransition } from "react";
+import {
+  type ReactNode,
+  type SubmitEvent,
+  useId,
+  useState,
+  useTransition,
+} from "react";
 import { ITEM_COLORS } from "@/db/enums";
 import type { ActionResult } from "@/lib/action-result";
 import {
@@ -29,6 +35,9 @@ export function LostReportForm({
   defaultValues,
   action,
   submitLabel,
+  notice,
+  onCancel,
+  cancelLabel = "やめる",
 }: {
   mode: "create" | "edit";
   // GET /api/categories と同じもの（サーバーで取って渡す）
@@ -36,6 +45,11 @@ export function LostReportForm({
   defaultValues?: Partial<LostReport>;
   action: (input: LostReportInput) => Promise<ActionResult<{ id: string }>>;
   submitLabel: string;
+  // 送るボタンの上に出す注意書き
+  notice?: ReactNode;
+  // 渡すと、送るボタンの下に「やめる」ボタンを出す（編集を閉じるときなど）
+  onCancel?: () => void;
+  cancelLabel?: string;
 }) {
   const [categoryId, setCategoryId] = useState<number | "">(
     defaultValues?.category?.id ?? "",
@@ -87,7 +101,7 @@ export function LostReportForm({
   return (
     <form onSubmit={submit} className={styles.form} noValidate>
       <CategorySelect
-        label="なくしたもの"
+        label="カテゴリ"
         categories={categories}
         value={categoryId}
         onChange={setCategoryId}
@@ -124,20 +138,6 @@ export function LostReportForm({
       />
 
       <Field
-        label="ブランド名（任意）"
-        disabled={pending}
-        invalid={!!fieldErrors.brand}
-        errorText={fieldErrors.brand}
-        control={{
-          name: "brand",
-          value: brand,
-          onChange: (event) => setBrand(event.currentTarget.value),
-          placeholder: "例：PORTER",
-          autoComplete: "off",
-        }}
-      />
-
-      <Field
         label="なくした場所"
         required
         disabled={pending}
@@ -149,7 +149,7 @@ export function LostReportForm({
           value: lostPlace,
           onChange: (event) => setLostPlace(event.currentTarget.value),
           list: placeListId,
-          placeholder: "例：模擬店エリア",
+          placeholder: "例：屋外ステージ周辺",
           autoComplete: "off",
         }}
       />
@@ -160,7 +160,7 @@ export function LostReportForm({
       </datalist>
 
       <DateTimeField
-        label="なくした時刻（だいたいで構いません）"
+        label="なくした日時（おおよそ）"
         name="lostAt"
         required
         disabled={pending}
@@ -171,8 +171,22 @@ export function LostReportForm({
       />
 
       <Field
+        label="ブランド（任意）"
+        disabled={pending}
+        invalid={!!fieldErrors.brand}
+        errorText={fieldErrors.brand}
+        control={{
+          name: "brand",
+          value: brand,
+          onChange: (event) => setBrand(event.currentTarget.value),
+          placeholder: "例：SONY",
+          autoComplete: "off",
+        }}
+      />
+
+      <Field
         kind="textarea"
-        label="特徴・メモ（任意）"
+        label="備考（任意）"
         disabled={pending}
         invalid={!!fieldErrors.note}
         errorText={fieldErrors.note}
@@ -180,8 +194,7 @@ export function LostReportForm({
           name: "note",
           value: note,
           onChange: (event) => setNote(event.currentTarget.value),
-          placeholder:
-            "例：青いキーホルダーが付いている、中に学生証が入っている",
+          placeholder: "例：ケースに青いシールが貼ってあります",
         }}
       />
 
@@ -197,6 +210,7 @@ export function LostReportForm({
       )}
 
       <div className={styles.actions}>
+        {notice != null && <p className={styles.hint}>{notice}</p>}
         <Button
           type="submit"
           colorPalette="blue"
@@ -205,6 +219,17 @@ export function LostReportForm({
         >
           {submitLabel}
         </Button>
+        {onCancel && (
+          <Button
+            type="button"
+            variant="outline"
+            className={styles.submit}
+            disabled={pending}
+            onClick={onCancel}
+          >
+            {cancelLabel}
+          </Button>
+        )}
       </div>
     </form>
   );
