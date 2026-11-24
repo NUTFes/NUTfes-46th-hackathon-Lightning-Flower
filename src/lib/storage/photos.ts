@@ -122,3 +122,19 @@ export async function removePhotoFiles(paths: string[]): Promise<number> {
   }
   return removed;
 }
+
+// paths のうち、Storage にファイルがないもの。拾得物に付ける前に、上げたファイルがあるかを確かめる
+// （使われていない写真をまとめて消したあとに、画面に残っていた古いパスで保存させないため）。
+// Storage が「ない」以外のエラーを返したら投げる
+export async function findMissingPhotoFiles(
+  paths: string[],
+): Promise<string[]> {
+  const unique = [...new Set(paths)];
+  if (unique.length === 0) return [];
+
+  const bucket = createSupabaseAdminClient().storage.from(PHOTO_BUCKET);
+  const exists = await Promise.all(
+    unique.map(async (path) => (await bucket.exists(path)).data),
+  );
+  return unique.filter((_, index) => !exists[index]);
+}

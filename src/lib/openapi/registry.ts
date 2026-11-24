@@ -210,7 +210,7 @@ registry.registerPath({
   path: "/api/found-items",
   summary: "拾得物の登録（member / admin）",
   description:
-    "拾得物を 1 件登録する。photos は原則必須だが、「証明書・カード・定期券類」のみ空配列可",
+    "拾得物を 1 件登録する。photos は原則必須だが、「証明書・カード・定期券類」のみ空配列可。photos のファイル（path・thumbPath）が Storage になければ 400（使われていない写真をまとめて消したあとの、古いパス）",
   request: {
     body: {
       required: true,

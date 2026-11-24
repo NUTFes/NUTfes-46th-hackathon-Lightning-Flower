@@ -24,7 +24,7 @@ export function PhotoCleanupSection({
     setNotice(
       deleted === 0
         ? "消すファイルはありませんでした"
-        : `${numberFormat.format(deleted)} 件のファイルを消しました`,
+        : `${numberFormat.format(deleted)} 件のファイル（写真 1 枚につき、元の画像とサムネイルの 2 件）を消しました`,
     );
     return { ok: true };
   }

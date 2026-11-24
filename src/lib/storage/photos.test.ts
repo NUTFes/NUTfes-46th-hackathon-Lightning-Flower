@@ -1,10 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { listPhotoFiles, removePhotoFiles } from "./photos";
+import {
+  findMissingPhotoFiles,
+  listPhotoFiles,
+  removePhotoFiles,
+} from "./photos";
 
 // Storage は mock にする。list はページの中身を、remove は渡したパスを記録する
 const list = vi.hoisted(() => vi.fn());
 const remove = vi.hoisted(() => vi.fn());
-const from = vi.hoisted(() => vi.fn(() => ({ list, remove })));
+const exists = vi.hoisted(() => vi.fn());
+const from = vi.hoisted(() => vi.fn(() => ({ list, remove, exists })));
 vi.mock("@/lib/supabase/admin", () => ({
   createSupabaseAdminClient: () => ({ storage: { from } }),
 }));
@@ -23,6 +28,7 @@ const file = (name: string, createdAt = "2026-11-20T00:00:00Z") => ({
 beforeEach(() => {
   list.mockReset();
   remove.mockReset();
+  exists.mockReset();
   from.mockClear();
 });
 
@@ -117,5 +123,36 @@ describe("removePhotoFiles", () => {
   it("Storage がエラーを返したら投げる", async () => {
     remove.mockResolvedValueOnce({ data: null, error: new Error("down") });
     await expect(removePhotoFiles(["found/x"])).rejects.toThrow("down");
+  });
+});
+
+describe("findMissingPhotoFiles", () => {
+  it("Storage にないファイルのパスだけを返す（重なったパスは 1 回だけ問い合わせる）", async () => {
+    exists.mockImplementation(async (path: string) => ({
+      data: path !== "found/b_thumb",
+      error: null,
+    }));
+    expect(
+      await findMissingPhotoFiles([
+        "found/a",
+        "found/a_thumb",
+        "found/b",
+        "found/b_thumb",
+        "found/a",
+      ]),
+    ).toEqual(["found/b_thumb"]);
+    expect(exists).toHaveBeenCalledTimes(4);
+  });
+
+  it("空なら Storage を呼ばない", async () => {
+    expect(await findMissingPhotoFiles([])).toEqual([]);
+    expect(exists).not.toHaveBeenCalled();
+  });
+
+  it("Storage が「ない」以外のエラーで投げたら、そのまま投げる", async () => {
+    exists.mockRejectedValueOnce(new Error("InvalidJWT"));
+    await expect(findMissingPhotoFiles(["found/a"])).rejects.toThrow(
+      "InvalidJWT",
+    );
   });
 });

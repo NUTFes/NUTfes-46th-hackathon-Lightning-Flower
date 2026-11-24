@@ -65,7 +65,10 @@ export async function removePhotoFilesIfUnused(
 
 // どの拾得物にも使われていない写真のファイルを、Storage からまとめて消す（期間終了処理 A07）。
 // 消したファイルの数（元の画像とサムネイルを別に数える）を返す。
-// 画面が 1 日以上前に上げた写真を送り直して登録したとき、確かめてから消すまでのあいだだと消えることがある
+// 注意：PATCH /api/found-items/{id} は、まだ送られたパスのファイルが Storage にあるかを見ない
+// （POST は findMissingPhotoFiles で確かめる）。そのため、消したあとに画面に残っていた古いパス
+// （1 日以上前に開いた M04 で、ほかの人が外した写真）で保存すると、ないファイルを指す行ができる
+// （画面では、その写真が出ないだけでエラーにならない）。PATCH で外した写真をその場で消すのと一緒に足す
 export async function removeUnusedPhotoFiles(
   now: Date = new Date(),
 ): Promise<number> {
