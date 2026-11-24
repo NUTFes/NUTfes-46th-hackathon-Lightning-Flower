@@ -27,14 +27,18 @@ const columns: DataTableColumn<FoundItem>[] = [
     width: "4.5rem",
     render: (item) => {
       const photo = item.photos[0];
-      return photo ? (
+      if (!photo) return <span className={styles.noThumb}>なし</span>;
+      // 署名付き URL を作れなかった写真（Storage にファイルがないなど）は URL が空になる。
+      // src="" の img を出すと壊れた画像になるので、文字で出す
+      const src = photo.thumbUrl || photo.url;
+      return src ? (
         <Image
-          src={photo.thumbUrl || photo.url}
+          src={src}
           alt={`${item.displayNumber} の写真`}
           className={styles.thumb}
         />
       ) : (
-        <span className={styles.noThumb}>なし</span>
+        <span className={styles.noThumb}>表示できません</span>
       );
     },
   },
