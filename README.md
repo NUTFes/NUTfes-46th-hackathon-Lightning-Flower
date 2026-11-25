@@ -9,6 +9,10 @@
 - API の仕様：zod で入出力を書き、`openapi.yaml` を出力する
 - 本番：Vercel。member / admin の画面は Cloudflare Access の内側に置く
 
+## 紹介動画
+
+[![オトシルの紹介動画](https://img.youtube.com/vi/FCTlfJRN_p0/maxresdefault.jpg)](https://www.youtube.com/watch?v=FCTlfJRN_p0)
+
 ## 必要なもの
 
 macOS と Windows 11（WSL2）のどちらでも、同じ手順（`make`）で動く。
